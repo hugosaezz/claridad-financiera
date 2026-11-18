@@ -28,6 +28,7 @@ jobs:
 
           # 1. Compile Swift WKWebView iOS executable for ARM64 iOS 15.0+
           xcrun -sdk iphoneos swiftc \
+            -parse-as-library \
             -target arm64-apple-ios15.0 \
             -sdk "$SDK_PATH" \
             -O \
