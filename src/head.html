@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Claridad"/>
+  <meta name="theme-color" content="#3525cd"/>
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png"/>
+  <link rel="manifest" href="manifest.json"/>
+  <title>Claridad Financiera — Control Mensual &amp; Deudas</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Outlined (Stitch Design System) -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
+  <!-- Supabase JS v2 & Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Tailwind CSS with Stitch "Claridad Financiera" Tokens -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-error": "#ffffff",
+            "surface-container-highest": "var(--surface-container-highest)",
+            "secondary": "var(--secondary)",
+            "surface-container-lowest": "var(--surface-container-lowest)",
+            "primary-fixed-dim": "#c3c0ff",
+            "on-secondary-container": "#00714e",
+            "inverse-surface": "#283044",
+            "secondary-container": "#82f5c1",
+            "error-container": "#ffdad6",
+            "on-tertiary-fixed": "#40000c",
+            "tertiary-fixed": "#ffdada",
+            "surface": "var(--surface)",
+            "inverse-primary": "#c3c0ff",
+            "background": "var(--background)",
+            "on-error-container": "#93000a",
+            "on-surface": "var(--on-surface)",
+            "inverse-on-surface": "#eef0ff",
+            "outline-variant": "var(--outline-variant)",
+            "surface-tint": "#4d44e3",
+            "on-primary": "#ffffff",
+            "secondary-fixed": "#85f8c4",
+            "surface-dim": "#d2d9f4",
+            "on-surface-variant": "var(--on-surface-variant)",
+            "tertiary": "var(--tertiary)",
+            "on-primary-fixed": "#0f0069",
+            "tertiary-fixed-dim": "#ffb3b6",
+            "outline": "var(--outline)",
+            "on-secondary-fixed": "#002114",
+            "on-tertiary-fixed-variant": "#920028",
+            "surface-container-low": "var(--surface-container-low)",
+            "primary-fixed": "#e2dfff",
+            "primary": "var(--primary)",
+            "primary-container": "var(--primary-container)",
+            "on-tertiary-container": "#ffd0d2",
+            "on-primary-fixed-variant": "#3323cc",
+            "tertiary-container": "#c20038",
+            "secondary-fixed-dim": "#68dba9",
+            "surface-bright": "var(--surface-bright)",
+            "on-secondary": "#ffffff",
+            "surface-container": "var(--surface-container)",
+            "on-tertiary": "#ffffff",
+            "on-background": "var(--on-background)",
+            "on-secondary-fixed-variant": "#005137",
+            "surface-variant": "#dae2fd",
+            "surface-container-high": "var(--surface-container-high)",
+            "error": "#ba1a1a",
+            "on-primary-container": "#dad7ff"
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "md": "0.75rem",
+            "lg": "1rem",
+            "xl": "1.25rem",
+            "2xl": "1.5rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "space-md": "1rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "margin-tablet": "1.5rem",
+            "margin-desktop": "2rem"
+          },
+          fontFamily: {
+            "sans": ["Plus Jakarta Sans", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+            "headline-sm": ["Plus Jakarta Sans", "sans-serif"],
+            "body-md": ["Plus Jakarta Sans", "sans-serif"],
+            "display-currency": ["Plus Jakarta Sans", "sans-serif"],
+            "body-sm": ["Plus Jakarta Sans", "sans-serif"],
+            "label-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "label-md": ["Plus Jakarta Sans", "sans-serif"],
+            "display-currency-mobile": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],
+            "body-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "label-sm": ["Plus Jakarta Sans", "sans-serif"]
+          },
+          fontSize: {
+            "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "display-currency": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "display-currency-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+            "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --surface: #faf8ff;
+      --surface-bright: #faf8ff;
+      --surface-container-lowest: #ffffff;
+      --surface-container-low: #f2f3ff;
+      --surface-container: #eaedff;
+      --surface-container-high: #e2e7ff;
+      --surface-container-highest: #dae2fd;
+      --on-surface: #131b2e;
+      --on-surface-variant: #464555;
+      --outline: #777587;
+      --outline-variant: #c7c4d8;
+      --primary: #3525cd;
+      --primary-container: #4f46e5;
+      --secondary: #006c4a;
+      --tertiary: #950029;
+      --background: #faf8ff;
+      --on-background: #131b2e;
+    }
+    html.dark {
+      --surface: #0b0f19;
+      --surface-bright: #111827;
+      --surface-container-lowest: #131b2e;
+      --surface-container-low: #19223a;
+      --surface-container: #1f2a47;
+      --surface-container-high: #263354;
+      --surface-container-highest: #2e3d63;
+      --on-surface: #eef0ff;
+      --on-surface-variant: #a6adce;
+      --outline: #777e9e;
+      --outline-variant: #2c3654;
+      --primary: #6366f1;
+      --primary-container: #4f46e5;
+      --secondary: #10b981;
+      --tertiary: #fb7185;
+      --background: #0b0f19;
+      --on-background: #eef0ff;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--background);
+      color: var(--on-surface);
+      min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 550, 'GRAD' 0, 'opsz' 24;
+      user-select: none;
+    }
+    .material-symbols-outlined.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    .custom-scroll {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.18s ease-out forwards;
+    }
+    .bento-card {
+      background-color: var(--surface-container-lowest);
+      border: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
+      box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(79, 70, 229, 0.03);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .bento-card:hover {
+      border-color: color-mix(in srgb, var(--primary) 35%, var(--outline-variant));
+    }
+    .hero-indigo {
+      background: linear-gradient(135deg, #4f46e5 0%, #3525cd 60%, #2618a8 100%);
+      box-shadow: 0 10px 28px -6px rgba(79, 70, 229, 0.38), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+    }
+    .active-scale:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>

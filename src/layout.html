@@ -1,0 +1,252 @@
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md pb-24 selection:bg-primary/20">
+
+  <!-- TOP APP BAR (Stitch Shared Component Anchor) -->
+  <header class="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant/40 shadow-xs transition-all duration-150">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
+      <!-- Left: Brand Logo, User Profile & Greeting -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <img src="assets/logo.svg" alt="Claridad Financiera Logo" onclick="switchMainView('inicio')" class="w-10 h-10 rounded-xl shadow-xs cursor-pointer flex-shrink-0 hover:scale-105 transition-transform"/>
+        <button onclick="openProfileOrLogin()" class="relative cursor-pointer group focus:outline-none flex-shrink-0" title="Cambiar de usuario o gestionar cuenta">
+          <div id="header-avatar" class="w-9 h-9 rounded-full bg-surface-container-high text-primary font-extrabold text-xs flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all">
+            H
+          </div>
+          <span id="cloud-status-dot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-secondary rounded-full ring-2 ring-surface" title="Sincronizado con Supabase"></span>
+        </button>
+        <div class="flex flex-col min-w-0 cursor-pointer" onclick="openProfileOrLogin()">
+          <div class="flex items-center gap-1.5">
+            <span id="header-section-title" class="font-headline-sm text-[16px] sm:text-[17px] font-extrabold text-on-surface leading-tight tracking-tight truncate">Control Mensual</span>
+            <span id="header-role-badge" class="hidden text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">Admin</span>
+          </div>
+          <span id="header-greeting" class="font-label-sm text-[11px] text-on-surface-variant font-semibold truncate">Hola, Hugo 👋 • Cambiar usuario</span>
+        </div>
+      </div>
+
+      <!-- Center: Quick Mode Switcher Pill (Control Mensual vs Deudas P2P) -->
+      <div class="hidden sm:flex items-center bg-surface-container p-1 rounded-xl border border-outline-variant/30 gap-1">
+        <button onclick="switchMainView('inicio')" id="top-pill-mensual" class="px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+          Control Mensual
+        </button>
+        <button onclick="switchMainView('cuentas')" id="top-pill-deudas" class="px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+          Deudas &amp; Grupos
+        </button>
+      </div>
+
+      <!-- Right: iOS .IPA Download, User Switcher, Theme, Notifications & Quick New Action -->
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button onclick="openIOSDownloadModal()" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold transition active-scale" title="Descargar aplicación en iPhone (.IPA / iOS)">
+          <span class="material-symbols-outlined text-[17px]">phone_iphone</span>
+          <span class="hidden lg:inline">iPhone .IPA</span>
+        </button>
+
+        <button onclick="openProfileOrLogin()" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/30 text-xs font-bold text-on-surface transition active-scale" title="Cambiar de usuario o crear cuenta">
+          <span class="material-symbols-outlined text-[17px] text-primary">switch_account</span>
+          <span id="header-user-pill">Hugo</span>
+        </button>
+
+        <button onclick="toggleTheme()" aria-label="Alternar tema claro/oscuro" class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Modo oscuro / claro">
+          <span id="theme-icon" class="material-symbols-outlined text-[21px]">dark_mode</span>
+        </button>
+
+        <button onclick="toggleNotificationsDrawer()" aria-label="Notificaciones y alertas" class="relative p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Pagos pendientes y alertas">
+          <span class="material-symbols-outlined text-[22px]">notifications</span>
+          <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-surface">0</span>
+        </button>
+
+        <button onclick="openQuickActionSheet()" id="btn-quick-new" class="flex items-center gap-1.5 bg-primary-container text-on-primary px-3.5 py-2 rounded-xl font-label-lg text-label-lg shadow-sm hover:bg-primary transition-all active-scale">
+          <span class="material-symbols-outlined text-[19px]">add_circle</span>
+          <span class="hidden sm:inline font-bold">Nuevo</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- NOTIFICATIONS & PENDING APPROVALS DRAWER -->
+  <div id="notifications-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex justify-end">
+    <div class="bg-surface-container-lowest w-full max-w-md h-full shadow-2xl border-l border-outline-variant/30 flex flex-col justify-between p-5 overflow-y-auto animate-fade-in">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">notifications_active</span>
+            <h3 class="font-headline-sm text-headline-sm font-bold text-on-surface">Centro de Avisos</h3>
+          </div>
+          <button onclick="toggleNotificationsDrawer()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div id="notifications-content" class="flex flex-col gap-3"></div>
+      </div>
+      <button onclick="toggleNotificationsDrawer()" class="mt-4 w-full py-2.5 rounded-xl bg-surface-container text-on-surface font-bold text-sm hover:bg-surface-container-high transition">
+        Cerrar panel
+      </button>
+    </div>
+  </div>
+
+  <!-- QUICK ACTION BOTTOM SHEET MODAL (Stitch Contextual Task Layer) -->
+  <div id="quick-action-sheet" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl border border-outline-variant/30 flex flex-col gap-3.5 animate-slide-up">
+      <div class="flex justify-between items-center pb-2 border-b border-outline-variant/25">
+        <div>
+          <h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">Registrar nueva operación</h3>
+          <p class="font-body-sm text-xs text-on-surface-variant">En tu cuenta personal o en el apartado de deudas</p>
+        </div>
+        <button onclick="closeQuickActionSheet()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-2.5">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-primary px-1">Control Mensual (Mi Bolsillo)</div>
+        <!-- 1. Gasto personal -->
+        <button onclick="closeQuickActionSheet(); openTxModal('exp')" class="flex items-center justify-between p-3.5 rounded-xl border border-outline-variant/50 bg-surface-container-low hover:bg-surface-container transition-all text-left active-scale">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined">receipt_long</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-label-lg text-on-surface font-bold">Gasto personal mensual</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Supermercado, restaurante, factura, voz o #tag</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-outline">chevron_right</span>
+        </button>
+
+        <!-- 2. Ingreso personal -->
+        <button onclick="closeQuickActionSheet(); openTxModal('inc')" class="flex items-center justify-between p-3.5 rounded-xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined">account_balance_wallet</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-label-lg text-on-surface font-bold">Ingreso extra o Nómina</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Freelance, Bizum recibido, ventas o regalo</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-outline">chevron_right</span>
+        </button>
+
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant px-1 pt-1">Apartado Deudas (Me deben / Debo / Grupos)</div>
+        <!-- 3. Me deben (P2P) -->
+        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owed')" class="flex items-center justify-between p-3.5 rounded-xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined">arrow_downward</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-label-lg text-on-surface font-bold">Me deben (Cobro pendiente)</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Préstamo o gasto anticipado a otra persona</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-outline">chevron_right</span>
+        </button>
+
+        <!-- 4. Debo (P2P) -->
+        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owe')" class="flex items-center justify-between p-3.5 rounded-xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left active-scale">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined">arrow_upward</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-label-lg text-on-surface font-bold">Debo (Pago pendiente)</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Deuda que tengo que saldar con alguien</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-outline">chevron_right</span>
+        </button>
+
+        <!-- 5. Cargo en Grupo Cloud (Supabase) -->
+        <button onclick="closeQuickActionSheet(); openGlobalChargeModal()" class="flex items-center justify-between p-3.5 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+              <span class="material-symbols-outlined">groups</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-label-lg text-on-surface font-bold">Repartir cargo en Grupo Cloud</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Dividir Spotify, Fantasy o gasto común en Supabase</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-outline">chevron_right</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CANVAS CONTAINER -->
+  <main class="w-full max-w-5xl mx-auto px-4 pt-4 flex flex-col gap-5">
+
+    <!-- DATE & PERIOD FILTER BAR (Shown on Monthly Control views: Mensual, Gastos, Analítica) -->
+    <section id="period-filter-bar" class="flex flex-wrap items-center justify-between gap-2 bento-card px-4 py-2.5 rounded-2xl">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">calendar_month</span>
+        <span id="period-label" class="font-headline-sm text-[16px] leading-[22px] font-extrabold text-on-surface capitalize">Noviembre 2026</span>
+        <span id="streak-pill" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300" title="Racha de días sin gastar">
+          🔥 0 días sin gastar
+        </span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30">
+          <button onclick="shiftMonth(-1)" aria-label="Mes anterior" class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <button onclick="resetToCurrentMonth()" id="btn-period-today" class="font-label-md text-xs text-primary px-2 py-0.5 rounded-md font-bold hover:bg-surface-container transition-colors">
+            Actual
+          </button>
+          <button onclick="shiftMonth(1)" aria-label="Mes siguiente" class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
+        </div>
+        <button onclick="cargarDatosSupabase(true)" class="p-2 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all active-scale" title="Sincronizar tu cuenta con Supabase Cloud">
+          <span id="sync-icon" class="material-symbols-outlined text-[18px]">sync</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- VIEW 1: CONTROL MENSUAL (Strictly Personal Monthly Finances — No P2P Debts mixed in) -->
+    <div id="view-inicio" class="flex flex-col gap-5 animate-fade-in"></div>
+
+    <!-- VIEW 2: MOVIMIENTOS DEL MES (Personal Expenses & Incomes Ledger) -->
+    <div id="view-gastos" class="hidden flex-col gap-5 animate-fade-in"></div>
+
+    <!-- VIEW 3: DEUDAS & GRUPOS (Dedicated Separate Section: Me deben, Debo, Grupos Cloud, Tricount) -->
+    <div id="view-cuentas" class="hidden flex-col gap-5 animate-fade-in"></div>
+
+    <!-- VIEW 4: ANALÍTICA, ASESOR & SIMULADOR -->
+    <div id="view-analitica" class="hidden flex-col gap-5 animate-fade-in"></div>
+
+    <!-- VIEW 5: PLANIFICACIÓN, OBJETIVOS, VIAJES & CUENTA -->
+    <div id="view-ajustes" class="hidden flex-col gap-5 animate-fade-in"></div>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION BAR (5 Tabs with Deudas clearly separated from Control Mensual) -->
+  <nav class="fixed bottom-0 left-0 w-full z-40 bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant/40 shadow-lg">
+    <div class="max-w-lg mx-auto flex justify-around items-center px-2 h-16">
+      <button onclick="switchMainView('inicio')" id="nav-inicio" class="nav-tab flex flex-col items-center justify-center text-primary font-bold gap-0.5 py-1 flex-1 transition-all active-scale">
+        <span class="material-symbols-outlined filled text-[22px]">account_balance_wallet</span>
+        <span class="font-label-sm text-[11px]">Mensual</span>
+      </button>
+      <button onclick="switchMainView('gastos')" id="nav-gastos" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale">
+        <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+        <span class="font-label-sm text-[11px]">Movimientos</span>
+      </button>
+      <button onclick="switchMainView('cuentas')" id="nav-cuentas" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale relative">
+        <span class="material-symbols-outlined text-[22px]">swap_horiz</span>
+        <span class="font-label-sm text-[11px]">Deudas</span>
+      </button>
+      <button onclick="switchMainView('analitica')" id="nav-analitica" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale">
+        <span class="material-symbols-outlined text-[22px]">insights</span>
+        <span class="font-label-sm text-[11px]">Analítica</span>
+      </button>
+      <button onclick="switchMainView('ajustes')" id="nav-ajustes" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale">
+        <span class="material-symbols-outlined text-[22px]">tune</span>
+        <span class="font-label-sm text-[11px]">Plan &amp; Cuenta</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- UNIVERSAL MODAL CONTAINER -->
+  <div id="universal-modal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div id="universal-modal-box" class="bg-surface-container-lowest w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl border border-outline-variant/30 max-h-[92dvh] overflow-y-auto animate-slide-up">
+    </div>
+  </div>

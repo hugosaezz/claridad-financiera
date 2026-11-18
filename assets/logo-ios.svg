@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Primary Indigo Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="52%" stop-color="#3525CD"/>
+      <stop offset="100%" stop-color="#1E1478"/>
+    </linearGradient>
+
+    <!-- Top-Left Ambient Glow -->
+    <radialGradient id="glowGrad" cx="22%" cy="18%" r="65%">
+      <stop offset="0%" stop-color="#818CF8" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#3525CD" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Emerald Financial Spark Gradient -->
+    <linearGradient id="emeraldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="50%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#6EE7B7"/>
+    </linearGradient>
+
+    <!-- White Glass Gradient for 'C' Monogram -->
+    <linearGradient id="glassWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#E0E7FF" stop-opacity="0.92"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#09062E" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas (Full bleed for iOS icon & rounded for web) -->
+  <rect width="1024" height="1024" rx="0" fill="url(#bgGrad)"/>
+  <rect width="1024" height="1024" rx="0" fill="url(#glowGrad)"/>
+
+  <!-- Subtle Swiss Grid / Financial Rings -->
+  <circle cx="512" cy="512" r="355" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="3"/>
+  <circle cx="512" cy="512" r="265" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="2" stroke-dasharray="12 12"/>
+
+  <!-- Main Geometric 'C' Wallet / Balance Arc -->
+  <g filter="url(#softShadow)">
+    <path d="M 676 318
+             A 252 252 0 1 0 676 706"
+          fill="none"
+          stroke="url(#glassWhite)"
+          stroke-width="112"
+          stroke-linecap="round"/>
+
+    <!-- Dynamic Ascending Emerald Arrow / Balance Bar inside the 'C' -->
+    <path d="M 445 568 L 548 465 L 615 532 L 772 375"
+          fill="none"
+          stroke="url(#emeraldGrad)"
+          stroke-width="76"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Arrowhead of Emerald Spark -->
+    <path d="M 658 365 L 782 365 L 782 489"
+          fill="none"
+          stroke="url(#emeraldGrad)"
+          stroke-width="76"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+  </g>
+
+  <!-- Accent Dot (P2P Balance Node) -->
+  <circle cx="384" cy="512" r="36" fill="#6EE7B7"/>
+</svg>
