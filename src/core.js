@@ -20,6 +20,10 @@
     let sbConnected = false;
     let hasDatosPersonalesColumn = false;
     let cloudSyncTimer = null;
+    let personalRealtimeChannel = null;
+    let isHydratingFromCloud = false;
+    let lastCloudSyncTime = null;
+    const PERSONAL_DB_TIPOS = ['gasto_personal', 'ingreso_personal', 'deuda_personal', 'config_usuario'];
 
     // ============================================================================
     // 2. PERSONAL FINANCE STATE & CATEGORIES (Per-User Isolated State)
@@ -94,6 +98,15 @@
     function fmtDay(ds) {
       const d = new Date(ds + 'T12:00:00');
       return isNaN(d) ? ds : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+    function fmtRelativeDateHeader(ds) {
+      const today = todayStr();
+      const yest = dstr(new Date(Date.now() - 864e5));
+      const d = new Date(ds + 'T12:00:00');
+      const dayMonth = isNaN(d) ? ds : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+      if (ds === today) return `HOY • ${dayMonth}`;
+      if (ds === yest) return `AYER • ${dayMonth}`;
+      return dayMonth;
     }
     function monthLabel(mk) {
       const p = String(mk || monthKey(todayStr())).split('-');
@@ -458,7 +471,7 @@
         if (r.autoCharge === false || !r.day) return;
         if (todayDay >= Number(r.day) && !recPaidThisMonth(r, curMk)) {
           const dayPadded = String(Math.min(Number(r.day), 28)).padStart(2, '0');
-          S.expenses.push({
+          const newExp = {
             id: uid(),
             amount: Math.round(Number(r.amount || 0) * 100) / 100,
             cat: r.cat || 'susc',
@@ -469,32 +482,38 @@
             refund: false,
             autoRecurringId: r.id,
             ts: Date.now()
-          });
+          };
+          S.expenses.push(newExp);
+          if (!isHydratingFromCloud && typeof dbUpsertPersonalExpense === 'function') {
+            dbUpsertPersonalExpense(newExp);
+          }
           added++;
         }
       });
 
       if (added > 0) {
-        saveLocalState(true);
+        saveLocalState(false);
         if (typeof showToast === 'function') {
           showToast(`🔄 ${added} suscripción(es) registrada(s) automáticamente ✓`);
         }
       }
     }
 
-    function saveLocalState(syncCloud = true) {
+    function saveLocalState(syncCloudConfig = false) {
       if (!S) return;
-      S.updatedAt = Date.now();
+      if (!isHydratingFromCloud) {
+        S.updatedAt = Date.now();
+      }
       const key = userStorageKey(loggedUserId);
       localStorage.setItem(key, JSON.stringify(S));
       if (Number(loggedUserId) === 2) {
         localStorage.setItem(LEGACY_LSKEY, JSON.stringify(S));
       }
-      if (syncCloud && loggedUserId) {
+      if (syncCloudConfig && loggedUserId && !isHydratingFromCloud) {
         clearTimeout(cloudSyncTimer);
         cloudSyncTimer = setTimeout(() => {
-          syncUserPersonalDataToCloud();
-        }, 450);
+          dbSaveUserConfig();
+        }, 250);
       }
     }
 
@@ -519,97 +538,468 @@
         loaded = blankState(0);
       }
 
+      isHydratingFromCloud = true;
       S = normalizeStateObject(loaded);
       localStorage.setItem(key, JSON.stringify(S));
-      checkAutoRecurringExpenses();
+      isHydratingFromCloud = false;
     }
 
-    // Cloud Sync of per-user personal state (`Control Mensual` + personal `Deudas`) in Supabase
-    async function loadUserPersonalDataFromCloud(uidNum) {
-      if (!supabaseClient || !uidNum) return;
+    // ============================================================================
+    // 6B. RELATIONAL SUPABASE DATABASE ENGINE FOR CONTROL MENSUAL (Per-User Rows)
+    // ============================================================================
+    // Every user's expenses, incomes, P2P debts, and config are stored as individual
+    // relational rows in `public.movimientos` with `grupo_id IS NULL` and `usuario_id = loggedUserId`.
+    // Supabase is ALWAYS the authoritative source of truth across browsers and the iOS .ipa app.
+
+    function safeParseMeta(str) {
+      if (!str) return {};
       try {
-        // 1. Check if `datos_personales` column exists on `usuarios`
-        const userRow = sbGlobalUsers.find(u => Number(u.id) === Number(uidNum));
-        if (userRow && userRow.datos_personales && typeof userRow.datos_personales === 'object' && Object.keys(userRow.datos_personales).length > 0) {
-          hasDatosPersonalesColumn = true;
-          const cloudState = userRow.datos_personales;
-          if (!S || (cloudState.updatedAt || 0) >= (S.updatedAt || 0) || (S.expenses.length === 0 && (cloudState.expenses || []).length > 0)) {
-            S = normalizeStateObject(cloudState);
-            localStorage.setItem(userStorageKey(uidNum), JSON.stringify(S));
-          }
-          return;
-        }
-
-        // 2. Fallback / Zero-Config table storage in `movimientos` (tipo = 'sync_bolsillo', grupo_id = null)
-        const { data: syncRows, error } = await supabaseClient
-          .from('movimientos')
-          .select('id, concepto, created_at')
-          .eq('usuario_id', uidNum)
-          .eq('tipo', 'sync_bolsillo')
-          .is('grupo_id', null)
-          .order('id', { ascending: false })
-          .limit(1);
-
-        if (!error && syncRows && syncRows.length > 0) {
-          const parsed = JSON.parse(syncRows[0].concepto || '{}');
-          if (parsed && typeof parsed === 'object') {
-            const localEmpty = (S.expenses || []).length === 0 && (S.debts || []).length === 0 && (S.incomes || []).length === 0;
-            if (localEmpty || (parsed.updatedAt || 0) >= (S.updatedAt || 0)) {
-              S = normalizeStateObject(parsed);
-              localStorage.setItem(userStorageKey(uidNum), JSON.stringify(S));
-            }
-          }
-        } else if ((S.expenses || []).length > 0 || (S.debts || []).length > 0) {
-          // First time syncing this user's local data up to Supabase
-          await syncUserPersonalDataToCloud();
-        }
+        const obj = JSON.parse(str);
+        return (obj && typeof obj === 'object') ? obj : {};
       } catch (e) {
-        console.warn("Cloud user state load warning:", e);
+        return {};
       }
     }
 
+    async function loadUserPersonalDataFromCloud(uidNum) {
+      if (!supabaseClient || !uidNum) return;
+      try {
+        isHydratingFromCloud = true;
+
+        const { data: rows, error } = await supabaseClient
+          .from('movimientos')
+          .select('*')
+          .eq('usuario_id', uidNum)
+          .is('grupo_id', null)
+          .order('id', { ascending: true });
+
+        if (error) throw error;
+        const allPersonalRows = rows || [];
+
+        const expRows = allPersonalRows.filter(r => r.tipo === 'gasto_personal');
+        const incRows = allPersonalRows.filter(r => r.tipo === 'ingreso_personal');
+        const debtRows = allPersonalRows.filter(r => r.tipo === 'deuda_personal');
+        const cfgRows = allPersonalRows.filter(r => r.tipo === 'config_usuario');
+        const legacyBlobRows = allPersonalRows.filter(r => r.tipo === 'sync_bolsillo');
+
+        // Start from a clean base state for this user and populate strictly from Supabase relational rows
+        let nextState = blankState(0);
+
+        // If user has a relational config row (`config_usuario`), hydrate budgets, salary, subscriptions, goals, trips, etc.
+        if (cfgRows.length > 0) {
+          const latestCfgRow = cfgRows[cfgRows.length - 1];
+          const cfgObj = safeParseMeta(latestCfgRow.concepto);
+          nextState = normalizeStateObject({
+            ...nextState,
+            ...cfgObj,
+            _configDbId: latestCfgRow.id,
+            expenses: [],
+            incomes: [],
+            debts: []
+          });
+          if (typeof latestCfgRow.monto === 'number' && latestCfgRow.monto > 0 && !(nextState.settings.salary > 0)) {
+            nextState.settings.salary = Number(latestCfgRow.monto);
+          }
+          // Clean duplicate config rows if any
+          if (cfgRows.length > 1) {
+            const oldCfgIds = cfgRows.slice(0, -1).map(r => r.id);
+            supabaseClient.from('movimientos').delete().in('id', oldCfgIds).then(() => {});
+          }
+        } else if (legacyBlobRows.length > 0) {
+          // Migrate legacy sync_bolsillo blob if present
+          const latestBlob = safeParseMeta(legacyBlobRows[legacyBlobRows.length - 1].concepto);
+          nextState = normalizeStateObject(latestBlob);
+        }
+
+        // Hydrate relational expenses (`gasto_personal`)
+        if (expRows.length > 0 || cfgRows.length > 0 || incRows.length > 0 || debtRows.length > 0) {
+          nextState.expenses = expRows.map(r => {
+            const meta = safeParseMeta(r.estado);
+            return {
+              id: meta.uid || ('db_' + r.id),
+              db_id: r.id,
+              amount: Math.round(Number(r.monto || 0) * 100) / 100,
+              cat: r.categoria || meta.cat || 'comida',
+              method: meta.method || 'tarjeta',
+              note: r.concepto || meta.note || '',
+              date: meta.date || (r.created_at ? r.created_at.slice(0, 10) : todayStr()),
+              tripId: meta.tripId || '',
+              refund: !!meta.refund,
+              autoRecurringId: meta.autoRecurringId || '',
+              ts: meta.ts || (r.created_at ? new Date(r.created_at).getTime() : Date.now())
+            };
+          });
+
+          // Hydrate relational incomes (`ingreso_personal`)
+          nextState.incomes = incRows.map(r => {
+            const meta = safeParseMeta(r.estado);
+            return {
+              id: meta.uid || ('db_' + r.id),
+              db_id: r.id,
+              amount: Math.round(Number(r.monto || 0) * 100) / 100,
+              cat: r.categoria || meta.cat || 'extra',
+              source: r.concepto || meta.source || 'Ingreso',
+              note: meta.note || '',
+              date: meta.date || (r.created_at ? r.created_at.slice(0, 10) : todayStr())
+            };
+          });
+
+          // Hydrate relational P2P personal debts (`deuda_personal`)
+          nextState.debts = debtRows.map(r => {
+            const meta = safeParseMeta(r.estado);
+            return {
+              id: meta.uid || ('db_' + r.id),
+              db_id: r.id,
+              person: r.concepto || meta.person || 'Contacto',
+              type: (r.categoria === 'owe' || meta.type === 'owe') ? 'owe' : 'owed',
+              amount: Math.round(Number(r.monto || 0) * 100) / 100,
+              initialAmount: Math.round(Number(meta.initialAmount ?? r.monto ?? 0) * 100) / 100,
+              note: meta.note || '',
+              due: meta.due || '',
+              settled: !!meta.settled,
+              log: Array.isArray(meta.log) ? meta.log : []
+            };
+          });
+        }
+
+        S = normalizeStateObject(nextState);
+        lastCloudSyncTime = new Date();
+        localStorage.setItem(userStorageKey(uidNum), JSON.stringify(S));
+        if (Number(uidNum) === 2) {
+          localStorage.setItem(LEGACY_LSKEY, JSON.stringify(S));
+        }
+
+        // Remove any legacy sync_bolsillo rows once migrated to relational rows
+        if (legacyBlobRows.length > 0) {
+          const oldIds = legacyBlobRows.map(r => r.id);
+          await supabaseClient.from('movimientos').delete().in('id', oldIds);
+          await syncUserPersonalDataToCloud();
+        }
+      } catch (e) {
+        console.warn("Cloud relational load warning:", e);
+      } finally {
+        isHydratingFromCloud = false;
+        checkAutoRecurringExpenses();
+      }
+    }
+
+    // Insert or update a single personal expense row in Supabase `movimientos`
+    async function dbUpsertPersonalExpense(exp) {
+      if (!supabaseClient || !loggedUserId || !exp) return null;
+      saveLocalState(false);
+      try {
+        const meta = JSON.stringify({
+          uid: exp.id,
+          date: exp.date || todayStr(),
+          method: exp.method || 'tarjeta',
+          tripId: exp.tripId || '',
+          refund: !!exp.refund,
+          autoRecurringId: exp.autoRecurringId || '',
+          ts: exp.ts || Date.now()
+        });
+        const rowPayload = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'gasto_personal',
+          monto: Math.round(Number(exp.amount || 0) * 100) / 100,
+          concepto: String(exp.note || '').trim(),
+          categoria: exp.cat || 'comida',
+          estado: meta,
+          grupo_id: null
+        };
+
+        if (exp.db_id) {
+          await supabaseClient.from('movimientos').update(rowPayload).eq('id', exp.db_id);
+        } else {
+          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (data && data.length > 0) {
+            exp.db_id = data[0].id;
+            saveLocalState(false);
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbUpsertPersonalExpense error:", e);
+      }
+      return exp;
+    }
+
+    async function dbDeletePersonalExpense(expId) {
+      if (!S) return;
+      const target = (S.expenses || []).find(e => e.id === expId);
+      S.expenses = (S.expenses || []).filter(e => e.id !== expId);
+      saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return;
+      try {
+        if (target && target.db_id) {
+          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+        } else {
+          const { data: rows } = await supabaseClient
+            .from('movimientos')
+            .select('id, estado')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'gasto_personal')
+            .is('grupo_id', null);
+          const match = (rows || []).find(r => safeParseMeta(r.estado).uid === expId);
+          if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbDeletePersonalExpense error:", e);
+      }
+    }
+
+    // Insert or update a single personal income row in Supabase `movimientos`
+    async function dbUpsertPersonalIncome(inc) {
+      if (!supabaseClient || !loggedUserId || !inc) return null;
+      saveLocalState(false);
+      try {
+        const meta = JSON.stringify({
+          uid: inc.id,
+          date: inc.date || todayStr(),
+          note: inc.note || '',
+          source: inc.source || ''
+        });
+        const rowPayload = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'ingreso_personal',
+          monto: Math.round(Number(inc.amount || 0) * 100) / 100,
+          concepto: String(inc.source || 'Ingreso').trim(),
+          categoria: inc.cat || 'extra',
+          estado: meta,
+          grupo_id: null
+        };
+
+        if (inc.db_id) {
+          await supabaseClient.from('movimientos').update(rowPayload).eq('id', inc.db_id);
+        } else {
+          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (data && data.length > 0) {
+            inc.db_id = data[0].id;
+            saveLocalState(false);
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbUpsertPersonalIncome error:", e);
+      }
+      return inc;
+    }
+
+    async function dbDeletePersonalIncome(incId) {
+      if (!S) return;
+      const target = (S.incomes || []).find(i => i.id === incId);
+      S.incomes = (S.incomes || []).filter(i => i.id !== incId);
+      saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return;
+      try {
+        if (target && target.db_id) {
+          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+        } else {
+          const { data: rows } = await supabaseClient
+            .from('movimientos')
+            .select('id, estado')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'ingreso_personal')
+            .is('grupo_id', null);
+          const match = (rows || []).find(r => safeParseMeta(r.estado).uid === incId);
+          if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbDeletePersonalIncome error:", e);
+      }
+    }
+
+    // Insert or update a single personal P2P debt row in Supabase `movimientos`
+    async function dbUpsertPersonalDebt(debt) {
+      if (!supabaseClient || !loggedUserId || !debt) return null;
+      saveLocalState(false);
+      try {
+        const meta = JSON.stringify({
+          uid: debt.id,
+          person: debt.person || 'Contacto',
+          type: debt.type || 'owed',
+          initialAmount: debt.initialAmount ?? debt.amount ?? 0,
+          note: debt.note || '',
+          due: debt.due || '',
+          settled: !!debt.settled,
+          log: Array.isArray(debt.log) ? debt.log : []
+        });
+        const rowPayload = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'deuda_personal',
+          monto: Math.round(Number(debt.amount || 0) * 100) / 100,
+          concepto: String(debt.person || 'Contacto').trim(),
+          categoria: debt.type === 'owe' ? 'owe' : 'owed',
+          estado: meta,
+          grupo_id: null
+        };
+
+        if (debt.db_id) {
+          await supabaseClient.from('movimientos').update(rowPayload).eq('id', debt.db_id);
+        } else {
+          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (data && data.length > 0) {
+            debt.db_id = data[0].id;
+            saveLocalState(false);
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbUpsertPersonalDebt error:", e);
+      }
+      return debt;
+    }
+
+    async function dbDeletePersonalDebt(debtId) {
+      if (!S) return;
+      const target = (S.debts || []).find(d => d.id === debtId);
+      S.debts = (S.debts || []).filter(d => d.id !== debtId);
+      saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return;
+      try {
+        if (target && target.db_id) {
+          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+        } else {
+          const { data: rows } = await supabaseClient
+            .from('movimientos')
+            .select('id, estado')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'deuda_personal')
+            .is('grupo_id', null);
+          const match = (rows || []).find(r => safeParseMeta(r.estado).uid === debtId);
+          if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbDeletePersonalDebt error:", e);
+      }
+    }
+
+    // Save user configuration (salary, budgets, rollover, recurring subscriptions, goals, trips, presets, rules)
+    async function dbSaveUserConfig() {
+      if (!supabaseClient || !loggedUserId || !S) return;
+      try {
+        const configPayload = {
+          budgets: S.budgets || {},
+          rollover: S.rollover || {},
+          carried: S.carried || {},
+          carriedMk: S.carriedMk || '',
+          recurring: S.recurring || [],
+          groups: S.groups || [],
+          trips: S.trips || [],
+          goals: S.goals || [],
+          quickPresets: S.quickPresets || DEFAULT_QUICK_PRESETS,
+          rules: S.rules || [],
+          streak: S.streak || { best: 0 },
+          customCats: S.customCats || [],
+          settings: S.settings || { salary: 0, salaryDay: 1, salaryAuto: false, dark: false },
+          isDemoSeeded: !!S.isDemoSeeded,
+          startMk: S.startMk || monthKey(todayStr()),
+          updatedAt: Date.now()
+        };
+
+        const rowData = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'config_usuario',
+          monto: Number(S.settings?.salary || 0),
+          concepto: JSON.stringify(configPayload),
+          categoria: 'Configuracion',
+          estado: 'activo',
+          grupo_id: null
+        };
+
+        if (S._configDbId) {
+          await supabaseClient.from('movimientos').update(rowData).eq('id', S._configDbId);
+        } else {
+          const { data: existing } = await supabaseClient
+            .from('movimientos')
+            .select('id')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'config_usuario')
+            .is('grupo_id', null)
+            .order('id', { ascending: false });
+
+          if (existing && existing.length > 0) {
+            S._configDbId = existing[0].id;
+            await supabaseClient.from('movimientos').update(rowData).eq('id', S._configDbId);
+          } else {
+            const { data: inserted } = await supabaseClient.from('movimientos').insert([rowData]).select('id');
+            if (inserted && inserted.length > 0) {
+              S._configDbId = inserted[0].id;
+            }
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbSaveUserConfig warning:", e);
+      }
+    }
+
+    // Full sync of all personal items & config to relational rows in Supabase (used on demo seed, JSON restore, or manual sync button)
     async function syncUserPersonalDataToCloud() {
       if (!supabaseClient || !loggedUserId || !S) return;
       try {
-        const serialized = JSON.stringify(S);
-
-        // If `datos_personales` column exists on `usuarios`, update it directly
-        if (hasDatosPersonalesColumn) {
-          await supabaseClient.from('usuarios').update({ datos_personales: S }).eq('id', loggedUserId);
+        await dbSaveUserConfig();
+        for (const e of (S.expenses || [])) {
+          await dbUpsertPersonalExpense(e);
         }
-
-        // Also persist in `movimientos` (tipo = 'sync_bolsillo', grupo_id = null) so it works immediately even without DDL
-        const { data: existing } = await supabaseClient
-          .from('movimientos')
-          .select('id')
-          .eq('usuario_id', loggedUserId)
-          .eq('tipo', 'sync_bolsillo')
-          .is('grupo_id', null)
-          .order('id', { ascending: false });
-
-        if (existing && existing.length > 0) {
-          await supabaseClient
-            .from('movimientos')
-            .update({ concepto: serialized, monto: S.settings?.salary || 0, estado: 'sync' })
-            .eq('id', existing[0].id);
-          // Clean up any older duplicate sync rows
-          if (existing.length > 1) {
-            const oldIds = existing.slice(1).map(r => r.id);
-            await supabaseClient.from('movimientos').delete().in('id', oldIds);
-          }
-        } else {
-          await supabaseClient.from('movimientos').insert([{
-            usuario_id: loggedUserId,
-            tipo: 'sync_bolsillo',
-            monto: S.settings?.salary || 0,
-            concepto: serialized,
-            estado: 'sync',
-            categoria: 'Sistema',
-            grupo_id: null
-          }]);
+        for (const i of (S.incomes || [])) {
+          await dbUpsertPersonalIncome(i);
         }
+        for (const d of (S.debts || [])) {
+          await dbUpsertPersonalDebt(d);
+        }
+        lastCloudSyncTime = new Date();
       } catch (e) {
-        console.warn("Cloud sync warning:", e);
+        console.warn("Full personal relational sync warning:", e);
+      }
+    }
+
+    // Delete ONLY the user's personal monthly data rows in Supabase (grupo_id IS NULL), never touching group debt rows!
+    async function dbClearAllPersonalMonthlyData(uidNum) {
+      const targetUid = Number(uidNum || loggedUserId || 2);
+      S = blankState(0);
+      saveLocalState(false);
+      if (!supabaseClient || !targetUid) return;
+      try {
+        await supabaseClient
+          .from('movimientos')
+          .delete()
+          .eq('usuario_id', targetUid)
+          .is('grupo_id', null)
+          .in('tipo', ['gasto_personal', 'ingreso_personal', 'deuda_personal', 'config_usuario', 'sync_bolsillo']);
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbClearAllPersonalMonthlyData error:", e);
+      }
+    }
+
+    // Subscribe to Supabase Realtime changes so any browser / iPhone app updates live
+    function setupSupabaseRealtimeSubscription() {
+      if (!supabaseClient || personalRealtimeChannel) return;
+      try {
+        personalRealtimeChannel = supabaseClient
+          .channel('claridad-live-db')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'movimientos' }, () => {
+            if (!isHydratingFromCloud) {
+              clearTimeout(window._rtRefreshTimer);
+              window._rtRefreshTimer = setTimeout(() => {
+                cargarDatosSupabase(false);
+              }, 350);
+            }
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'grupo_usuarios' }, () => {
+            if (!isHydratingFromCloud) {
+              clearTimeout(window._rtRefreshTimer);
+              window._rtRefreshTimer = setTimeout(() => {
+                cargarDatosSupabase(false);
+              }, 350);
+            }
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn("Realtime subscription notice:", e);
       }
     }
 
@@ -626,16 +1016,16 @@
 
         if (!error && queueRows && queueRows.length > 0) {
           let addedCount = 0;
-          queueRows.forEach(row => {
+          for (const row of queueRows) {
             const amt = parseAmount(row.monto);
-            if (!(amt > 0)) return;
+            if (!(amt > 0)) continue;
             const note = String(row.concepto || 'Apple Pay').trim().slice(0, 80);
             const dt = row.created_at ? row.created_at.slice(0, 10) : todayStr();
             let cat = applyRule(note) || String(row.categoria || '').toLowerCase();
             if (!allCats().some(c => c.id === cat)) {
               cat = (typeof guessCatFromMerchant === 'function') ? guessCatFromMerchant(note) : 'otros';
             }
-            S.expenses.push({
+            const newExp = {
               id: uid(),
               amount: Math.round(amt * 100) / 100,
               cat,
@@ -645,15 +1035,16 @@
               tripId: '',
               refund: false,
               ts: Date.now()
-            });
+            };
+            S.expenses.push(newExp);
+            await dbUpsertPersonalExpense(newExp);
             addedCount++;
-          });
+          }
 
           const qIds = queueRows.map(r => r.id);
           await supabaseClient.from('movimientos').delete().in('id', qIds);
           if (addedCount > 0) {
             saveLocalState(false);
-            await syncUserPersonalDataToCloud();
             showToast(` Pay: ${addedCount} pago(s) sumado(s) automáticamente ✓`);
           }
         }
@@ -793,6 +1184,7 @@
         }
 
         sbConnected = true;
+        setupSupabaseRealtimeSubscription();
         updateCloudHeaderUI();
         renderAllViews();
         if (sbUsuariosGrupo.length > 0) {

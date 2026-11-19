@@ -554,6 +554,10 @@
     let sbConnected = false;
     let hasDatosPersonalesColumn = false;
     let cloudSyncTimer = null;
+    let personalRealtimeChannel = null;
+    let isHydratingFromCloud = false;
+    let lastCloudSyncTime = null;
+    const PERSONAL_DB_TIPOS = ['gasto_personal', 'ingreso_personal', 'deuda_personal', 'config_usuario'];
 
     // ============================================================================
     // 2. PERSONAL FINANCE STATE & CATEGORIES (Per-User Isolated State)
@@ -628,6 +632,15 @@
     function fmtDay(ds) {
       const d = new Date(ds + 'T12:00:00');
       return isNaN(d) ? ds : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+    function fmtRelativeDateHeader(ds) {
+      const today = todayStr();
+      const yest = dstr(new Date(Date.now() - 864e5));
+      const d = new Date(ds + 'T12:00:00');
+      const dayMonth = isNaN(d) ? ds : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+      if (ds === today) return `HOY • ${dayMonth}`;
+      if (ds === yest) return `AYER • ${dayMonth}`;
+      return dayMonth;
     }
     function monthLabel(mk) {
       const p = String(mk || monthKey(todayStr())).split('-');
@@ -992,7 +1005,7 @@
         if (r.autoCharge === false || !r.day) return;
         if (todayDay >= Number(r.day) && !recPaidThisMonth(r, curMk)) {
           const dayPadded = String(Math.min(Number(r.day), 28)).padStart(2, '0');
-          S.expenses.push({
+          const newExp = {
             id: uid(),
             amount: Math.round(Number(r.amount || 0) * 100) / 100,
             cat: r.cat || 'susc',
@@ -1003,32 +1016,38 @@
             refund: false,
             autoRecurringId: r.id,
             ts: Date.now()
-          });
+          };
+          S.expenses.push(newExp);
+          if (!isHydratingFromCloud && typeof dbUpsertPersonalExpense === 'function') {
+            dbUpsertPersonalExpense(newExp);
+          }
           added++;
         }
       });
 
       if (added > 0) {
-        saveLocalState(true);
+        saveLocalState(false);
         if (typeof showToast === 'function') {
           showToast(`🔄 ${added} suscripción(es) registrada(s) automáticamente ✓`);
         }
       }
     }
 
-    function saveLocalState(syncCloud = true) {
+    function saveLocalState(syncCloudConfig = false) {
       if (!S) return;
-      S.updatedAt = Date.now();
+      if (!isHydratingFromCloud) {
+        S.updatedAt = Date.now();
+      }
       const key = userStorageKey(loggedUserId);
       localStorage.setItem(key, JSON.stringify(S));
       if (Number(loggedUserId) === 2) {
         localStorage.setItem(LEGACY_LSKEY, JSON.stringify(S));
       }
-      if (syncCloud && loggedUserId) {
+      if (syncCloudConfig && loggedUserId && !isHydratingFromCloud) {
         clearTimeout(cloudSyncTimer);
         cloudSyncTimer = setTimeout(() => {
-          syncUserPersonalDataToCloud();
-        }, 450);
+          dbSaveUserConfig();
+        }, 250);
       }
     }
 
@@ -1053,97 +1072,468 @@
         loaded = blankState(0);
       }
 
+      isHydratingFromCloud = true;
       S = normalizeStateObject(loaded);
       localStorage.setItem(key, JSON.stringify(S));
-      checkAutoRecurringExpenses();
+      isHydratingFromCloud = false;
     }
 
-    // Cloud Sync of per-user personal state (`Control Mensual` + personal `Deudas`) in Supabase
-    async function loadUserPersonalDataFromCloud(uidNum) {
-      if (!supabaseClient || !uidNum) return;
+    // ============================================================================
+    // 6B. RELATIONAL SUPABASE DATABASE ENGINE FOR CONTROL MENSUAL (Per-User Rows)
+    // ============================================================================
+    // Every user's expenses, incomes, P2P debts, and config are stored as individual
+    // relational rows in `public.movimientos` with `grupo_id IS NULL` and `usuario_id = loggedUserId`.
+    // Supabase is ALWAYS the authoritative source of truth across browsers and the iOS .ipa app.
+
+    function safeParseMeta(str) {
+      if (!str) return {};
       try {
-        // 1. Check if `datos_personales` column exists on `usuarios`
-        const userRow = sbGlobalUsers.find(u => Number(u.id) === Number(uidNum));
-        if (userRow && userRow.datos_personales && typeof userRow.datos_personales === 'object' && Object.keys(userRow.datos_personales).length > 0) {
-          hasDatosPersonalesColumn = true;
-          const cloudState = userRow.datos_personales;
-          if (!S || (cloudState.updatedAt || 0) >= (S.updatedAt || 0) || (S.expenses.length === 0 && (cloudState.expenses || []).length > 0)) {
-            S = normalizeStateObject(cloudState);
-            localStorage.setItem(userStorageKey(uidNum), JSON.stringify(S));
-          }
-          return;
-        }
-
-        // 2. Fallback / Zero-Config table storage in `movimientos` (tipo = 'sync_bolsillo', grupo_id = null)
-        const { data: syncRows, error } = await supabaseClient
-          .from('movimientos')
-          .select('id, concepto, created_at')
-          .eq('usuario_id', uidNum)
-          .eq('tipo', 'sync_bolsillo')
-          .is('grupo_id', null)
-          .order('id', { ascending: false })
-          .limit(1);
-
-        if (!error && syncRows && syncRows.length > 0) {
-          const parsed = JSON.parse(syncRows[0].concepto || '{}');
-          if (parsed && typeof parsed === 'object') {
-            const localEmpty = (S.expenses || []).length === 0 && (S.debts || []).length === 0 && (S.incomes || []).length === 0;
-            if (localEmpty || (parsed.updatedAt || 0) >= (S.updatedAt || 0)) {
-              S = normalizeStateObject(parsed);
-              localStorage.setItem(userStorageKey(uidNum), JSON.stringify(S));
-            }
-          }
-        } else if ((S.expenses || []).length > 0 || (S.debts || []).length > 0) {
-          // First time syncing this user's local data up to Supabase
-          await syncUserPersonalDataToCloud();
-        }
+        const obj = JSON.parse(str);
+        return (obj && typeof obj === 'object') ? obj : {};
       } catch (e) {
-        console.warn("Cloud user state load warning:", e);
+        return {};
       }
     }
 
+    async function loadUserPersonalDataFromCloud(uidNum) {
+      if (!supabaseClient || !uidNum) return;
+      try {
+        isHydratingFromCloud = true;
+
+        const { data: rows, error } = await supabaseClient
+          .from('movimientos')
+          .select('*')
+          .eq('usuario_id', uidNum)
+          .is('grupo_id', null)
+          .order('id', { ascending: true });
+
+        if (error) throw error;
+        const allPersonalRows = rows || [];
+
+        const expRows = allPersonalRows.filter(r => r.tipo === 'gasto_personal');
+        const incRows = allPersonalRows.filter(r => r.tipo === 'ingreso_personal');
+        const debtRows = allPersonalRows.filter(r => r.tipo === 'deuda_personal');
+        const cfgRows = allPersonalRows.filter(r => r.tipo === 'config_usuario');
+        const legacyBlobRows = allPersonalRows.filter(r => r.tipo === 'sync_bolsillo');
+
+        // Start from a clean base state for this user and populate strictly from Supabase relational rows
+        let nextState = blankState(0);
+
+        // If user has a relational config row (`config_usuario`), hydrate budgets, salary, subscriptions, goals, trips, etc.
+        if (cfgRows.length > 0) {
+          const latestCfgRow = cfgRows[cfgRows.length - 1];
+          const cfgObj = safeParseMeta(latestCfgRow.concepto);
+          nextState = normalizeStateObject({
+            ...nextState,
+            ...cfgObj,
+            _configDbId: latestCfgRow.id,
+            expenses: [],
+            incomes: [],
+            debts: []
+          });
+          if (typeof latestCfgRow.monto === 'number' && latestCfgRow.monto > 0 && !(nextState.settings.salary > 0)) {
+            nextState.settings.salary = Number(latestCfgRow.monto);
+          }
+          // Clean duplicate config rows if any
+          if (cfgRows.length > 1) {
+            const oldCfgIds = cfgRows.slice(0, -1).map(r => r.id);
+            supabaseClient.from('movimientos').delete().in('id', oldCfgIds).then(() => {});
+          }
+        } else if (legacyBlobRows.length > 0) {
+          // Migrate legacy sync_bolsillo blob if present
+          const latestBlob = safeParseMeta(legacyBlobRows[legacyBlobRows.length - 1].concepto);
+          nextState = normalizeStateObject(latestBlob);
+        }
+
+        // Hydrate relational expenses (`gasto_personal`)
+        if (expRows.length > 0 || cfgRows.length > 0 || incRows.length > 0 || debtRows.length > 0) {
+          nextState.expenses = expRows.map(r => {
+            const meta = safeParseMeta(r.estado);
+            return {
+              id: meta.uid || ('db_' + r.id),
+              db_id: r.id,
+              amount: Math.round(Number(r.monto || 0) * 100) / 100,
+              cat: r.categoria || meta.cat || 'comida',
+              method: meta.method || 'tarjeta',
+              note: r.concepto || meta.note || '',
+              date: meta.date || (r.created_at ? r.created_at.slice(0, 10) : todayStr()),
+              tripId: meta.tripId || '',
+              refund: !!meta.refund,
+              autoRecurringId: meta.autoRecurringId || '',
+              ts: meta.ts || (r.created_at ? new Date(r.created_at).getTime() : Date.now())
+            };
+          });
+
+          // Hydrate relational incomes (`ingreso_personal`)
+          nextState.incomes = incRows.map(r => {
+            const meta = safeParseMeta(r.estado);
+            return {
+              id: meta.uid || ('db_' + r.id),
+              db_id: r.id,
+              amount: Math.round(Number(r.monto || 0) * 100) / 100,
+              cat: r.categoria || meta.cat || 'extra',
+              source: r.concepto || meta.source || 'Ingreso',
+              note: meta.note || '',
+              date: meta.date || (r.created_at ? r.created_at.slice(0, 10) : todayStr())
+            };
+          });
+
+          // Hydrate relational P2P personal debts (`deuda_personal`)
+          nextState.debts = debtRows.map(r => {
+            const meta = safeParseMeta(r.estado);
+            return {
+              id: meta.uid || ('db_' + r.id),
+              db_id: r.id,
+              person: r.concepto || meta.person || 'Contacto',
+              type: (r.categoria === 'owe' || meta.type === 'owe') ? 'owe' : 'owed',
+              amount: Math.round(Number(r.monto || 0) * 100) / 100,
+              initialAmount: Math.round(Number(meta.initialAmount ?? r.monto ?? 0) * 100) / 100,
+              note: meta.note || '',
+              due: meta.due || '',
+              settled: !!meta.settled,
+              log: Array.isArray(meta.log) ? meta.log : []
+            };
+          });
+        }
+
+        S = normalizeStateObject(nextState);
+        lastCloudSyncTime = new Date();
+        localStorage.setItem(userStorageKey(uidNum), JSON.stringify(S));
+        if (Number(uidNum) === 2) {
+          localStorage.setItem(LEGACY_LSKEY, JSON.stringify(S));
+        }
+
+        // Remove any legacy sync_bolsillo rows once migrated to relational rows
+        if (legacyBlobRows.length > 0) {
+          const oldIds = legacyBlobRows.map(r => r.id);
+          await supabaseClient.from('movimientos').delete().in('id', oldIds);
+          await syncUserPersonalDataToCloud();
+        }
+      } catch (e) {
+        console.warn("Cloud relational load warning:", e);
+      } finally {
+        isHydratingFromCloud = false;
+        checkAutoRecurringExpenses();
+      }
+    }
+
+    // Insert or update a single personal expense row in Supabase `movimientos`
+    async function dbUpsertPersonalExpense(exp) {
+      if (!supabaseClient || !loggedUserId || !exp) return null;
+      saveLocalState(false);
+      try {
+        const meta = JSON.stringify({
+          uid: exp.id,
+          date: exp.date || todayStr(),
+          method: exp.method || 'tarjeta',
+          tripId: exp.tripId || '',
+          refund: !!exp.refund,
+          autoRecurringId: exp.autoRecurringId || '',
+          ts: exp.ts || Date.now()
+        });
+        const rowPayload = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'gasto_personal',
+          monto: Math.round(Number(exp.amount || 0) * 100) / 100,
+          concepto: String(exp.note || '').trim(),
+          categoria: exp.cat || 'comida',
+          estado: meta,
+          grupo_id: null
+        };
+
+        if (exp.db_id) {
+          await supabaseClient.from('movimientos').update(rowPayload).eq('id', exp.db_id);
+        } else {
+          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (data && data.length > 0) {
+            exp.db_id = data[0].id;
+            saveLocalState(false);
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbUpsertPersonalExpense error:", e);
+      }
+      return exp;
+    }
+
+    async function dbDeletePersonalExpense(expId) {
+      if (!S) return;
+      const target = (S.expenses || []).find(e => e.id === expId);
+      S.expenses = (S.expenses || []).filter(e => e.id !== expId);
+      saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return;
+      try {
+        if (target && target.db_id) {
+          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+        } else {
+          const { data: rows } = await supabaseClient
+            .from('movimientos')
+            .select('id, estado')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'gasto_personal')
+            .is('grupo_id', null);
+          const match = (rows || []).find(r => safeParseMeta(r.estado).uid === expId);
+          if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbDeletePersonalExpense error:", e);
+      }
+    }
+
+    // Insert or update a single personal income row in Supabase `movimientos`
+    async function dbUpsertPersonalIncome(inc) {
+      if (!supabaseClient || !loggedUserId || !inc) return null;
+      saveLocalState(false);
+      try {
+        const meta = JSON.stringify({
+          uid: inc.id,
+          date: inc.date || todayStr(),
+          note: inc.note || '',
+          source: inc.source || ''
+        });
+        const rowPayload = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'ingreso_personal',
+          monto: Math.round(Number(inc.amount || 0) * 100) / 100,
+          concepto: String(inc.source || 'Ingreso').trim(),
+          categoria: inc.cat || 'extra',
+          estado: meta,
+          grupo_id: null
+        };
+
+        if (inc.db_id) {
+          await supabaseClient.from('movimientos').update(rowPayload).eq('id', inc.db_id);
+        } else {
+          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (data && data.length > 0) {
+            inc.db_id = data[0].id;
+            saveLocalState(false);
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbUpsertPersonalIncome error:", e);
+      }
+      return inc;
+    }
+
+    async function dbDeletePersonalIncome(incId) {
+      if (!S) return;
+      const target = (S.incomes || []).find(i => i.id === incId);
+      S.incomes = (S.incomes || []).filter(i => i.id !== incId);
+      saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return;
+      try {
+        if (target && target.db_id) {
+          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+        } else {
+          const { data: rows } = await supabaseClient
+            .from('movimientos')
+            .select('id, estado')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'ingreso_personal')
+            .is('grupo_id', null);
+          const match = (rows || []).find(r => safeParseMeta(r.estado).uid === incId);
+          if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbDeletePersonalIncome error:", e);
+      }
+    }
+
+    // Insert or update a single personal P2P debt row in Supabase `movimientos`
+    async function dbUpsertPersonalDebt(debt) {
+      if (!supabaseClient || !loggedUserId || !debt) return null;
+      saveLocalState(false);
+      try {
+        const meta = JSON.stringify({
+          uid: debt.id,
+          person: debt.person || 'Contacto',
+          type: debt.type || 'owed',
+          initialAmount: debt.initialAmount ?? debt.amount ?? 0,
+          note: debt.note || '',
+          due: debt.due || '',
+          settled: !!debt.settled,
+          log: Array.isArray(debt.log) ? debt.log : []
+        });
+        const rowPayload = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'deuda_personal',
+          monto: Math.round(Number(debt.amount || 0) * 100) / 100,
+          concepto: String(debt.person || 'Contacto').trim(),
+          categoria: debt.type === 'owe' ? 'owe' : 'owed',
+          estado: meta,
+          grupo_id: null
+        };
+
+        if (debt.db_id) {
+          await supabaseClient.from('movimientos').update(rowPayload).eq('id', debt.db_id);
+        } else {
+          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (data && data.length > 0) {
+            debt.db_id = data[0].id;
+            saveLocalState(false);
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbUpsertPersonalDebt error:", e);
+      }
+      return debt;
+    }
+
+    async function dbDeletePersonalDebt(debtId) {
+      if (!S) return;
+      const target = (S.debts || []).find(d => d.id === debtId);
+      S.debts = (S.debts || []).filter(d => d.id !== debtId);
+      saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return;
+      try {
+        if (target && target.db_id) {
+          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+        } else {
+          const { data: rows } = await supabaseClient
+            .from('movimientos')
+            .select('id, estado')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'deuda_personal')
+            .is('grupo_id', null);
+          const match = (rows || []).find(r => safeParseMeta(r.estado).uid === debtId);
+          if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbDeletePersonalDebt error:", e);
+      }
+    }
+
+    // Save user configuration (salary, budgets, rollover, recurring subscriptions, goals, trips, presets, rules)
+    async function dbSaveUserConfig() {
+      if (!supabaseClient || !loggedUserId || !S) return;
+      try {
+        const configPayload = {
+          budgets: S.budgets || {},
+          rollover: S.rollover || {},
+          carried: S.carried || {},
+          carriedMk: S.carriedMk || '',
+          recurring: S.recurring || [],
+          groups: S.groups || [],
+          trips: S.trips || [],
+          goals: S.goals || [],
+          quickPresets: S.quickPresets || DEFAULT_QUICK_PRESETS,
+          rules: S.rules || [],
+          streak: S.streak || { best: 0 },
+          customCats: S.customCats || [],
+          settings: S.settings || { salary: 0, salaryDay: 1, salaryAuto: false, dark: false },
+          isDemoSeeded: !!S.isDemoSeeded,
+          startMk: S.startMk || monthKey(todayStr()),
+          updatedAt: Date.now()
+        };
+
+        const rowData = {
+          usuario_id: Number(loggedUserId),
+          tipo: 'config_usuario',
+          monto: Number(S.settings?.salary || 0),
+          concepto: JSON.stringify(configPayload),
+          categoria: 'Configuracion',
+          estado: 'activo',
+          grupo_id: null
+        };
+
+        if (S._configDbId) {
+          await supabaseClient.from('movimientos').update(rowData).eq('id', S._configDbId);
+        } else {
+          const { data: existing } = await supabaseClient
+            .from('movimientos')
+            .select('id')
+            .eq('usuario_id', loggedUserId)
+            .eq('tipo', 'config_usuario')
+            .is('grupo_id', null)
+            .order('id', { ascending: false });
+
+          if (existing && existing.length > 0) {
+            S._configDbId = existing[0].id;
+            await supabaseClient.from('movimientos').update(rowData).eq('id', S._configDbId);
+          } else {
+            const { data: inserted } = await supabaseClient.from('movimientos').insert([rowData]).select('id');
+            if (inserted && inserted.length > 0) {
+              S._configDbId = inserted[0].id;
+            }
+          }
+        }
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbSaveUserConfig warning:", e);
+      }
+    }
+
+    // Full sync of all personal items & config to relational rows in Supabase (used on demo seed, JSON restore, or manual sync button)
     async function syncUserPersonalDataToCloud() {
       if (!supabaseClient || !loggedUserId || !S) return;
       try {
-        const serialized = JSON.stringify(S);
-
-        // If `datos_personales` column exists on `usuarios`, update it directly
-        if (hasDatosPersonalesColumn) {
-          await supabaseClient.from('usuarios').update({ datos_personales: S }).eq('id', loggedUserId);
+        await dbSaveUserConfig();
+        for (const e of (S.expenses || [])) {
+          await dbUpsertPersonalExpense(e);
         }
-
-        // Also persist in `movimientos` (tipo = 'sync_bolsillo', grupo_id = null) so it works immediately even without DDL
-        const { data: existing } = await supabaseClient
-          .from('movimientos')
-          .select('id')
-          .eq('usuario_id', loggedUserId)
-          .eq('tipo', 'sync_bolsillo')
-          .is('grupo_id', null)
-          .order('id', { ascending: false });
-
-        if (existing && existing.length > 0) {
-          await supabaseClient
-            .from('movimientos')
-            .update({ concepto: serialized, monto: S.settings?.salary || 0, estado: 'sync' })
-            .eq('id', existing[0].id);
-          // Clean up any older duplicate sync rows
-          if (existing.length > 1) {
-            const oldIds = existing.slice(1).map(r => r.id);
-            await supabaseClient.from('movimientos').delete().in('id', oldIds);
-          }
-        } else {
-          await supabaseClient.from('movimientos').insert([{
-            usuario_id: loggedUserId,
-            tipo: 'sync_bolsillo',
-            monto: S.settings?.salary || 0,
-            concepto: serialized,
-            estado: 'sync',
-            categoria: 'Sistema',
-            grupo_id: null
-          }]);
+        for (const i of (S.incomes || [])) {
+          await dbUpsertPersonalIncome(i);
         }
+        for (const d of (S.debts || [])) {
+          await dbUpsertPersonalDebt(d);
+        }
+        lastCloudSyncTime = new Date();
       } catch (e) {
-        console.warn("Cloud sync warning:", e);
+        console.warn("Full personal relational sync warning:", e);
+      }
+    }
+
+    // Delete ONLY the user's personal monthly data rows in Supabase (grupo_id IS NULL), never touching group debt rows!
+    async function dbClearAllPersonalMonthlyData(uidNum) {
+      const targetUid = Number(uidNum || loggedUserId || 2);
+      S = blankState(0);
+      saveLocalState(false);
+      if (!supabaseClient || !targetUid) return;
+      try {
+        await supabaseClient
+          .from('movimientos')
+          .delete()
+          .eq('usuario_id', targetUid)
+          .is('grupo_id', null)
+          .in('tipo', ['gasto_personal', 'ingreso_personal', 'deuda_personal', 'config_usuario', 'sync_bolsillo']);
+        lastCloudSyncTime = new Date();
+      } catch (e) {
+        console.warn("dbClearAllPersonalMonthlyData error:", e);
+      }
+    }
+
+    // Subscribe to Supabase Realtime changes so any browser / iPhone app updates live
+    function setupSupabaseRealtimeSubscription() {
+      if (!supabaseClient || personalRealtimeChannel) return;
+      try {
+        personalRealtimeChannel = supabaseClient
+          .channel('claridad-live-db')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'movimientos' }, () => {
+            if (!isHydratingFromCloud) {
+              clearTimeout(window._rtRefreshTimer);
+              window._rtRefreshTimer = setTimeout(() => {
+                cargarDatosSupabase(false);
+              }, 350);
+            }
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'grupo_usuarios' }, () => {
+            if (!isHydratingFromCloud) {
+              clearTimeout(window._rtRefreshTimer);
+              window._rtRefreshTimer = setTimeout(() => {
+                cargarDatosSupabase(false);
+              }, 350);
+            }
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn("Realtime subscription notice:", e);
       }
     }
 
@@ -1160,16 +1550,16 @@
 
         if (!error && queueRows && queueRows.length > 0) {
           let addedCount = 0;
-          queueRows.forEach(row => {
+          for (const row of queueRows) {
             const amt = parseAmount(row.monto);
-            if (!(amt > 0)) return;
+            if (!(amt > 0)) continue;
             const note = String(row.concepto || 'Apple Pay').trim().slice(0, 80);
             const dt = row.created_at ? row.created_at.slice(0, 10) : todayStr();
             let cat = applyRule(note) || String(row.categoria || '').toLowerCase();
             if (!allCats().some(c => c.id === cat)) {
               cat = (typeof guessCatFromMerchant === 'function') ? guessCatFromMerchant(note) : 'otros';
             }
-            S.expenses.push({
+            const newExp = {
               id: uid(),
               amount: Math.round(amt * 100) / 100,
               cat,
@@ -1179,15 +1569,16 @@
               tripId: '',
               refund: false,
               ts: Date.now()
-            });
+            };
+            S.expenses.push(newExp);
+            await dbUpsertPersonalExpense(newExp);
             addedCount++;
-          });
+          }
 
           const qIds = queueRows.map(r => r.id);
           await supabaseClient.from('movimientos').delete().in('id', qIds);
           if (addedCount > 0) {
             saveLocalState(false);
-            await syncUserPersonalDataToCloud();
             showToast(` Pay: ${addedCount} pago(s) sumado(s) automáticamente ✓`);
           }
         }
@@ -1327,6 +1718,7 @@
         }
 
         sbConnected = true;
+        setupSupabaseRealtimeSubscription();
         updateCloudHeaderUI();
         renderAllViews();
         if (sbUsuariosGrupo.length > 0) {
@@ -1550,6 +1942,92 @@
     // ============================================================================
     // 9. VIEW 1: CONTROL MENSUAL (100% Personal Monthly Finances — Separated from Debts)
     // ============================================================================
+    function renderCategoryDonutSVG(cats, totalExp) {
+      const R = 36, C = 2 * Math.PI * R;
+      if (!(totalExp > 0) || !cats || cats.length === 0) {
+        return `
+          <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0">
+            <circle cx="48" cy="48" r="${R}" fill="none" stroke="currentColor" class="text-surface-container-high" stroke-width="11"/>
+            <text x="48" y="46" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor" class="text-on-surface">0 €</text>
+            <text x="48" y="59" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" class="text-outline">MES LIMPIO</text>
+          </svg>`;
+      }
+      let offset = 0;
+      const circles = cats.slice(0, 6).map(d => {
+        const c = catById(d.cat);
+        const len = Math.max(2, (d.total / totalExp) * C);
+        const seg = `<circle cx="48" cy="48" r="${R}" fill="none" stroke="${c.c}" stroke-width="11" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}" transform="rotate(-90 48 48)"/>`;
+        offset += (d.total / totalExp) * C;
+        return seg;
+      }).join('');
+      const topCat = catById(cats[0].cat);
+      const topPct = Math.round((cats[0].total / totalExp) * 100);
+      return `
+        <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0">
+          <circle cx="48" cy="48" r="${R}" fill="none" stroke="currentColor" class="text-surface-container-high" stroke-width="11"/>
+          ${circles}
+          <text x="48" y="46" text-anchor="middle" font-size="13" font-weight="800" fill="currentColor" class="text-on-surface">${topPct}%</text>
+          <text x="48" y="59" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" class="text-on-surface-variant">${esc(topCat.name.slice(0, 9))}</text>
+        </svg>`;
+    }
+
+    function renderDateGroupedTransactionsHtml(mixedRows) {
+      if (!mixedRows || mixedRows.length === 0) return '';
+      const groups = [];
+      const map = {};
+      mixedRows.forEach(item => {
+        const d = item.date || todayStr();
+        if (!map[d]) {
+          map[d] = { date: d, items: [], expSum: 0, incSum: 0 };
+          groups.push(map[d]);
+        }
+        map[d].items.push(item);
+        if (item._k === 'exp') map[d].expSum += Number(item.amount || 0);
+        else map[d].incSum += Number(item.amount || 0);
+      });
+
+      return groups.map(g => {
+        const netDay = g.incSum - g.expSum;
+        const dayHeaderRight = g.expSum > 0 && g.incSum === 0
+          ? `−${fmt(g.expSum)}`
+          : g.incSum > 0 && g.expSum === 0
+            ? `+${fmt(g.incSum)}`
+            : fmtSigned(netDay);
+
+        const rows = g.items.map(x => {
+          if (x._k === 'exp') return renderExpenseRow(x);
+          const ic = incById(x.cat);
+          return `
+            <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
+                  <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
+                  <p class="font-body-sm text-xs text-on-surface-variant">${x.auto ? 'Nómina automática mensual' : esc(ic.name)}${x.note ? ' • ' + esc(x.note) : ''}</p>
+                </div>
+              </div>
+              <div class="text-right flex-shrink-0">
+                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
+                <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
+              </div>
+            </div>`;
+        }).join('');
+
+        return `
+          <div class="flex flex-col">
+            <div class="px-4 py-2 bg-surface-container-low/90 border-y border-outline-variant/25 flex items-center justify-between">
+              <span class="font-label-sm text-[10px] font-extrabold tracking-wider text-on-surface-variant uppercase">${esc(fmtRelativeDateHeader(g.date))}</span>
+              <span class="font-label-sm text-[11px] font-extrabold tabular-nums ${g.expSum > g.incSum ? 'text-on-surface-variant' : 'text-secondary'}">${dayHeaderRight}</span>
+            </div>
+            <div class="divide-y divide-outline-variant/20">
+              ${rows}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
     function renderInicioView() {
       const el = $('#view-inicio');
       if (!el) return;
@@ -1572,9 +2050,23 @@
       const fc = forecast(viewMk);
       const cats = byCat(exps);
 
-      const hasPersonalData = (S.expenses || []).length > 0 || (S.incomes || []).length > 0 || (S.debts || []).length > 0 || S.isDemoSeeded;
+      // Copilot Money-style Daily Pace Calculation
+      const [Y, M] = viewMk.split('-').map(Number);
+      const isCurMonth = viewMk === monthKey(todayStr());
+      const daysInMonth = new Date(Y, M, 0).getDate();
+      const currentDay = isCurMonth ? new Date().getDate() : daysInMonth;
+      const daysRemaining = Math.max(1, daysInMonth - currentDay + 1);
+      const dailySafeAllowance = Math.max(0, safe / daysRemaining);
+      const elapsedMonthPct = Math.min(100, Math.round((currentDay / daysInMonth) * 100));
+      const expectedSpendByToday = budgetTotal > 0 ? (budgetTotal * (currentDay / daysInMonth)) : 0;
+      const paceDiff = expectedSpendByToday - totalExp; // Positive = under budget pace (good!)
+      const isPaceGood = totalExp <= expectedSpendByToday + 0.01;
 
-      // Top Monthly Control Bar (Resumen vs Movimientos + Borrar datos de prueba)
+      const syncTimeText = lastCloudSyncTime
+        ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        : 'En vivo';
+
+      // Top Monthly Control Bar (Clean Segmented Control + Live Supabase Database Status Badge — NO delete button here)
       const monthlyTopNavHtml = `
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
@@ -1587,12 +2079,10 @@
               Movimientos (${exps.length + incs.length})
             </button>
           </div>
-          ${hasPersonalData ? `
-            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale" title="Borra los gastos/datos de prueba del Control Mensual sin tocar la base de datos de Deudas de Supabase">
-              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
-              Borrar datos de Control Mensual
-            </button>
-          ` : ''}
+          <div onclick="cargarDatosSupabase(true)" class="cursor-pointer px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant transition active-scale" title="Toca para actualizar desde la Base de Datos de Supabase">
+            <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
+            <span>☁️ BD ${esc(userName)} • ${esc(syncTimeText)}</span>
+          </div>
         </div>
       `;
 
@@ -1602,7 +2092,7 @@
           <div class="flex items-center justify-between">
             <span class="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
               <span class="material-symbols-outlined text-[16px]">bolt</span>
-              Gasto Rápido en 1 Toque (Suma al instante)
+              Gasto Rápido en 1 Toque (Guarda en Base de Datos al instante)
             </span>
             <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-0.5">
               <span class="material-symbols-outlined text-[14px]">edit</span>
@@ -1629,12 +2119,12 @@
         <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex items-start gap-3">
             <span class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined">verified_user</span>
+              <span class="material-symbols-outlined">cloud_done</span>
             </span>
             <div>
-              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Cuenta limpia a 0,00 € (${esc(userName)})</h3>
+              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Registro personal de ${esc(userName)} en Supabase a 0,00 €</h3>
               <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                Sin datos aleatorios. Configura tu nómina, usa los botones de «Gasto Rápido en 1 toque» o escanea un ticket con la cámara.
+                Todo lo que apuntes aquí o desde el atajo de Apple Pay se guarda en tu base de datos en tiempo real para verse en cualquier navegador y en tu iPhone.
               </p>
             </div>
           </div>
@@ -1646,7 +2136,7 @@
         </div>
       ` : '';
 
-      // Multi-segment stacked bar & category grid (Stitch design)
+      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style with micro-progress bars)
       const topCats = cats.slice(0, 6);
       const multiBarSegments = topCats.length > 0 ? topCats.map(d => {
         const c = catById(d.cat);
@@ -1656,54 +2146,47 @@
 
       const catCardsHtml = (topCats.length > 0 ? topCats : CATS.slice(0, 6).map(c => ({ cat: c.id, total: 0 }))).map(d => {
         const c = catById(d.cat);
-        const pct = totalExp > 0 ? Math.round((d.total / totalExp) * 100) : 0;
+        const pctOfTotal = totalExp > 0 ? Math.round((d.total / totalExp) * 100) : 0;
         const bdg = effBudget(c.id);
+        const bdgPct = bdg > 0 ? Math.min(100, Math.round((d.total / bdg) * 100)) : pctOfTotal;
         const over = bdg > 0 && d.total > bdg;
         return `
-          <button onclick="openCategoryDetailModal('${c.id}')" class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition flex flex-col text-left active-scale border ${over ? 'border-tertiary/40' : 'border-transparent'}">
+          <button onclick="openCategoryDetailModal('${c.id}')" class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition flex flex-col justify-between gap-1.5 text-left active-scale border ${over ? 'border-tertiary/50 bg-tertiary/5' : 'border-outline-variant/25'}">
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-1.5 min-w-0">
-                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${c.c}"></span>
-                <span class="font-label-sm text-xs font-bold text-on-surface-variant truncate">${esc(c.name)}</span>
+                <span class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1a;color:${c.c}">
+                  <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+                </span>
+                <span class="font-label-sm text-xs font-extrabold text-on-surface truncate">${esc(c.name)}</span>
               </div>
-              <span class="material-symbols-outlined text-[16px]" style="color:${c.c}">${c.icon}</span>
+              <span class="text-[10px] font-extrabold ${over ? 'text-tertiary' : 'text-on-surface-variant'}">${bdg > 0 ? `${bdgPct}%` : `${pctOfTotal}%`}</span>
             </div>
-            <span class="font-headline-sm text-[16px] font-extrabold text-on-surface mt-1 tabular-nums">${fmt0(d.total)}</span>
-            <span class="font-body-sm text-[11px] ${over ? 'text-tertiary font-bold' : 'text-outline'}">
-              ${pct}% del total${bdg > 0 ? ` • Lím. ${fmt0(bdg)}` : ''}
-            </span>
+            <div>
+              <div class="flex items-baseline justify-between">
+                <span class="font-headline-sm text-[16px] font-extrabold text-on-surface tabular-nums">${fmt0(d.total)}</span>
+                ${bdg > 0 ? `<span class="text-[10px] text-outline tabular-nums">/ ${fmt0(bdg)}</span>` : ''}
+              </div>
+              <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+                <div class="h-full rounded-full transition-all duration-500" style="width:${bdgPct}%;background:${over ? '#e11d48' : c.c}"></div>
+              </div>
+            </div>
           </button>`;
       }).join('');
 
-      // Recent Monthly Transactions (Expenses & Incomes)
+      // Recent Monthly Transactions grouped by Date (Revolut / Apple Wallet style)
       const recentMixed = [
         ...exps.map(e => ({ ...e, _k: 'exp' })),
         ...incs.map(i => ({ ...i, _k: 'inc' }))
-      ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 7);
 
-      const recentRowsHtml = recentMixed.map(x => {
-        if (x._k === 'exp') return renderExpenseRow(x);
-        const ic = incById(x.cat);
-        return `
-          <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
-              </div>
-              <div class="min-w-0">
-                <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
-                <p class="font-body-sm text-xs text-on-surface-variant">${fmtDay(x.date)} • ${x.auto ? 'Nómina automática' : esc(ic.name)}</p>
-              </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
-              <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
-            </div>
+      const recentRowsHtml = recentMixed.length > 0
+        ? renderDateGroupedTransactionsHtml(recentMixed)
+        : `
+          <div class="p-8 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
+            <span class="material-symbols-outlined text-3xl text-outline">receipt_long</span>
+            <p class="font-bold text-on-surface">Sin movimientos en ${monthLabel(viewMk)}</p>
+            <p class="text-xs">Usa los botones de Gasto Rápido arriba o el botón central «+» para registrar tu primer movimiento.</p>
           </div>`;
-      }).join('') || `
-        <div class="p-8 text-center text-on-surface-variant text-sm">
-          Sin movimientos registrados en ${monthLabel(viewMk)}.
-        </div>`;
 
       // Upcoming Subscriptions & Goals Summary
       const upcomingHtml = upRecList.slice(0, 3).map(r => {
@@ -1724,17 +2207,20 @@
         ${onboardingBannerHtml}
         ${quickPresetsHtml}
 
-        <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (100% Personal Finance) -->
+        <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (Copilot / Monarch / Revolut Style) -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <!-- HERO KPI (2 cols): PUEDES GASTAR ESTE MES (SAFE TO SPEND) -->
+          <!-- HERO KPI (2 cols): PUEDES GASTAR ESTE MES + DAILY ALLOWANCE VERDICT -->
           <div class="col-span-2 hero-indigo text-on-primary p-4 sm:p-5 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div class="flex flex-col">
-                <span class="font-label-sm text-[10px] text-on-primary-container font-bold tracking-wider uppercase">PUEDES GASTAR ESTE MES (DISPONIBLE REAL)</span>
-                <div class="flex items-baseline gap-2 mt-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-label-sm text-[10px] text-on-primary-container font-extrabold tracking-wider uppercase">PUEDES GASTAR ESTE MES</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white">${fmt0(dailySafeAllowance)}/día libres</span>
+                </div>
+                <div class="flex items-baseline gap-2 mt-1">
                   <span class="font-display-currency-mobile text-[30px] sm:text-[34px] leading-9 font-extrabold text-white tabular-nums">${fmt(safe)}</span>
-                  <span class="font-body-sm text-xs text-on-primary-container">libres</span>
+                  <span class="font-body-sm text-xs text-on-primary-container">disponibles</span>
                 </div>
               </div>
               <div onclick="switchMainView('analitica')" class="cursor-pointer bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-right">
@@ -1795,30 +2281,44 @@
             </div>
           </div>
 
-          <!-- KPI 4: GASTO MENSUAL VS PRESUPUESTO -->
+          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR (GASTO VS RITMO IDEAL DEL MES) -->
           <div class="col-span-2 lg:col-span-4 bento-card p-4 rounded-2xl flex flex-col gap-2.5">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-primary text-[20px]">pie_chart</span>
-                <span class="font-label-lg text-sm font-bold text-on-surface">Gasto mensual vs. Presupuesto</span>
+            <div class="flex flex-wrap justify-between items-center gap-2">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[20px]">speed</span>
+                <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Gasto vs. Presupuesto Mensual</span>
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'}">
+                  ${isPaceGood ? `🟢 Ritmo óptimo (${fmt0(Math.abs(paceDiff))} bajo el límite de hoy)` : `🟠 Ritmo alto (+${fmt0(Math.abs(paceDiff))} sobre el día ${currentDay})`}
+                </span>
               </div>
               <div class="flex items-center gap-2">
                 <span class="font-label-md text-xs font-extrabold ${budgetPct >= 100 ? 'text-tertiary bg-tertiary/10' : budgetPct >= 80 ? 'text-amber-700 bg-amber-500/15' : 'text-primary bg-primary/10'} px-2.5 py-0.5 rounded-lg">
-                  ${budgetPct}% gastado
+                  ${budgetPct}% gastado en el ${elapsedMonthPct}% del mes
                 </span>
-                <button onclick="switchMainView('ajustes', 'pres')" class="text-xs font-bold text-primary hover:underline">Ajustar límites</button>
+                <button onclick="switchMainView('ajustes', 'pres')" class="text-xs font-bold text-primary hover:underline">Límites</button>
               </div>
             </div>
+
             <div class="flex items-baseline justify-between">
               <p class="font-headline-md text-[22px] text-on-surface font-extrabold tabular-nums">
-                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)}</span>
+                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)} presupuestados</span>
               </p>
               <p class="font-label-sm text-xs ${budgetRest >= 0 ? 'text-secondary' : 'text-tertiary'} font-extrabold tabular-nums">
-                ${budgetRest >= 0 ? `${fmt0(budgetRest)} restantes` : `${fmt0(-budgetRest)} excedido`}
+                ${budgetRest >= 0 ? `${fmt0(budgetRest)} libres del presupuesto` : `${fmt0(-budgetRest)} excedido`}
               </p>
             </div>
-            <div class="w-full bg-surface-container h-2.5 rounded-full overflow-hidden">
-              <div class="${budgetPct >= 100 ? 'bg-tertiary' : budgetPct >= 85 ? 'bg-amber-500' : 'bg-primary'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
+
+            <!-- Progress bar with Copilot "HOY (Día X)" vertical marker -->
+            <div class="relative w-full pt-1 pb-2">
+              <div class="w-full bg-surface-container h-3 rounded-full overflow-hidden">
+                <div class="${budgetPct >= 100 ? 'bg-tertiary' : !isPaceGood ? 'bg-amber-500' : 'bg-primary'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
+              </div>
+              ${isCurMonth ? `
+                <div class="absolute top-0 bottom-1 flex flex-col items-center pointer-events-none" style="left: clamp(4%, ${elapsedMonthPct}%, 96%); transform: translateX(-50%);">
+                  <div class="w-0.5 h-5 bg-on-surface rounded-full shadow-xs"></div>
+                  <span class="text-[9px] font-extrabold text-on-surface-variant uppercase tracking-tighter mt-0.5 bg-surface-container-lowest px-1 rounded border border-outline-variant/40">Hoy D${currentDay}</span>
+                </div>
+              ` : ''}
             </div>
           </div>
         </section>
@@ -1869,20 +2369,34 @@
         <!-- 2-COLUMN MONTHLY BREAKDOWN & RECENT MOVEMENTS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-          <!-- LEFT (6 cols): CATEGORY BREAKDOWN & UPCOMING SUBSCRIPTIONS -->
+          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING SUBSCRIPTIONS -->
           <section class="lg:col-span-6 flex flex-col gap-4">
             <div class="flex items-center justify-between">
               <div>
                 <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Desglose por categorías</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)} • Toca una categoría para ver detalle</p>
+                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)} • Toca una categoría para auditar</p>
               </div>
-              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Presupuestos</button>
+              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Editar límites</button>
             </div>
 
             <div class="bento-card p-4 rounded-2xl flex flex-col gap-4">
-              <div class="flex h-3 w-full rounded-full overflow-hidden gap-0.5 bg-surface-container">
-                ${multiBarSegments}
+              <!-- Donut Ring + Stacked Bar Summary Header -->
+              <div class="flex items-center gap-4">
+                ${renderCategoryDonutSVG(cats, totalExp)}
+                <div class="flex-1 flex flex-col gap-2 min-w-0">
+                  <div class="flex items-baseline justify-between">
+                    <span class="text-xs font-extrabold text-on-surface">Total gastado</span>
+                    <span class="font-headline-sm text-base font-extrabold text-on-surface tabular-nums">${fmt(totalExp)}</span>
+                  </div>
+                  <div class="flex h-3 w-full rounded-full overflow-hidden gap-0.5 bg-surface-container">
+                    ${multiBarSegments}
+                  </div>
+                  <p class="text-[11px] text-on-surface-variant">
+                    ${cats.length > 0 ? `${cats.length} categoría(s) activas este mes • Mayor gasto: <strong>${esc(catById(cats[0].cat).name)}</strong>` : 'Sin gastos registrados este mes'}
+                  </p>
+                </div>
               </div>
+
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 ${catCardsHtml}
               </div>
@@ -1904,22 +2418,22 @@
             ` : ''}
           </section>
 
-          <!-- RIGHT (6 cols): RECENT MONTHLY TRANSACTIONS -->
+          <!-- RIGHT (6 cols): DATE-GROUPED RECENT MONTHLY TRANSACTIONS -->
           <section class="lg:col-span-6 flex flex-col gap-3">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Últimos movimientos del mes</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant">Tus gastos e ingresos personales</p>
+                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Actividad reciente</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día • Sincronizada con Supabase</p>
               </div>
               <button onclick="switchMainView('gastos')" class="font-label-md text-xs text-primary font-bold hover:underline">Ver todos (${exps.length + incs.length})</button>
             </div>
 
             <div class="bento-card rounded-2xl overflow-hidden">
-              <div class="divide-y divide-outline-variant/20">
+              <div>
                 ${recentRowsHtml}
               </div>
               <button onclick="switchMainView('gastos')" class="w-full block text-center py-3 bg-surface-container-low text-primary font-label-lg text-xs font-bold hover:bg-surface-container transition-colors border-t border-outline-variant/20 capitalize">
-                Ir al listado completo y buscador de ${monthLabel(viewMk)}
+                Abrir buscador y libro completo de ${monthLabel(viewMk)} →
               </button>
             </div>
           </section>
@@ -2678,9 +3192,10 @@
       const el = $('#view-gastos');
       if (!el) return;
 
+      const userName = currentLoggedUserName();
       const exps = monthExpenses(viewMk).map(e => ({ ...e, _k: "exp" }));
       const incs = incomeRows(viewMk).map(i => ({ ...i, _k: "inc" }));
-      let all = [...exps, ...incs].sort((a, b) => b.date.localeCompare(a.date));
+      let all = [...exps, ...incs].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0));
 
       if (movFilter.type === "exp") all = all.filter(x => x._k === "exp");
       if (movFilter.type === "inc") all = all.filter(x => x._k === "inc");
@@ -2700,32 +3215,18 @@
       (S.expenses || []).forEach(e => tagsOf(e.note).forEach(t => tagSet.add(t)));
       const allTagsList = [...tagSet].sort();
 
-      const rowsHtml = all.map(x => {
-        if (x._k === "exp") return renderExpenseRow(x);
-        const ic = incById(x.cat);
-        return `
-          <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
-                  ${x.auto ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-secondary/10 text-secondary">Automática</span>` : ''}
-                </div>
-                <p class="font-body-sm text-xs text-on-surface-variant">${fmtDay(x.date)} • ${esc(ic.name)}</p>
-              </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
-              <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
-            </div>
+      const syncTimeText = lastCloudSyncTime
+        ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        : 'En vivo';
+
+      const rowsHtml = all.length > 0
+        ? renderDateGroupedTransactionsHtml(all)
+        : `
+          <div class="p-10 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
+            <span class="material-symbols-outlined text-3xl text-outline">search_off</span>
+            <p class="font-bold text-on-surface">No hay movimientos que coincidan con este filtro</p>
+            <p class="text-xs">Prueba a limpiar los filtros o registra un nuevo gasto arriba.</p>
           </div>`;
-      }).join('') || `
-        <div class="p-10 text-center text-on-surface-variant text-sm">
-          No hay movimientos que coincidan con este filtro.
-        </div>`;
 
       el.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -2739,12 +3240,10 @@
               Movimientos (${exps.length + incs.length})
             </button>
           </div>
-          ${(exps.length + incs.length > 0) ? `
-            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale">
-              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
-              Borrar datos de Control Mensual
-            </button>
-          ` : ''}
+          <div onclick="cargarDatosSupabase(true)" class="cursor-pointer px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant transition active-scale" title="Toca para actualizar desde la Base de Datos de Supabase">
+            <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
+            <span>☁️ BD ${esc(userName)} • ${esc(syncTimeText)}</span>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -2791,7 +3290,7 @@
 
         <div class="bento-card p-4 rounded-2xl flex flex-col gap-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="font-headline-sm text-base font-extrabold text-on-surface capitalize">Movimientos • ${monthLabel(viewMk)}</h2>
+            <h2 class="font-headline-sm text-base font-extrabold text-on-surface capitalize">Libro de Movimientos • ${monthLabel(viewMk)}</h2>
             <div class="flex items-center gap-3 text-xs font-extrabold tabular-nums">
               <span class="text-secondary">Ingresos: +${fmt(tInc)}</span>
               <span class="text-tertiary">Gastos: −${fmt(tExp)}</span>
@@ -2805,9 +3304,9 @@
           </div>
 
           <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
-            <button onclick="movFilter.type='all'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Todos</button>
-            <button onclick="movFilter.type='exp'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'exp' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Gastos</button>
-            <button onclick="movFilter.type='inc'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'inc' ? 'bg-secondary text-on-secondary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Ingresos</button>
+            <button onclick="movFilter.type='all'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Todos (${exps.length + incs.length})</button>
+            <button onclick="movFilter.type='exp'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'exp' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Gastos (${exps.length})</button>
+            <button onclick="movFilter.type='inc'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'inc' ? 'bg-secondary text-on-secondary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Ingresos (${incs.length})</button>
             <button onclick="movFilter.type='refund'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'refund' ? 'bg-amber-500 text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Devoluciones</button>
 
             <select onchange="movFilter.cat=this.value; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold bg-surface-container-low border border-outline-variant/40 text-on-surface flex-shrink-0">
@@ -2829,7 +3328,7 @@
           </div>
         </div>
 
-        <div class="bento-card rounded-2xl overflow-hidden divide-y divide-outline-variant/20">
+        <div class="bento-card rounded-2xl overflow-hidden">
           ${rowsHtml}
         </div>
       `;
@@ -3615,9 +4114,9 @@
                 Cargar Datos de Ejemplo en esta Cuenta
               </button>
 
-              <button onclick="resetLocalPersonalData()" class="mt-1 w-full py-2.5 px-4 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary font-bold text-xs flex items-center justify-center gap-2 transition">
-                <span class="material-symbols-outlined text-[18px]">delete_forever</span>
-                Vaciar Movimientos de mi Cuenta
+              <button onclick="resetLocalPersonalData()" class="mt-1 w-full py-2.5 px-4 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary font-extrabold text-xs flex items-center justify-center gap-2 transition active-scale" title="Borra únicamente los gastos, ingresos y datos de prueba del Control Mensual sin tocar la base de datos de Deudas">
+                <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+                Borrar datos de Control Mensual
               </button>
             </div>
           </div>`;
@@ -4012,11 +4511,14 @@ ALTER TABLE public.movimientos
       showToast("SQL copiado al portapapeles ✓");
     }
 
-    function seedDemoForCurrentUser() {
+    async function seedDemoForCurrentUser() {
+      await dbClearAllPersonalMonthlyData(loggedUserId);
       seedInitialData();
-      saveLocalState(true);
+      saveLocalState(false);
       renderAllViews();
-      showToast("Datos de ejemplo cargados en tu cuenta ✓");
+      await syncUserPersonalDataToCloud();
+      renderAllViews();
+      showToast("Datos de ejemplo guardados en Base de Datos ✓");
     }
 
     // Group Creation & Deletion
@@ -4451,7 +4953,7 @@ ALTER TABLE public.movimientos
 
       if (reflectInMensual && S) {
         if (isMyOwnDebt) {
-          S.expenses.push({
+          const newExp = {
             id: uid(),
             amount: Math.round(amount * 100) / 100,
             cat: 'otros',
@@ -4461,18 +4963,21 @@ ALTER TABLE public.movimientos
             tripId: '',
             refund: false,
             ts: Date.now()
-          });
+          };
+          S.expenses.push(newExp);
+          await dbUpsertPersonalExpense(newExp);
         } else {
-          S.incomes.push({
+          const newInc = {
             id: uid(),
             amount: Math.round(amount * 100) / 100,
             cat: 'bizum',
             source: `Cobro de ${userName} (${gName})`,
             note: 'Deuda grupo saldada',
             date: todayStr()
-          });
+          };
+          S.incomes.push(newInc);
+          await dbUpsertPersonalIncome(newInc);
         }
-        saveLocalState(true);
       }
 
       showToast(canApproveDirectly ? "Pago confirmado ✓" : "Pago enviado a revisión ✓");
@@ -4980,7 +5485,7 @@ ALTER TABLE public.movimientos
       if (guessed && guessed !== 'otros') selectTxCategory(guessed);
     }
 
-    function saveTxModal() {
+    async function saveTxModal() {
       const amount = parseAmount($('#tx-amount')?.value);
       if (!(amount > 0)) {
         $('#tx-amount')?.focus();
@@ -4988,8 +5493,11 @@ ALTER TABLE public.movimientos
       }
       const date = $('#tx-date')?.value || todayStr();
       const note = ($('#tx-note')?.value || '').trim();
+      const isExp = (txModalState.type === "exp");
 
-      if (txModalState.type === "exp") {
+      closeUniversalModal();
+
+      if (isExp) {
         const payload = {
           amount: Math.round(amount * 100) / 100,
           cat: txModalState.cat,
@@ -5000,12 +5508,20 @@ ALTER TABLE public.movimientos
           refund: !!$('#tx-refund')?.checked,
           ts: Date.now()
         };
+        let savedExp = null;
         if (txModalState.editId) {
           const target = S.expenses.find(e => e.id === txModalState.editId);
-          if (target) Object.assign(target, payload);
+          if (target) {
+            Object.assign(target, payload);
+            savedExp = target;
+          }
         } else {
-          S.expenses.push({ id: uid(), ...payload });
+          savedExp = { id: uid(), ...payload };
+          S.expenses.push(savedExp);
         }
+        viewMk = monthKey(date);
+        renderAllViews();
+        if (savedExp) await dbUpsertPersonalExpense(savedExp);
       } else {
         const source = ($('#tx-source')?.value || '').trim() || incById(txModalState.incCat).name;
         const payload = {
@@ -5015,29 +5531,36 @@ ALTER TABLE public.movimientos
           note,
           date
         };
+        let savedInc = null;
         if (txModalState.editId) {
           const target = S.incomes.find(i => i.id === txModalState.editId);
-          if (target) Object.assign(target, payload);
+          if (target) {
+            Object.assign(target, payload);
+            savedInc = target;
+          }
         } else {
-          S.incomes.push({ id: uid(), ...payload });
+          savedInc = { id: uid(), ...payload };
+          S.incomes.push(savedInc);
         }
+        viewMk = monthKey(date);
+        renderAllViews();
+        if (savedInc) await dbUpsertPersonalIncome(savedInc);
       }
 
-      saveLocalState();
-      closeUniversalModal();
-      viewMk = monthKey(date);
       renderAllViews();
-      showToast(txModalState.type === "exp" ? "Gasto guardado ✓" : "Ingreso guardado ✓");
+      showToast(isExp ? "Gasto guardado en Base de Datos ✓" : "Ingreso guardado en Base de Datos ✓");
     }
 
-    function deleteTx(kind, id) {
-      if (!confirm("¿Eliminar este movimiento?")) return;
-      if (kind === "exp") S.expenses = S.expenses.filter(e => e.id !== id);
-      else S.incomes = S.incomes.filter(i => i.id !== id);
-      saveLocalState();
+    async function deleteTx(kind, id) {
+      if (!confirm("¿Eliminar este movimiento de tu cuenta?")) return;
       closeUniversalModal();
+      if (kind === "exp") {
+        await dbDeletePersonalExpense(id);
+      } else {
+        await dbDeletePersonalIncome(id);
+      }
       renderAllViews();
-      showToast("Movimiento eliminado");
+      showToast("Movimiento eliminado de la base de datos ✓");
     }
 
     // Voice Recognition (Web Speech API)
@@ -5188,7 +5711,7 @@ ALTER TABLE public.movimientos
         };
         S.debts.push(d);
       }
-      saveLocalState();
+      dbUpsertPersonalDebt(d);
       return d;
     }
 
@@ -5201,7 +5724,7 @@ ALTER TABLE public.movimientos
       upsertPersonalDebt(person, type, amount, note, due);
       closeUniversalModal();
       renderAllViews();
-      showToast("Cuenta P2P registrada ✓");
+      showToast("Cuenta P2P registrada en Base de Datos ✓");
     }
 
     function openP2PPartialModal(debtId, prefillFull = false) {
@@ -5238,7 +5761,7 @@ ALTER TABLE public.movimientos
       `);
     }
 
-    function saveP2PPartialModal(debtId) {
+    async function saveP2PPartialModal(debtId) {
       const d = (S.debts || []).find(x => x.id === debtId);
       const amt = parseAmount($('#p2p-partial-amount')?.value);
       const note = ($('#p2p-partial-note')?.value || '').trim() || 'Liquidación P2P';
@@ -5251,18 +5774,23 @@ ALTER TABLE public.movimientos
         d.settled = true;
         if (typeof confetti === 'function') confetti({ particleCount: 100, spread: 65, origin: { y: 0.6 } });
       }
+      closeUniversalModal();
+      await dbUpsertPersonalDebt(d);
+
       if (reflect) {
         if (d.type === 'owed') {
-          S.incomes.push({
+          const newInc = {
             id: uid(),
             amount: Math.round(amt * 100) / 100,
             cat: 'bizum',
             source: `Cobro deuda de ${d.person}`,
             note: d.note || note,
             date: todayStr()
-          });
+          };
+          S.incomes.push(newInc);
+          await dbUpsertPersonalIncome(newInc);
         } else {
-          S.expenses.push({
+          const newExp = {
             id: uid(),
             amount: Math.round(amt * 100) / 100,
             cat: 'otros',
@@ -5272,11 +5800,11 @@ ALTER TABLE public.movimientos
             tripId: '',
             refund: false,
             ts: Date.now()
-          });
+          };
+          S.expenses.push(newExp);
+          await dbUpsertPersonalExpense(newExp);
         }
       }
-      saveLocalState();
-      closeUniversalModal();
       renderAllViews();
       showToast(d.settled ? "Cuenta totalmente saldada ✓" : `Abono registrado (restan ${fmt(d.amount)}) ✓`);
     }
@@ -5314,10 +5842,10 @@ ALTER TABLE public.movimientos
       `);
     }
 
-    function deleteP2PDebt(debtId) {
-      S.debts = (S.debts || []).filter(d => d.id !== debtId);
-      saveLocalState();
+    async function deleteP2PDebt(debtId) {
+      await dbDeletePersonalDebt(debtId);
       renderAllViews();
+      showToast("Deuda P2P eliminada ✓");
     }
 
     // Split Bill Modal
@@ -5360,7 +5888,7 @@ ALTER TABLE public.movimientos
       `);
     }
 
-    function executeSplitBill() {
+    async function executeSplitBill() {
       const total = parseAmount($('#split-total')?.value);
       const desc = ($('#split-desc')?.value || '').trim() || 'Cuenta compartida';
       const payer = $('#split-payer')?.value || '__me';
@@ -5377,7 +5905,7 @@ ALTER TABLE public.movimientos
       }
 
       if ($('#split-add-my-exp')?.checked) {
-        S.expenses.push({
+        const myExp = {
           id: uid(),
           amount: share,
           cat: guessCatFromMerchant(desc) !== 'otros' ? guessCatFromMerchant(desc) : 'ocio',
@@ -5385,11 +5913,13 @@ ALTER TABLE public.movimientos
           note: `${desc} (mi parte 1/${totalPeople}) #compartido`,
           date: todayStr(),
           tripId: "",
-          refund: false
-        });
+          refund: false,
+          ts: Date.now()
+        };
+        S.expenses.push(myExp);
+        await dbUpsertPersonalExpense(myExp);
       }
 
-      saveLocalState();
       closeUniversalModal();
       renderAllViews();
       showToast(`Dividido: ${fmt(share)} por persona ✓`);
@@ -5424,7 +5954,7 @@ ALTER TABLE public.movimientos
         return;
       }
       S.groups.push({ id: uid(), name, members, items: [] });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Bote creado ✓");
@@ -5498,7 +6028,7 @@ ALTER TABLE public.movimientos
       const payer = $('#lgi-payer')?.value;
       if (!g || !(amount > 0)) return;
       g.items.push({ id: uid(), desc, amount, payer, date: todayStr(), for: [...g.members] });
-      saveLocalState();
+      saveLocalState(true);
       openLocalGroupDetailModal(groupId);
       renderAllViews();
     }
@@ -5507,7 +6037,7 @@ ALTER TABLE public.movimientos
       const g = (S.groups || []).find(x => x.id === groupId);
       if (!g) return;
       g.items = g.items.filter(x => x.id !== itemId);
-      saveLocalState();
+      saveLocalState(true);
       openLocalGroupDetailModal(groupId);
       renderAllViews();
     }
@@ -5515,7 +6045,7 @@ ALTER TABLE public.movimientos
     function deleteLocalGroup(groupId) {
       if (!confirm("¿Eliminar este bote compartido?")) return;
       S.groups = (S.groups || []).filter(x => x.id !== groupId);
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
     }
@@ -5527,16 +6057,16 @@ ALTER TABLE public.movimientos
       if (salary !== null) S.settings.salary = Math.max(0, parseAmount(salary));
       if (day !== null) S.settings.salaryDay = Math.min(28, Math.max(1, parseInt(day) || 1));
       if (auto !== null) S.settings.salaryAuto = !!auto;
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
-      showToast("Nómina actualizada ✓");
+      showToast("Nómina actualizada en Base de Datos ✓");
     }
 
     function updateCategoryBudget(catId, val) {
       const v = parseAmount(val);
       if (v > 0) S.budgets[catId] = v;
       else delete S.budgets[catId];
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
       showToast("Presupuesto actualizado ✓");
     }
@@ -5547,7 +6077,7 @@ ALTER TABLE public.movimientos
         delete S.rollover[catId];
         delete S.carried[catId];
       }
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -5584,7 +6114,7 @@ ALTER TABLE public.movimientos
       if (!(amount > 0)) return;
       S.recurring.push({ id: uid(), name, amount, day, cat, autoCharge });
       checkAutoRecurringExpenses();
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Suscripción añadida ✓");
@@ -5592,7 +6122,7 @@ ALTER TABLE public.movimientos
 
     function deleteRecurring(id) {
       S.recurring = (S.recurring || []).filter(r => r.id !== id);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -5619,7 +6149,7 @@ ALTER TABLE public.movimientos
       const deadline = $('#goal-deadline')?.value || '';
       if (!(target > 0)) return;
       S.goals.push({ id: uid(), name, target, saved: 0, deadline, color: "#006c4a" });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Objetivo creado ✓");
@@ -5651,7 +6181,7 @@ ALTER TABLE public.movimientos
       if (g.saved >= g.target && typeof confetti === 'function') {
         confetti({ particleCount: 130, spread: 70, origin: { y: 0.6 } });
       }
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Objetivo actualizado ✓");
@@ -5660,7 +6190,7 @@ ALTER TABLE public.movimientos
     function deleteGoal(goalId) {
       if (!confirm("¿Eliminar este objetivo de ahorro?")) return;
       S.goals = (S.goals || []).filter(g => g.id !== goalId);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -5688,7 +6218,7 @@ ALTER TABLE public.movimientos
       const start = $('#trip-start')?.value || todayStr();
       const end = $('#trip-end')?.value || todayStr();
       S.trips.push({ id: uid(), name, budget, start, end });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Viaje creado ✓");
@@ -5696,9 +6226,14 @@ ALTER TABLE public.movimientos
 
     function deleteTrip(tripId) {
       if (!confirm("¿Eliminar este viaje?")) return;
-      (S.expenses || []).forEach(e => { if (e.tripId === tripId) e.tripId = ""; });
+      (S.expenses || []).forEach(e => {
+        if (e.tripId === tripId) {
+          e.tripId = "";
+          dbUpsertPersonalExpense(e);
+        }
+      });
       S.trips = (S.trips || []).filter(t => t.id !== tripId);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -5707,14 +6242,14 @@ ALTER TABLE public.movimientos
       const cat = $('#new-rule-cat')?.value || 'comida';
       if (!m) return;
       S.rules.push({ id: uid(), match: m, cat });
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
       showToast("Regla añadida ✓");
     }
 
     function deleteSmartRule(id) {
       S.rules = (S.rules || []).filter(r => r.id !== id);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -5745,24 +6280,29 @@ ALTER TABLE public.movimientos
       const c = $('#custom-cat-color')?.value || '#4f46e5';
       if (!name) return;
       S.customCats.push({ id: 'c_' + uid(), name, icon, c });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Categoría creada ✓");
     }
 
     function deleteCustomCategory(catId) {
-      (S.expenses || []).forEach(e => { if (e.cat === catId) e.cat = 'otros'; });
+      (S.expenses || []).forEach(e => {
+        if (e.cat === catId) {
+          e.cat = 'otros';
+          dbUpsertPersonalExpense(e);
+        }
+      });
       S.customCats = (S.customCats || []).filter(c => c.id !== catId);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
-    function markExpenseRefunded(expId) {
+    async function markExpenseRefunded(expId) {
       const e = (S.expenses || []).find(x => x.id === expId);
       if (e) {
         e.refund = false;
-        saveLocalState();
+        await dbUpsertPersonalExpense(e);
         renderAllViews();
         showToast("Devolución completada ✓");
       }
@@ -5848,7 +6388,7 @@ ALTER TABLE public.movimientos
         cat = guessCatFromMerchant(item.note);
       }
 
-      S.expenses.push({
+      const newExp = {
         id: uid(),
         amount: item.amount,
         cat,
@@ -5858,14 +6398,13 @@ ALTER TABLE public.movimientos
         tripId: "",
         refund: false,
         ts: nowMs
-      });
-
-      saveLocalState(false);
-      await syncUserPersonalDataToCloud();
+      };
+      S.expenses.push(newExp);
+      await dbUpsertPersonalExpense(newExp);
       viewMk = monthKey(today);
       renderAllViews();
       const catName = catById(cat).name;
-      showToast(` Pay sumado: ${fmt(item.amount)} en ${item.note} (${catName}) ✓`);
+      showToast(` Pay sumado en Base de Datos: ${fmt(item.amount)} en ${item.note} (${catName}) ✓`);
     }
 
     // Invoked by Web URL (?add=14.50&desc=Mercadona) on startup
@@ -5918,14 +6457,16 @@ ALTER TABLE public.movimientos
       const file = inputEl.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         try {
           const data = JSON.parse(reader.result);
           if (!data || !Array.isArray(data.expenses)) throw new Error("Formato inválido");
-          S = data;
-          saveLocalState();
+          await dbClearAllPersonalMonthlyData(loggedUserId);
+          S = normalizeStateObject(data);
+          saveLocalState(false);
+          await syncUserPersonalDataToCloud();
           renderAllViews();
-          showToast("Copia de seguridad restaurada ✓");
+          showToast("Copia de seguridad restaurada en Base de Datos ✓");
         } catch (err) {
           alert("El archivo seleccionado no es una copia válida.");
         }
@@ -5933,22 +6474,20 @@ ALTER TABLE public.movimientos
       reader.readAsText(file);
     }
 
-    function resetLocalPersonalData() {
-      if (!confirm("¿Borrar todos los gastos, ingresos y datos de prueba de tu Control Mensual?\n\n(La base de datos de Deudas y Grupos de Supabase NO se tocará)")) return;
-      const keepSalary = 0;
-      S = blankState(keepSalary);
-      saveLocalState(true);
+    async function resetLocalPersonalData() {
+      if (!confirm("¿Borrar todos los gastos, ingresos y datos de prueba de tu Control Mensual en la base de datos?\n\n(La base de datos de Deudas y Grupos de Supabase NO se tocará)")) return;
+      await dbClearAllPersonalMonthlyData(loggedUserId);
       renderAllViews();
-      showToast("Control Mensual limpio a 0,00 € (Deudas Supabase intactas) ✓");
+      showToast("Control Mensual limpio a 0,00 € en Base de Datos (Deudas intactas) ✓");
     }
 
     // ============================================================================
     // 18. 1-TAP QUICK EXPENSE PRESETS & CAMERA RECEIPT OCR SCANNER
     // ============================================================================
-    function triggerQuickPresetExpense(presetId) {
+    async function triggerQuickPresetExpense(presetId) {
       const qp = (S.quickPresets || []).find(x => x.id === presetId);
       if (!qp) return;
-      S.expenses.push({
+      const newExp = {
         id: uid(),
         amount: Math.round(Number(qp.amount || 0) * 100) / 100,
         cat: qp.cat || 'comida',
@@ -5958,11 +6497,12 @@ ALTER TABLE public.movimientos
         tripId: '',
         refund: false,
         ts: Date.now()
-      });
-      saveLocalState(true);
+      };
+      S.expenses.push(newExp);
       viewMk = monthKey(todayStr());
       renderAllViews();
-      showToast(`⚡ Sumado: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
+      await dbUpsertPersonalExpense(newExp);
+      showToast(`⚡ Sumado en BD: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
     }
 
     function openEditQuickPresetsModal() {
@@ -6182,7 +6722,7 @@ ALTER TABLE public.movimientos
       return { amount, merchant, cat, date };
     }
 
-    function saveScannedReceiptExpense() {
+    async function saveScannedReceiptExpense() {
       const amount = parseAmount($('#ocr-amount')?.value);
       if (!(amount > 0)) {
         $('#ocr-amount')?.focus();
@@ -6192,7 +6732,7 @@ ALTER TABLE public.movimientos
       const cat = $('#ocr-cat')?.value || 'comida';
       const date = $('#ocr-date')?.value || todayStr();
 
-      S.expenses.push({
+      const newExp = {
         id: uid(),
         amount: Math.round(amount * 100) / 100,
         cat,
@@ -6202,12 +6742,13 @@ ALTER TABLE public.movimientos
         tripId: '',
         refund: false,
         ts: Date.now()
-      });
-      saveLocalState(true);
+      };
+      S.expenses.push(newExp);
       closeUniversalModal();
       viewMk = monthKey(date);
       renderAllViews();
-      showToast(`📷 Ticket guardado: ${fmt(amount)} en ${note} ✓`);
+      await dbUpsertPersonalExpense(newExp);
+      showToast(`📷 Ticket guardado en Base de Datos: ${fmt(amount)} en ${note} ✓`);
     }
 
     // ============================================================================
@@ -6246,6 +6787,16 @@ ALTER TABLE public.movimientos
           closeQuickActionSheet();
           closeUniversalModal();
           $('#notifications-drawer')?.classList.add('hidden');
+        }
+      });
+
+      // Live synchronization whenever the browser window or iPhone app regains focus
+      window.addEventListener('focus', () => {
+        if (!isHydratingFromCloud) cargarDatosSupabase(false);
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && !isHydratingFromCloud) {
+          cargarDatosSupabase(false);
         }
       });
 

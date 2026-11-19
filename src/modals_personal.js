@@ -186,7 +186,7 @@
       if (guessed && guessed !== 'otros') selectTxCategory(guessed);
     }
 
-    function saveTxModal() {
+    async function saveTxModal() {
       const amount = parseAmount($('#tx-amount')?.value);
       if (!(amount > 0)) {
         $('#tx-amount')?.focus();
@@ -194,8 +194,11 @@
       }
       const date = $('#tx-date')?.value || todayStr();
       const note = ($('#tx-note')?.value || '').trim();
+      const isExp = (txModalState.type === "exp");
 
-      if (txModalState.type === "exp") {
+      closeUniversalModal();
+
+      if (isExp) {
         const payload = {
           amount: Math.round(amount * 100) / 100,
           cat: txModalState.cat,
@@ -206,12 +209,20 @@
           refund: !!$('#tx-refund')?.checked,
           ts: Date.now()
         };
+        let savedExp = null;
         if (txModalState.editId) {
           const target = S.expenses.find(e => e.id === txModalState.editId);
-          if (target) Object.assign(target, payload);
+          if (target) {
+            Object.assign(target, payload);
+            savedExp = target;
+          }
         } else {
-          S.expenses.push({ id: uid(), ...payload });
+          savedExp = { id: uid(), ...payload };
+          S.expenses.push(savedExp);
         }
+        viewMk = monthKey(date);
+        renderAllViews();
+        if (savedExp) await dbUpsertPersonalExpense(savedExp);
       } else {
         const source = ($('#tx-source')?.value || '').trim() || incById(txModalState.incCat).name;
         const payload = {
@@ -221,29 +232,36 @@
           note,
           date
         };
+        let savedInc = null;
         if (txModalState.editId) {
           const target = S.incomes.find(i => i.id === txModalState.editId);
-          if (target) Object.assign(target, payload);
+          if (target) {
+            Object.assign(target, payload);
+            savedInc = target;
+          }
         } else {
-          S.incomes.push({ id: uid(), ...payload });
+          savedInc = { id: uid(), ...payload };
+          S.incomes.push(savedInc);
         }
+        viewMk = monthKey(date);
+        renderAllViews();
+        if (savedInc) await dbUpsertPersonalIncome(savedInc);
       }
 
-      saveLocalState();
-      closeUniversalModal();
-      viewMk = monthKey(date);
       renderAllViews();
-      showToast(txModalState.type === "exp" ? "Gasto guardado ✓" : "Ingreso guardado ✓");
+      showToast(isExp ? "Gasto guardado en Base de Datos ✓" : "Ingreso guardado en Base de Datos ✓");
     }
 
-    function deleteTx(kind, id) {
-      if (!confirm("¿Eliminar este movimiento?")) return;
-      if (kind === "exp") S.expenses = S.expenses.filter(e => e.id !== id);
-      else S.incomes = S.incomes.filter(i => i.id !== id);
-      saveLocalState();
+    async function deleteTx(kind, id) {
+      if (!confirm("¿Eliminar este movimiento de tu cuenta?")) return;
       closeUniversalModal();
+      if (kind === "exp") {
+        await dbDeletePersonalExpense(id);
+      } else {
+        await dbDeletePersonalIncome(id);
+      }
       renderAllViews();
-      showToast("Movimiento eliminado");
+      showToast("Movimiento eliminado de la base de datos ✓");
     }
 
     // Voice Recognition (Web Speech API)
@@ -394,7 +412,7 @@
         };
         S.debts.push(d);
       }
-      saveLocalState();
+      dbUpsertPersonalDebt(d);
       return d;
     }
 
@@ -407,7 +425,7 @@
       upsertPersonalDebt(person, type, amount, note, due);
       closeUniversalModal();
       renderAllViews();
-      showToast("Cuenta P2P registrada ✓");
+      showToast("Cuenta P2P registrada en Base de Datos ✓");
     }
 
     function openP2PPartialModal(debtId, prefillFull = false) {
@@ -444,7 +462,7 @@
       `);
     }
 
-    function saveP2PPartialModal(debtId) {
+    async function saveP2PPartialModal(debtId) {
       const d = (S.debts || []).find(x => x.id === debtId);
       const amt = parseAmount($('#p2p-partial-amount')?.value);
       const note = ($('#p2p-partial-note')?.value || '').trim() || 'Liquidación P2P';
@@ -457,18 +475,23 @@
         d.settled = true;
         if (typeof confetti === 'function') confetti({ particleCount: 100, spread: 65, origin: { y: 0.6 } });
       }
+      closeUniversalModal();
+      await dbUpsertPersonalDebt(d);
+
       if (reflect) {
         if (d.type === 'owed') {
-          S.incomes.push({
+          const newInc = {
             id: uid(),
             amount: Math.round(amt * 100) / 100,
             cat: 'bizum',
             source: `Cobro deuda de ${d.person}`,
             note: d.note || note,
             date: todayStr()
-          });
+          };
+          S.incomes.push(newInc);
+          await dbUpsertPersonalIncome(newInc);
         } else {
-          S.expenses.push({
+          const newExp = {
             id: uid(),
             amount: Math.round(amt * 100) / 100,
             cat: 'otros',
@@ -478,11 +501,11 @@
             tripId: '',
             refund: false,
             ts: Date.now()
-          });
+          };
+          S.expenses.push(newExp);
+          await dbUpsertPersonalExpense(newExp);
         }
       }
-      saveLocalState();
-      closeUniversalModal();
       renderAllViews();
       showToast(d.settled ? "Cuenta totalmente saldada ✓" : `Abono registrado (restan ${fmt(d.amount)}) ✓`);
     }
@@ -520,10 +543,10 @@
       `);
     }
 
-    function deleteP2PDebt(debtId) {
-      S.debts = (S.debts || []).filter(d => d.id !== debtId);
-      saveLocalState();
+    async function deleteP2PDebt(debtId) {
+      await dbDeletePersonalDebt(debtId);
       renderAllViews();
+      showToast("Deuda P2P eliminada ✓");
     }
 
     // Split Bill Modal
@@ -566,7 +589,7 @@
       `);
     }
 
-    function executeSplitBill() {
+    async function executeSplitBill() {
       const total = parseAmount($('#split-total')?.value);
       const desc = ($('#split-desc')?.value || '').trim() || 'Cuenta compartida';
       const payer = $('#split-payer')?.value || '__me';
@@ -583,7 +606,7 @@
       }
 
       if ($('#split-add-my-exp')?.checked) {
-        S.expenses.push({
+        const myExp = {
           id: uid(),
           amount: share,
           cat: guessCatFromMerchant(desc) !== 'otros' ? guessCatFromMerchant(desc) : 'ocio',
@@ -591,11 +614,13 @@
           note: `${desc} (mi parte 1/${totalPeople}) #compartido`,
           date: todayStr(),
           tripId: "",
-          refund: false
-        });
+          refund: false,
+          ts: Date.now()
+        };
+        S.expenses.push(myExp);
+        await dbUpsertPersonalExpense(myExp);
       }
 
-      saveLocalState();
       closeUniversalModal();
       renderAllViews();
       showToast(`Dividido: ${fmt(share)} por persona ✓`);
@@ -630,7 +655,7 @@
         return;
       }
       S.groups.push({ id: uid(), name, members, items: [] });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Bote creado ✓");
@@ -704,7 +729,7 @@
       const payer = $('#lgi-payer')?.value;
       if (!g || !(amount > 0)) return;
       g.items.push({ id: uid(), desc, amount, payer, date: todayStr(), for: [...g.members] });
-      saveLocalState();
+      saveLocalState(true);
       openLocalGroupDetailModal(groupId);
       renderAllViews();
     }
@@ -713,7 +738,7 @@
       const g = (S.groups || []).find(x => x.id === groupId);
       if (!g) return;
       g.items = g.items.filter(x => x.id !== itemId);
-      saveLocalState();
+      saveLocalState(true);
       openLocalGroupDetailModal(groupId);
       renderAllViews();
     }
@@ -721,7 +746,7 @@
     function deleteLocalGroup(groupId) {
       if (!confirm("¿Eliminar este bote compartido?")) return;
       S.groups = (S.groups || []).filter(x => x.id !== groupId);
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
     }
@@ -733,16 +758,16 @@
       if (salary !== null) S.settings.salary = Math.max(0, parseAmount(salary));
       if (day !== null) S.settings.salaryDay = Math.min(28, Math.max(1, parseInt(day) || 1));
       if (auto !== null) S.settings.salaryAuto = !!auto;
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
-      showToast("Nómina actualizada ✓");
+      showToast("Nómina actualizada en Base de Datos ✓");
     }
 
     function updateCategoryBudget(catId, val) {
       const v = parseAmount(val);
       if (v > 0) S.budgets[catId] = v;
       else delete S.budgets[catId];
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
       showToast("Presupuesto actualizado ✓");
     }
@@ -753,7 +778,7 @@
         delete S.rollover[catId];
         delete S.carried[catId];
       }
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -790,7 +815,7 @@
       if (!(amount > 0)) return;
       S.recurring.push({ id: uid(), name, amount, day, cat, autoCharge });
       checkAutoRecurringExpenses();
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Suscripción añadida ✓");
@@ -798,7 +823,7 @@
 
     function deleteRecurring(id) {
       S.recurring = (S.recurring || []).filter(r => r.id !== id);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -825,7 +850,7 @@
       const deadline = $('#goal-deadline')?.value || '';
       if (!(target > 0)) return;
       S.goals.push({ id: uid(), name, target, saved: 0, deadline, color: "#006c4a" });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Objetivo creado ✓");
@@ -857,7 +882,7 @@
       if (g.saved >= g.target && typeof confetti === 'function') {
         confetti({ particleCount: 130, spread: 70, origin: { y: 0.6 } });
       }
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Objetivo actualizado ✓");
@@ -866,7 +891,7 @@
     function deleteGoal(goalId) {
       if (!confirm("¿Eliminar este objetivo de ahorro?")) return;
       S.goals = (S.goals || []).filter(g => g.id !== goalId);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -894,7 +919,7 @@
       const start = $('#trip-start')?.value || todayStr();
       const end = $('#trip-end')?.value || todayStr();
       S.trips.push({ id: uid(), name, budget, start, end });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Viaje creado ✓");
@@ -902,9 +927,14 @@
 
     function deleteTrip(tripId) {
       if (!confirm("¿Eliminar este viaje?")) return;
-      (S.expenses || []).forEach(e => { if (e.tripId === tripId) e.tripId = ""; });
+      (S.expenses || []).forEach(e => {
+        if (e.tripId === tripId) {
+          e.tripId = "";
+          dbUpsertPersonalExpense(e);
+        }
+      });
       S.trips = (S.trips || []).filter(t => t.id !== tripId);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -913,14 +943,14 @@
       const cat = $('#new-rule-cat')?.value || 'comida';
       if (!m) return;
       S.rules.push({ id: uid(), match: m, cat });
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
       showToast("Regla añadida ✓");
     }
 
     function deleteSmartRule(id) {
       S.rules = (S.rules || []).filter(r => r.id !== id);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
@@ -951,24 +981,29 @@
       const c = $('#custom-cat-color')?.value || '#4f46e5';
       if (!name) return;
       S.customCats.push({ id: 'c_' + uid(), name, icon, c });
-      saveLocalState();
+      saveLocalState(true);
       closeUniversalModal();
       renderAllViews();
       showToast("Categoría creada ✓");
     }
 
     function deleteCustomCategory(catId) {
-      (S.expenses || []).forEach(e => { if (e.cat === catId) e.cat = 'otros'; });
+      (S.expenses || []).forEach(e => {
+        if (e.cat === catId) {
+          e.cat = 'otros';
+          dbUpsertPersonalExpense(e);
+        }
+      });
       S.customCats = (S.customCats || []).filter(c => c.id !== catId);
-      saveLocalState();
+      saveLocalState(true);
       renderAllViews();
     }
 
-    function markExpenseRefunded(expId) {
+    async function markExpenseRefunded(expId) {
       const e = (S.expenses || []).find(x => x.id === expId);
       if (e) {
         e.refund = false;
-        saveLocalState();
+        await dbUpsertPersonalExpense(e);
         renderAllViews();
         showToast("Devolución completada ✓");
       }
@@ -1054,7 +1089,7 @@
         cat = guessCatFromMerchant(item.note);
       }
 
-      S.expenses.push({
+      const newExp = {
         id: uid(),
         amount: item.amount,
         cat,
@@ -1064,14 +1099,13 @@
         tripId: "",
         refund: false,
         ts: nowMs
-      });
-
-      saveLocalState(false);
-      await syncUserPersonalDataToCloud();
+      };
+      S.expenses.push(newExp);
+      await dbUpsertPersonalExpense(newExp);
       viewMk = monthKey(today);
       renderAllViews();
       const catName = catById(cat).name;
-      showToast(` Pay sumado: ${fmt(item.amount)} en ${item.note} (${catName}) ✓`);
+      showToast(` Pay sumado en Base de Datos: ${fmt(item.amount)} en ${item.note} (${catName}) ✓`);
     }
 
     // Invoked by Web URL (?add=14.50&desc=Mercadona) on startup
@@ -1124,14 +1158,16 @@
       const file = inputEl.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         try {
           const data = JSON.parse(reader.result);
           if (!data || !Array.isArray(data.expenses)) throw new Error("Formato inválido");
-          S = data;
-          saveLocalState();
+          await dbClearAllPersonalMonthlyData(loggedUserId);
+          S = normalizeStateObject(data);
+          saveLocalState(false);
+          await syncUserPersonalDataToCloud();
           renderAllViews();
-          showToast("Copia de seguridad restaurada ✓");
+          showToast("Copia de seguridad restaurada en Base de Datos ✓");
         } catch (err) {
           alert("El archivo seleccionado no es una copia válida.");
         }
@@ -1139,22 +1175,20 @@
       reader.readAsText(file);
     }
 
-    function resetLocalPersonalData() {
-      if (!confirm("¿Borrar todos los gastos, ingresos y datos de prueba de tu Control Mensual?\n\n(La base de datos de Deudas y Grupos de Supabase NO se tocará)")) return;
-      const keepSalary = 0;
-      S = blankState(keepSalary);
-      saveLocalState(true);
+    async function resetLocalPersonalData() {
+      if (!confirm("¿Borrar todos los gastos, ingresos y datos de prueba de tu Control Mensual en la base de datos?\n\n(La base de datos de Deudas y Grupos de Supabase NO se tocará)")) return;
+      await dbClearAllPersonalMonthlyData(loggedUserId);
       renderAllViews();
-      showToast("Control Mensual limpio a 0,00 € (Deudas Supabase intactas) ✓");
+      showToast("Control Mensual limpio a 0,00 € en Base de Datos (Deudas intactas) ✓");
     }
 
     // ============================================================================
     // 18. 1-TAP QUICK EXPENSE PRESETS & CAMERA RECEIPT OCR SCANNER
     // ============================================================================
-    function triggerQuickPresetExpense(presetId) {
+    async function triggerQuickPresetExpense(presetId) {
       const qp = (S.quickPresets || []).find(x => x.id === presetId);
       if (!qp) return;
-      S.expenses.push({
+      const newExp = {
         id: uid(),
         amount: Math.round(Number(qp.amount || 0) * 100) / 100,
         cat: qp.cat || 'comida',
@@ -1164,11 +1198,12 @@
         tripId: '',
         refund: false,
         ts: Date.now()
-      });
-      saveLocalState(true);
+      };
+      S.expenses.push(newExp);
       viewMk = monthKey(todayStr());
       renderAllViews();
-      showToast(`⚡ Sumado: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
+      await dbUpsertPersonalExpense(newExp);
+      showToast(`⚡ Sumado en BD: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
     }
 
     function openEditQuickPresetsModal() {
@@ -1388,7 +1423,7 @@
       return { amount, merchant, cat, date };
     }
 
-    function saveScannedReceiptExpense() {
+    async function saveScannedReceiptExpense() {
       const amount = parseAmount($('#ocr-amount')?.value);
       if (!(amount > 0)) {
         $('#ocr-amount')?.focus();
@@ -1398,7 +1433,7 @@
       const cat = $('#ocr-cat')?.value || 'comida';
       const date = $('#ocr-date')?.value || todayStr();
 
-      S.expenses.push({
+      const newExp = {
         id: uid(),
         amount: Math.round(amount * 100) / 100,
         cat,
@@ -1408,12 +1443,13 @@
         tripId: '',
         refund: false,
         ts: Date.now()
-      });
-      saveLocalState(true);
+      };
+      S.expenses.push(newExp);
       closeUniversalModal();
       viewMk = monthKey(date);
       renderAllViews();
-      showToast(`📷 Ticket guardado: ${fmt(amount)} en ${note} ✓`);
+      await dbUpsertPersonalExpense(newExp);
+      showToast(`📷 Ticket guardado en Base de Datos: ${fmt(amount)} en ${note} ✓`);
     }
 
     // ============================================================================
@@ -1452,6 +1488,16 @@
           closeQuickActionSheet();
           closeUniversalModal();
           $('#notifications-drawer')?.classList.add('hidden');
+        }
+      });
+
+      // Live synchronization whenever the browser window or iPhone app regains focus
+      window.addEventListener('focus', () => {
+        if (!isHydratingFromCloud) cargarDatosSupabase(false);
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && !isHydratingFromCloud) {
+          cargarDatosSupabase(false);
         }
       });
 

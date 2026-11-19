@@ -555,9 +555,10 @@
       const el = $('#view-gastos');
       if (!el) return;
 
+      const userName = currentLoggedUserName();
       const exps = monthExpenses(viewMk).map(e => ({ ...e, _k: "exp" }));
       const incs = incomeRows(viewMk).map(i => ({ ...i, _k: "inc" }));
-      let all = [...exps, ...incs].sort((a, b) => b.date.localeCompare(a.date));
+      let all = [...exps, ...incs].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0));
 
       if (movFilter.type === "exp") all = all.filter(x => x._k === "exp");
       if (movFilter.type === "inc") all = all.filter(x => x._k === "inc");
@@ -577,32 +578,18 @@
       (S.expenses || []).forEach(e => tagsOf(e.note).forEach(t => tagSet.add(t)));
       const allTagsList = [...tagSet].sort();
 
-      const rowsHtml = all.map(x => {
-        if (x._k === "exp") return renderExpenseRow(x);
-        const ic = incById(x.cat);
-        return `
-          <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
-              </div>
-              <div class="min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
-                  ${x.auto ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-secondary/10 text-secondary">Automática</span>` : ''}
-                </div>
-                <p class="font-body-sm text-xs text-on-surface-variant">${fmtDay(x.date)} • ${esc(ic.name)}</p>
-              </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
-              <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
-            </div>
+      const syncTimeText = lastCloudSyncTime
+        ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        : 'En vivo';
+
+      const rowsHtml = all.length > 0
+        ? renderDateGroupedTransactionsHtml(all)
+        : `
+          <div class="p-10 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
+            <span class="material-symbols-outlined text-3xl text-outline">search_off</span>
+            <p class="font-bold text-on-surface">No hay movimientos que coincidan con este filtro</p>
+            <p class="text-xs">Prueba a limpiar los filtros o registra un nuevo gasto arriba.</p>
           </div>`;
-      }).join('') || `
-        <div class="p-10 text-center text-on-surface-variant text-sm">
-          No hay movimientos que coincidan con este filtro.
-        </div>`;
 
       el.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -616,12 +603,10 @@
               Movimientos (${exps.length + incs.length})
             </button>
           </div>
-          ${(exps.length + incs.length > 0) ? `
-            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale">
-              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
-              Borrar datos de Control Mensual
-            </button>
-          ` : ''}
+          <div onclick="cargarDatosSupabase(true)" class="cursor-pointer px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant transition active-scale" title="Toca para actualizar desde la Base de Datos de Supabase">
+            <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
+            <span>☁️ BD ${esc(userName)} • ${esc(syncTimeText)}</span>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -668,7 +653,7 @@
 
         <div class="bento-card p-4 rounded-2xl flex flex-col gap-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="font-headline-sm text-base font-extrabold text-on-surface capitalize">Movimientos • ${monthLabel(viewMk)}</h2>
+            <h2 class="font-headline-sm text-base font-extrabold text-on-surface capitalize">Libro de Movimientos • ${monthLabel(viewMk)}</h2>
             <div class="flex items-center gap-3 text-xs font-extrabold tabular-nums">
               <span class="text-secondary">Ingresos: +${fmt(tInc)}</span>
               <span class="text-tertiary">Gastos: −${fmt(tExp)}</span>
@@ -682,9 +667,9 @@
           </div>
 
           <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
-            <button onclick="movFilter.type='all'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Todos</button>
-            <button onclick="movFilter.type='exp'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'exp' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Gastos</button>
-            <button onclick="movFilter.type='inc'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'inc' ? 'bg-secondary text-on-secondary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Ingresos</button>
+            <button onclick="movFilter.type='all'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'all' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Todos (${exps.length + incs.length})</button>
+            <button onclick="movFilter.type='exp'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'exp' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Gastos (${exps.length})</button>
+            <button onclick="movFilter.type='inc'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'inc' ? 'bg-secondary text-on-secondary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Solo Ingresos (${incs.length})</button>
             <button onclick="movFilter.type='refund'; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition ${movFilter.type === 'refund' ? 'bg-amber-500 text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">Devoluciones</button>
 
             <select onchange="movFilter.cat=this.value; renderGastosView()" class="px-3 py-1.5 rounded-full text-xs font-bold bg-surface-container-low border border-outline-variant/40 text-on-surface flex-shrink-0">
@@ -706,7 +691,7 @@
           </div>
         </div>
 
-        <div class="bento-card rounded-2xl overflow-hidden divide-y divide-outline-variant/20">
+        <div class="bento-card rounded-2xl overflow-hidden">
           ${rowsHtml}
         </div>
       `;

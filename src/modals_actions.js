@@ -379,11 +379,14 @@ ALTER TABLE public.movimientos
       showToast("SQL copiado al portapapeles ✓");
     }
 
-    function seedDemoForCurrentUser() {
+    async function seedDemoForCurrentUser() {
+      await dbClearAllPersonalMonthlyData(loggedUserId);
       seedInitialData();
-      saveLocalState(true);
+      saveLocalState(false);
       renderAllViews();
-      showToast("Datos de ejemplo cargados en tu cuenta ✓");
+      await syncUserPersonalDataToCloud();
+      renderAllViews();
+      showToast("Datos de ejemplo guardados en Base de Datos ✓");
     }
 
     // Group Creation & Deletion
@@ -818,7 +821,7 @@ ALTER TABLE public.movimientos
 
       if (reflectInMensual && S) {
         if (isMyOwnDebt) {
-          S.expenses.push({
+          const newExp = {
             id: uid(),
             amount: Math.round(amount * 100) / 100,
             cat: 'otros',
@@ -828,18 +831,21 @@ ALTER TABLE public.movimientos
             tripId: '',
             refund: false,
             ts: Date.now()
-          });
+          };
+          S.expenses.push(newExp);
+          await dbUpsertPersonalExpense(newExp);
         } else {
-          S.incomes.push({
+          const newInc = {
             id: uid(),
             amount: Math.round(amount * 100) / 100,
             cat: 'bizum',
             source: `Cobro de ${userName} (${gName})`,
             note: 'Deuda grupo saldada',
             date: todayStr()
-          });
+          };
+          S.incomes.push(newInc);
+          await dbUpsertPersonalIncome(newInc);
         }
-        saveLocalState(true);
       }
 
       showToast(canApproveDirectly ? "Pago confirmado ✓" : "Pago enviado a revisión ✓");

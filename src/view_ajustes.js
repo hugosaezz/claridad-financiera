@@ -447,9 +447,9 @@
                 Cargar Datos de Ejemplo en esta Cuenta
               </button>
 
-              <button onclick="resetLocalPersonalData()" class="mt-1 w-full py-2.5 px-4 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary font-bold text-xs flex items-center justify-center gap-2 transition">
-                <span class="material-symbols-outlined text-[18px]">delete_forever</span>
-                Vaciar Movimientos de mi Cuenta
+              <button onclick="resetLocalPersonalData()" class="mt-1 w-full py-2.5 px-4 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary font-extrabold text-xs flex items-center justify-center gap-2 transition active-scale" title="Borra únicamente los gastos, ingresos y datos de prueba del Control Mensual sin tocar la base de datos de Deudas">
+                <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+                Borrar datos de Control Mensual
               </button>
             </div>
           </div>`;

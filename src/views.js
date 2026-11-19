@@ -99,6 +99,92 @@
     // ============================================================================
     // 9. VIEW 1: CONTROL MENSUAL (100% Personal Monthly Finances — Separated from Debts)
     // ============================================================================
+    function renderCategoryDonutSVG(cats, totalExp) {
+      const R = 36, C = 2 * Math.PI * R;
+      if (!(totalExp > 0) || !cats || cats.length === 0) {
+        return `
+          <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0">
+            <circle cx="48" cy="48" r="${R}" fill="none" stroke="currentColor" class="text-surface-container-high" stroke-width="11"/>
+            <text x="48" y="46" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor" class="text-on-surface">0 €</text>
+            <text x="48" y="59" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" class="text-outline">MES LIMPIO</text>
+          </svg>`;
+      }
+      let offset = 0;
+      const circles = cats.slice(0, 6).map(d => {
+        const c = catById(d.cat);
+        const len = Math.max(2, (d.total / totalExp) * C);
+        const seg = `<circle cx="48" cy="48" r="${R}" fill="none" stroke="${c.c}" stroke-width="11" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}" transform="rotate(-90 48 48)"/>`;
+        offset += (d.total / totalExp) * C;
+        return seg;
+      }).join('');
+      const topCat = catById(cats[0].cat);
+      const topPct = Math.round((cats[0].total / totalExp) * 100);
+      return `
+        <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0">
+          <circle cx="48" cy="48" r="${R}" fill="none" stroke="currentColor" class="text-surface-container-high" stroke-width="11"/>
+          ${circles}
+          <text x="48" y="46" text-anchor="middle" font-size="13" font-weight="800" fill="currentColor" class="text-on-surface">${topPct}%</text>
+          <text x="48" y="59" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" class="text-on-surface-variant">${esc(topCat.name.slice(0, 9))}</text>
+        </svg>`;
+    }
+
+    function renderDateGroupedTransactionsHtml(mixedRows) {
+      if (!mixedRows || mixedRows.length === 0) return '';
+      const groups = [];
+      const map = {};
+      mixedRows.forEach(item => {
+        const d = item.date || todayStr();
+        if (!map[d]) {
+          map[d] = { date: d, items: [], expSum: 0, incSum: 0 };
+          groups.push(map[d]);
+        }
+        map[d].items.push(item);
+        if (item._k === 'exp') map[d].expSum += Number(item.amount || 0);
+        else map[d].incSum += Number(item.amount || 0);
+      });
+
+      return groups.map(g => {
+        const netDay = g.incSum - g.expSum;
+        const dayHeaderRight = g.expSum > 0 && g.incSum === 0
+          ? `−${fmt(g.expSum)}`
+          : g.incSum > 0 && g.expSum === 0
+            ? `+${fmt(g.incSum)}`
+            : fmtSigned(netDay);
+
+        const rows = g.items.map(x => {
+          if (x._k === 'exp') return renderExpenseRow(x);
+          const ic = incById(x.cat);
+          return `
+            <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
+                  <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
+                  <p class="font-body-sm text-xs text-on-surface-variant">${x.auto ? 'Nómina automática mensual' : esc(ic.name)}${x.note ? ' • ' + esc(x.note) : ''}</p>
+                </div>
+              </div>
+              <div class="text-right flex-shrink-0">
+                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
+                <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
+              </div>
+            </div>`;
+        }).join('');
+
+        return `
+          <div class="flex flex-col">
+            <div class="px-4 py-2 bg-surface-container-low/90 border-y border-outline-variant/25 flex items-center justify-between">
+              <span class="font-label-sm text-[10px] font-extrabold tracking-wider text-on-surface-variant uppercase">${esc(fmtRelativeDateHeader(g.date))}</span>
+              <span class="font-label-sm text-[11px] font-extrabold tabular-nums ${g.expSum > g.incSum ? 'text-on-surface-variant' : 'text-secondary'}">${dayHeaderRight}</span>
+            </div>
+            <div class="divide-y divide-outline-variant/20">
+              ${rows}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
     function renderInicioView() {
       const el = $('#view-inicio');
       if (!el) return;
@@ -121,9 +207,23 @@
       const fc = forecast(viewMk);
       const cats = byCat(exps);
 
-      const hasPersonalData = (S.expenses || []).length > 0 || (S.incomes || []).length > 0 || (S.debts || []).length > 0 || S.isDemoSeeded;
+      // Copilot Money-style Daily Pace Calculation
+      const [Y, M] = viewMk.split('-').map(Number);
+      const isCurMonth = viewMk === monthKey(todayStr());
+      const daysInMonth = new Date(Y, M, 0).getDate();
+      const currentDay = isCurMonth ? new Date().getDate() : daysInMonth;
+      const daysRemaining = Math.max(1, daysInMonth - currentDay + 1);
+      const dailySafeAllowance = Math.max(0, safe / daysRemaining);
+      const elapsedMonthPct = Math.min(100, Math.round((currentDay / daysInMonth) * 100));
+      const expectedSpendByToday = budgetTotal > 0 ? (budgetTotal * (currentDay / daysInMonth)) : 0;
+      const paceDiff = expectedSpendByToday - totalExp; // Positive = under budget pace (good!)
+      const isPaceGood = totalExp <= expectedSpendByToday + 0.01;
 
-      // Top Monthly Control Bar (Resumen vs Movimientos + Borrar datos de prueba)
+      const syncTimeText = lastCloudSyncTime
+        ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        : 'En vivo';
+
+      // Top Monthly Control Bar (Clean Segmented Control + Live Supabase Database Status Badge — NO delete button here)
       const monthlyTopNavHtml = `
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
@@ -136,12 +236,10 @@
               Movimientos (${exps.length + incs.length})
             </button>
           </div>
-          ${hasPersonalData ? `
-            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale" title="Borra los gastos/datos de prueba del Control Mensual sin tocar la base de datos de Deudas de Supabase">
-              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
-              Borrar datos de Control Mensual
-            </button>
-          ` : ''}
+          <div onclick="cargarDatosSupabase(true)" class="cursor-pointer px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant transition active-scale" title="Toca para actualizar desde la Base de Datos de Supabase">
+            <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
+            <span>☁️ BD ${esc(userName)} • ${esc(syncTimeText)}</span>
+          </div>
         </div>
       `;
 
@@ -151,7 +249,7 @@
           <div class="flex items-center justify-between">
             <span class="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
               <span class="material-symbols-outlined text-[16px]">bolt</span>
-              Gasto Rápido en 1 Toque (Suma al instante)
+              Gasto Rápido en 1 Toque (Guarda en Base de Datos al instante)
             </span>
             <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-0.5">
               <span class="material-symbols-outlined text-[14px]">edit</span>
@@ -178,12 +276,12 @@
         <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex items-start gap-3">
             <span class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined">verified_user</span>
+              <span class="material-symbols-outlined">cloud_done</span>
             </span>
             <div>
-              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Cuenta limpia a 0,00 € (${esc(userName)})</h3>
+              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Registro personal de ${esc(userName)} en Supabase a 0,00 €</h3>
               <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                Sin datos aleatorios. Configura tu nómina, usa los botones de «Gasto Rápido en 1 toque» o escanea un ticket con la cámara.
+                Todo lo que apuntes aquí o desde el atajo de Apple Pay se guarda en tu base de datos en tiempo real para verse en cualquier navegador y en tu iPhone.
               </p>
             </div>
           </div>
@@ -195,7 +293,7 @@
         </div>
       ` : '';
 
-      // Multi-segment stacked bar & category grid (Stitch design)
+      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style with micro-progress bars)
       const topCats = cats.slice(0, 6);
       const multiBarSegments = topCats.length > 0 ? topCats.map(d => {
         const c = catById(d.cat);
@@ -205,54 +303,47 @@
 
       const catCardsHtml = (topCats.length > 0 ? topCats : CATS.slice(0, 6).map(c => ({ cat: c.id, total: 0 }))).map(d => {
         const c = catById(d.cat);
-        const pct = totalExp > 0 ? Math.round((d.total / totalExp) * 100) : 0;
+        const pctOfTotal = totalExp > 0 ? Math.round((d.total / totalExp) * 100) : 0;
         const bdg = effBudget(c.id);
+        const bdgPct = bdg > 0 ? Math.min(100, Math.round((d.total / bdg) * 100)) : pctOfTotal;
         const over = bdg > 0 && d.total > bdg;
         return `
-          <button onclick="openCategoryDetailModal('${c.id}')" class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition flex flex-col text-left active-scale border ${over ? 'border-tertiary/40' : 'border-transparent'}">
+          <button onclick="openCategoryDetailModal('${c.id}')" class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition flex flex-col justify-between gap-1.5 text-left active-scale border ${over ? 'border-tertiary/50 bg-tertiary/5' : 'border-outline-variant/25'}">
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-1.5 min-w-0">
-                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${c.c}"></span>
-                <span class="font-label-sm text-xs font-bold text-on-surface-variant truncate">${esc(c.name)}</span>
+                <span class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1a;color:${c.c}">
+                  <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+                </span>
+                <span class="font-label-sm text-xs font-extrabold text-on-surface truncate">${esc(c.name)}</span>
               </div>
-              <span class="material-symbols-outlined text-[16px]" style="color:${c.c}">${c.icon}</span>
+              <span class="text-[10px] font-extrabold ${over ? 'text-tertiary' : 'text-on-surface-variant'}">${bdg > 0 ? `${bdgPct}%` : `${pctOfTotal}%`}</span>
             </div>
-            <span class="font-headline-sm text-[16px] font-extrabold text-on-surface mt-1 tabular-nums">${fmt0(d.total)}</span>
-            <span class="font-body-sm text-[11px] ${over ? 'text-tertiary font-bold' : 'text-outline'}">
-              ${pct}% del total${bdg > 0 ? ` • Lím. ${fmt0(bdg)}` : ''}
-            </span>
+            <div>
+              <div class="flex items-baseline justify-between">
+                <span class="font-headline-sm text-[16px] font-extrabold text-on-surface tabular-nums">${fmt0(d.total)}</span>
+                ${bdg > 0 ? `<span class="text-[10px] text-outline tabular-nums">/ ${fmt0(bdg)}</span>` : ''}
+              </div>
+              <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+                <div class="h-full rounded-full transition-all duration-500" style="width:${bdgPct}%;background:${over ? '#e11d48' : c.c}"></div>
+              </div>
+            </div>
           </button>`;
       }).join('');
 
-      // Recent Monthly Transactions (Expenses & Incomes)
+      // Recent Monthly Transactions grouped by Date (Revolut / Apple Wallet style)
       const recentMixed = [
         ...exps.map(e => ({ ...e, _k: 'exp' })),
         ...incs.map(i => ({ ...i, _k: 'inc' }))
-      ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 7);
 
-      const recentRowsHtml = recentMixed.map(x => {
-        if (x._k === 'exp') return renderExpenseRow(x);
-        const ic = incById(x.cat);
-        return `
-          <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
-                <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
-              </div>
-              <div class="min-w-0">
-                <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
-                <p class="font-body-sm text-xs text-on-surface-variant">${fmtDay(x.date)} • ${x.auto ? 'Nómina automática' : esc(ic.name)}</p>
-              </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
-              <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
-            </div>
+      const recentRowsHtml = recentMixed.length > 0
+        ? renderDateGroupedTransactionsHtml(recentMixed)
+        : `
+          <div class="p-8 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
+            <span class="material-symbols-outlined text-3xl text-outline">receipt_long</span>
+            <p class="font-bold text-on-surface">Sin movimientos en ${monthLabel(viewMk)}</p>
+            <p class="text-xs">Usa los botones de Gasto Rápido arriba o el botón central «+» para registrar tu primer movimiento.</p>
           </div>`;
-      }).join('') || `
-        <div class="p-8 text-center text-on-surface-variant text-sm">
-          Sin movimientos registrados en ${monthLabel(viewMk)}.
-        </div>`;
 
       // Upcoming Subscriptions & Goals Summary
       const upcomingHtml = upRecList.slice(0, 3).map(r => {
@@ -273,17 +364,20 @@
         ${onboardingBannerHtml}
         ${quickPresetsHtml}
 
-        <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (100% Personal Finance) -->
+        <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (Copilot / Monarch / Revolut Style) -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <!-- HERO KPI (2 cols): PUEDES GASTAR ESTE MES (SAFE TO SPEND) -->
+          <!-- HERO KPI (2 cols): PUEDES GASTAR ESTE MES + DAILY ALLOWANCE VERDICT -->
           <div class="col-span-2 hero-indigo text-on-primary p-4 sm:p-5 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div class="flex flex-col">
-                <span class="font-label-sm text-[10px] text-on-primary-container font-bold tracking-wider uppercase">PUEDES GASTAR ESTE MES (DISPONIBLE REAL)</span>
-                <div class="flex items-baseline gap-2 mt-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-label-sm text-[10px] text-on-primary-container font-extrabold tracking-wider uppercase">PUEDES GASTAR ESTE MES</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white">${fmt0(dailySafeAllowance)}/día libres</span>
+                </div>
+                <div class="flex items-baseline gap-2 mt-1">
                   <span class="font-display-currency-mobile text-[30px] sm:text-[34px] leading-9 font-extrabold text-white tabular-nums">${fmt(safe)}</span>
-                  <span class="font-body-sm text-xs text-on-primary-container">libres</span>
+                  <span class="font-body-sm text-xs text-on-primary-container">disponibles</span>
                 </div>
               </div>
               <div onclick="switchMainView('analitica')" class="cursor-pointer bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-right">
@@ -344,30 +438,44 @@
             </div>
           </div>
 
-          <!-- KPI 4: GASTO MENSUAL VS PRESUPUESTO -->
+          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR (GASTO VS RITMO IDEAL DEL MES) -->
           <div class="col-span-2 lg:col-span-4 bento-card p-4 rounded-2xl flex flex-col gap-2.5">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-primary text-[20px]">pie_chart</span>
-                <span class="font-label-lg text-sm font-bold text-on-surface">Gasto mensual vs. Presupuesto</span>
+            <div class="flex flex-wrap justify-between items-center gap-2">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[20px]">speed</span>
+                <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Gasto vs. Presupuesto Mensual</span>
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'}">
+                  ${isPaceGood ? `🟢 Ritmo óptimo (${fmt0(Math.abs(paceDiff))} bajo el límite de hoy)` : `🟠 Ritmo alto (+${fmt0(Math.abs(paceDiff))} sobre el día ${currentDay})`}
+                </span>
               </div>
               <div class="flex items-center gap-2">
                 <span class="font-label-md text-xs font-extrabold ${budgetPct >= 100 ? 'text-tertiary bg-tertiary/10' : budgetPct >= 80 ? 'text-amber-700 bg-amber-500/15' : 'text-primary bg-primary/10'} px-2.5 py-0.5 rounded-lg">
-                  ${budgetPct}% gastado
+                  ${budgetPct}% gastado en el ${elapsedMonthPct}% del mes
                 </span>
-                <button onclick="switchMainView('ajustes', 'pres')" class="text-xs font-bold text-primary hover:underline">Ajustar límites</button>
+                <button onclick="switchMainView('ajustes', 'pres')" class="text-xs font-bold text-primary hover:underline">Límites</button>
               </div>
             </div>
+
             <div class="flex items-baseline justify-between">
               <p class="font-headline-md text-[22px] text-on-surface font-extrabold tabular-nums">
-                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)}</span>
+                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)} presupuestados</span>
               </p>
               <p class="font-label-sm text-xs ${budgetRest >= 0 ? 'text-secondary' : 'text-tertiary'} font-extrabold tabular-nums">
-                ${budgetRest >= 0 ? `${fmt0(budgetRest)} restantes` : `${fmt0(-budgetRest)} excedido`}
+                ${budgetRest >= 0 ? `${fmt0(budgetRest)} libres del presupuesto` : `${fmt0(-budgetRest)} excedido`}
               </p>
             </div>
-            <div class="w-full bg-surface-container h-2.5 rounded-full overflow-hidden">
-              <div class="${budgetPct >= 100 ? 'bg-tertiary' : budgetPct >= 85 ? 'bg-amber-500' : 'bg-primary'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
+
+            <!-- Progress bar with Copilot "HOY (Día X)" vertical marker -->
+            <div class="relative w-full pt-1 pb-2">
+              <div class="w-full bg-surface-container h-3 rounded-full overflow-hidden">
+                <div class="${budgetPct >= 100 ? 'bg-tertiary' : !isPaceGood ? 'bg-amber-500' : 'bg-primary'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
+              </div>
+              ${isCurMonth ? `
+                <div class="absolute top-0 bottom-1 flex flex-col items-center pointer-events-none" style="left: clamp(4%, ${elapsedMonthPct}%, 96%); transform: translateX(-50%);">
+                  <div class="w-0.5 h-5 bg-on-surface rounded-full shadow-xs"></div>
+                  <span class="text-[9px] font-extrabold text-on-surface-variant uppercase tracking-tighter mt-0.5 bg-surface-container-lowest px-1 rounded border border-outline-variant/40">Hoy D${currentDay}</span>
+                </div>
+              ` : ''}
             </div>
           </div>
         </section>
@@ -418,20 +526,34 @@
         <!-- 2-COLUMN MONTHLY BREAKDOWN & RECENT MOVEMENTS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-          <!-- LEFT (6 cols): CATEGORY BREAKDOWN & UPCOMING SUBSCRIPTIONS -->
+          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING SUBSCRIPTIONS -->
           <section class="lg:col-span-6 flex flex-col gap-4">
             <div class="flex items-center justify-between">
               <div>
                 <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Desglose por categorías</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)} • Toca una categoría para ver detalle</p>
+                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)} • Toca una categoría para auditar</p>
               </div>
-              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Presupuestos</button>
+              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Editar límites</button>
             </div>
 
             <div class="bento-card p-4 rounded-2xl flex flex-col gap-4">
-              <div class="flex h-3 w-full rounded-full overflow-hidden gap-0.5 bg-surface-container">
-                ${multiBarSegments}
+              <!-- Donut Ring + Stacked Bar Summary Header -->
+              <div class="flex items-center gap-4">
+                ${renderCategoryDonutSVG(cats, totalExp)}
+                <div class="flex-1 flex flex-col gap-2 min-w-0">
+                  <div class="flex items-baseline justify-between">
+                    <span class="text-xs font-extrabold text-on-surface">Total gastado</span>
+                    <span class="font-headline-sm text-base font-extrabold text-on-surface tabular-nums">${fmt(totalExp)}</span>
+                  </div>
+                  <div class="flex h-3 w-full rounded-full overflow-hidden gap-0.5 bg-surface-container">
+                    ${multiBarSegments}
+                  </div>
+                  <p class="text-[11px] text-on-surface-variant">
+                    ${cats.length > 0 ? `${cats.length} categoría(s) activas este mes • Mayor gasto: <strong>${esc(catById(cats[0].cat).name)}</strong>` : 'Sin gastos registrados este mes'}
+                  </p>
+                </div>
               </div>
+
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 ${catCardsHtml}
               </div>
@@ -453,22 +575,22 @@
             ` : ''}
           </section>
 
-          <!-- RIGHT (6 cols): RECENT MONTHLY TRANSACTIONS -->
+          <!-- RIGHT (6 cols): DATE-GROUPED RECENT MONTHLY TRANSACTIONS -->
           <section class="lg:col-span-6 flex flex-col gap-3">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Últimos movimientos del mes</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant">Tus gastos e ingresos personales</p>
+                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Actividad reciente</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día • Sincronizada con Supabase</p>
               </div>
               <button onclick="switchMainView('gastos')" class="font-label-md text-xs text-primary font-bold hover:underline">Ver todos (${exps.length + incs.length})</button>
             </div>
 
             <div class="bento-card rounded-2xl overflow-hidden">
-              <div class="divide-y divide-outline-variant/20">
+              <div>
                 ${recentRowsHtml}
               </div>
               <button onclick="switchMainView('gastos')" class="w-full block text-center py-3 bg-surface-container-low text-primary font-label-lg text-xs font-bold hover:bg-surface-container transition-colors border-t border-outline-variant/20 capitalize">
-                Ir al listado completo y buscador de ${monthLabel(viewMk)}
+                Abrir buscador y libro completo de ${monthLabel(viewMk)} →
               </button>
             </div>
           </section>
