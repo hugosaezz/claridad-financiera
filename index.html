@@ -548,9 +548,16 @@
     let sbUsuariosGrupo = [];
     let sbMovimientos = [];
     let sbAllGroupRelations = [];
+    // Migrate away from old unauthenticated auto-login: require explicit password login
+    if (localStorage.getItem('claridad_auth_v4') !== 'strict') {
+      localStorage.removeItem('logged_user_id');
+      localStorage.removeItem('is_admin');
+      localStorage.setItem('claridad_auth_v4', 'strict');
+    }
+
     let currentGroupId = localStorage.getItem('last_group_id') || null;
-    let loggedUserId = localStorage.getItem('logged_user_id') ? Number(localStorage.getItem('logged_user_id')) : 2;
-    let isAdmin = localStorage.getItem('is_admin') !== null ? localStorage.getItem('is_admin') === 'true' : (loggedUserId === 2);
+    let loggedUserId = localStorage.getItem('logged_user_id') ? Number(localStorage.getItem('logged_user_id')) : null;
+    let isAdmin = (loggedUserId !== null) && (localStorage.getItem('is_admin') === 'true');
     let sbConnected = false;
     let hasDatosPersonalesColumn = false;
     let cloudSyncTimer = null;
@@ -567,8 +574,8 @@
 
     let S = null;
     let viewMk = null;
-    let activeMainView = "inicio"; // 'inicio' (Mensual) | 'gastos' (Movimientos) | 'cuentas' (Deudas) | 'analitica' | 'ajustes'
-    let activeP2PTab = "owed";     // 'owed' (Me deben) | 'owe' (Debo) | 'cloud' (Grupos Cloud) | 'split' (Reparto Tricount)
+    let activeMainView = loggedUserId ? "inicio" : "cuentas"; // Guest defaults to Deudas ('cuentas') -> General
+    let activeP2PTab = loggedUserId ? "owed" : "cloud";       // Guest sees ONLY Grupo General ('cloud')
     let activeAjustesSub = null;
     let movFilter = { q: "", type: "all", cat: "", tag: "", method: "" };
 
@@ -658,8 +665,9 @@
       return String(name || 'U').slice(0, 2).toUpperCase();
     }
     function currentLoggedUserName() {
+      if (!loggedUserId) return "Invitado";
       const u = sbGlobalUsers.find(x => Number(x.id) === Number(loggedUserId));
-      return u ? u.nombre : (loggedUserId === 2 ? "Hugo" : "Invitado");
+      return u ? u.nombre : (loggedUserId === 2 ? "Hugo" : `Usuario #${loggedUserId}`);
     }
     function allCats() {
       return CATS.concat((S && Array.isArray(S.customCats)) ? S.customCats.map(c => ({
@@ -1693,11 +1701,17 @@
           sbGrupos = sbAllGrupos.filter(g => Number(g.admin_id) === Number(loggedUserId) || misGruposIds.includes(g.id));
           if (sbGrupos.length === 0 && sbAllGrupos.length > 0) sbGrupos = [sbAllGrupos[0]];
         } else {
-          sbGrupos = sbAllGrupos.length > 0 ? [sbAllGrupos[0]] : [];
+          // Guest (not logged in): can ONLY see the General group (Spotify)
+          const generalGrp = sbAllGrupos.find(g => g.nombre.toLowerCase() === 'general' || Number(g.id) === 1) || sbAllGrupos[0];
+          sbGrupos = generalGrp ? [generalGrp] : [];
+          activeMainView = 'cuentas';
+          activeP2PTab = 'cloud';
         }
 
         if (sbGrupos.length > 0) {
-          if (!currentGroupId || !sbGrupos.some(g => String(g.id) === String(currentGroupId))) {
+          if (!loggedUserId) {
+            currentGroupId = sbGrupos[0].id;
+          } else if (!currentGroupId || !sbGrupos.some(g => String(g.id) === String(currentGroupId))) {
             currentGroupId = sbGrupos[0].id;
           }
           localStorage.setItem('last_group_id', currentGroupId);
@@ -1744,27 +1758,32 @@
       const userPill = $('#header-user-pill');
       const secTitle = $('#header-section-title');
 
-      if (avatarEl) avatarEl.textContent = isAdmin ? "👑" : initials(userName);
-      if (greetEl) greetEl.textContent = loggedUserId ? `Cuenta de ${userName} 👋 • Toca para cambiar` : `Modo Invitado • Identifícate o regístrate`;
-      if (userPill) userPill.textContent = userName;
+      if (avatarEl) avatarEl.textContent = !loggedUserId ? "👤" : isAdmin ? "👑" : initials(userName);
+      if (greetEl) greetEl.textContent = loggedUserId ? `Cuenta de ${userName} 👋 • Toca para cambiar o salir` : `Sin sesión iniciada • Toca para Iniciar Sesión`;
+      if (userPill) userPill.textContent = loggedUserId ? userName : "Iniciar Sesión";
 
       const sectionNames = {
         inicio: "Control Mensual",
         gastos: "Movimientos del Mes",
-        cuentas: "Deudas y Grupos",
+        cuentas: loggedUserId ? "Deudas y Grupos" : "Grupo General (Spotify)",
         analitica: "Analítica y Asesor",
         ajustes: "Planificación y Cuenta"
       };
       if (secTitle) secTitle.textContent = sectionNames[activeMainView] || "Claridad Financiera";
 
-      // Update top mode switcher pills
+      // Update top mode switcher pills (hide Control Mensual pill if guest)
       const pillMensual = $('#top-pill-mensual');
       const pillDeudas = $('#top-pill-deudas');
       if (pillMensual && pillDeudas) {
+        if (!loggedUserId) {
+          pillMensual.classList.add('hidden');
+        } else {
+          pillMensual.classList.remove('hidden');
+        }
         const isDeudas = activeMainView === 'cuentas';
-        pillMensual.className = !isDeudas
+        pillMensual.className = (!loggedUserId ? "hidden " : "") + (!isDeudas
           ? "px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1"
-          : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1";
+          : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1");
         pillDeudas.className = isDeudas
           ? "px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1"
           : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1";
@@ -1778,7 +1797,8 @@
           badgeEl.textContent = "Cuenta Personal";
           badgeEl.classList.remove('hidden');
         } else {
-          badgeEl.classList.add('hidden');
+          badgeEl.textContent = "Invitado";
+          badgeEl.classList.remove('hidden');
         }
       }
       if (dotEl) {
@@ -1845,6 +1865,19 @@
     // 8. NAVIGATION, PERIOD & VIEW RENDERER ORCHESTRATION
     // ============================================================================
     function switchMainView(viewName, subTab = null) {
+      // Guest guard: unauthenticated visitors can ONLY view Deudas -> Grupo General
+      if (!loggedUserId && viewName !== 'cuentas') {
+        activeMainView = 'cuentas';
+        activeP2PTab = 'cloud';
+        renderAllViews();
+        showToast("🔒 Inicia sesión con tu usuario y PIN para acceder a tu Control Mensual");
+        openProfileOrLogin();
+        return;
+      }
+      if (!loggedUserId) {
+        viewName = 'cuentas';
+        activeP2PTab = 'cloud';
+      }
       activeMainView = viewName;
       ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
         const container = $('#view-' + v);
@@ -1860,16 +1893,17 @@
       });
 
       // Update large bottom navigation tabs (inicio and gastos both map to 'nav-inicio')
-      const activeNavKey = (viewName === 'gastos') ? 'inicio' : viewName;
+      const activeNavKey = !loggedUserId ? 'cuentas' : (viewName === 'gastos') ? 'inicio' : viewName;
       ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
         const navBtn = $('#nav-' + k);
         if (!navBtn) return;
         const iconSpan = navBtn.querySelector('.material-symbols-outlined');
         const pillSpan = navBtn.querySelector('.nav-pill');
         const isActive = (k === activeNavKey);
+        const isGuestLocked = !loggedUserId && k !== 'cuentas';
         navBtn.className = isActive
           ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
-          : "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative";
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
         if (iconSpan) iconSpan.classList.toggle('filled', isActive);
         if (pillSpan) {
           pillSpan.className = isActive
@@ -1929,6 +1963,52 @@
     }
 
     function renderAllViews() {
+      if (!loggedUserId) {
+        activeMainView = 'cuentas';
+        activeP2PTab = 'cloud';
+      }
+      ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
+        const container = $('#view-' + v);
+        if (container) {
+          if (v === activeMainView) {
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+          } else {
+            container.classList.add('hidden');
+            container.classList.remove('flex');
+          }
+        }
+      });
+      const periodBar = $('#period-filter-bar');
+      if (periodBar) {
+        if (activeMainView === 'cuentas') {
+          periodBar.classList.add('hidden');
+          periodBar.classList.remove('flex');
+        } else {
+          periodBar.classList.remove('hidden');
+          periodBar.classList.add('flex');
+        }
+      }
+      // Ensure bottom nav visual state matches activeMainView
+      const activeNavKey = !loggedUserId ? 'cuentas' : (activeMainView === 'gastos') ? 'inicio' : activeMainView;
+      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
+        const navBtn = $('#nav-' + k);
+        if (!navBtn) return;
+        const iconSpan = navBtn.querySelector('.material-symbols-outlined');
+        const pillSpan = navBtn.querySelector('.nav-pill');
+        const isActive = (k === activeNavKey);
+        const isGuestLocked = !loggedUserId && k !== 'cuentas';
+        navBtn.className = isActive
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
+        if (iconSpan) iconSpan.classList.toggle('filled', isActive);
+        if (pillSpan) {
+          pillSpan.className = isActive
+            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
+        }
+      });
+
       ensureCarried();
       renderPeriodBar();
       updateCloudHeaderUI();
@@ -2642,6 +2722,11 @@
       const el = $('#view-cuentas');
       if (!el) return;
 
+      // If no user is logged in, lock the view strictly to the General Group ('cloud')
+      if (!loggedUserId) {
+        activeP2PTab = 'cloud';
+      }
+
       const userName = currentLoggedUserName();
       const p2p = computeP2PMetrics();
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
@@ -2649,7 +2734,26 @@
       const isFantasy = groupName.toLowerCase().includes('fantasy');
       const isDeudas = groupName.toLowerCase().includes('deuda');
       const isGeneral = Number(currentGroupId) === 1 || Number(currentGroupId) === Number(window.generalGroupId);
-      const canManageGroup = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
+      const canManageGroup = !!loggedUserId && (isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId)));
+
+      // Guest notice banner for unauthenticated visitors viewing the General (Spotify) group
+      const guestBannerHtml = !loggedUserId ? `
+        <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined">music_note</span>
+            </span>
+            <div>
+              <h4 class="font-label-lg text-sm font-extrabold text-on-surface">Vista Pública • Grupo General (Spotify)</h4>
+              <p class="font-body-sm text-xs text-on-surface-variant">Estás viendo las deudas del Spotify sin iniciar sesión. Si ya has pagado por Bizum, pulsa «He pagado» en tu tarjeta o inicia sesión para entrar a tu cuenta personal.</p>
+            </div>
+          </div>
+          <button onclick="openProfileOrLogin()" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-extrabold hover:bg-primary-container transition self-start sm:self-auto active-scale flex items-center gap-1 flex-shrink-0">
+            <span class="material-symbols-outlined text-[16px]">login</span>
+            Iniciar Sesión
+          </button>
+        </div>
+      ` : '';
 
       // Pending notifications alert banner for Admin if any
       const pendingPayments = sbMovimientos.filter(m => m.tipo === 'pago' && m.estado === 'pendiente');
@@ -2974,15 +3078,17 @@
         }).join('') || `<div class="p-6 text-center text-on-surface-variant text-sm">Sin movimientos en el historial de este grupo.</div>`;
 
         tabContentHtml = `
-          <div class="flex items-center justify-between gap-2 overflow-x-auto custom-scroll pb-1">
-            <div class="flex items-center gap-2">
-              ${groupPillsHtml}
-              <button onclick="openNewGroupModal()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-container-low text-primary font-label-md text-xs font-bold hover:bg-surface-container transition flex-shrink-0">
-                <span class="material-symbols-outlined text-[16px]">add</span>
-                Crear Grupo Cloud
-              </button>
+          ${loggedUserId ? `
+            <div class="flex items-center justify-between gap-2 overflow-x-auto custom-scroll pb-1">
+              <div class="flex items-center gap-2">
+                ${groupPillsHtml}
+                <button onclick="openNewGroupModal()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-container-low text-primary font-label-md text-xs font-bold hover:bg-surface-container transition flex-shrink-0">
+                  <span class="material-symbols-outlined text-[16px]">add</span>
+                  Crear Grupo Cloud
+                </button>
+              </div>
             </div>
-          </div>
+          ` : ''}
 
           ${bannerHtml}
 
@@ -3100,28 +3206,31 @@
       }
 
       el.innerHTML = `
+        ${guestBannerHtml}
         ${pendingBannerHtml}
-        ${debtKpiHeaderHtml}
+        ${loggedUserId ? `
+          ${debtKpiHeaderHtml}
 
-        <!-- 4-Way Segmented Control in Deudas -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 bg-surface-container p-1 rounded-2xl gap-1">
-          <button onclick="activeP2PTab='owed'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owed' ? 'font-extrabold bg-surface-container-lowest text-secondary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
-            Me deben (${p2p.countMeDeben})
-          </button>
-          <button onclick="activeP2PTab='owe'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owe' ? 'font-extrabold bg-surface-container-lowest text-tertiary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
-            Debo (${p2p.countQueDebo})
-          </button>
-          <button onclick="activeP2PTab='cloud'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'cloud' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">cloud_done</span>
-            Grupos Cloud (${sbGrupos.length})
-          </button>
-          <button onclick="activeP2PTab='split'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'split' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">call_split</span>
-            Reparto Tricount (${(S.groups || []).length})
-          </button>
-        </div>
+          <!-- 4-Way Segmented Control in Deudas (Only for logged-in users) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 bg-surface-container p-1 rounded-2xl gap-1">
+            <button onclick="activeP2PTab='owed'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owed' ? 'font-extrabold bg-surface-container-lowest text-secondary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+              Me deben (${p2p.countMeDeben})
+            </button>
+            <button onclick="activeP2PTab='owe'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owe' ? 'font-extrabold bg-surface-container-lowest text-tertiary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+              Debo (${p2p.countQueDebo})
+            </button>
+            <button onclick="activeP2PTab='cloud'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'cloud' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">cloud_done</span>
+              Grupos Cloud (${sbGrupos.length})
+            </button>
+            <button onclick="activeP2PTab='split'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'split' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">call_split</span>
+              Reparto Tricount (${(S.groups || []).length})
+            </button>
+          </div>
+        ` : ''}
 
         ${tabContentHtml}
       `;
@@ -4148,6 +4257,11 @@
     }
 
     function openQuickActionSheet() {
+      if (!loggedUserId) {
+        showToast("🔒 Inicia sesión para añadir gastos o movimientos");
+        openProfileOrLogin();
+        return;
+      }
       $('#quick-action-sheet')?.classList.remove('hidden');
     }
     function closeQuickActionSheet() {
@@ -4317,7 +4431,7 @@
             </select>
             <div>
               <label class="text-[11px] font-bold text-on-surface-variant block mb-1">Tu contraseña / PIN</label>
-              <input id="modal-login-pin" type="password" placeholder="PIN (por defecto 0000 o hugo123)" onkeypress="if(event.key==='Enter') performSupabaseLogin()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+              <input id="modal-login-pin" type="password" placeholder="Introduce tu contraseña / PIN" onkeypress="if(event.key==='Enter') performSupabaseLogin()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm font-bold text-on-surface"/>
             </div>
             <button onclick="performSupabaseLogin()" class="w-full py-2.5 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold hover:bg-primary-container transition active-scale">
               Entrar a mi Registro Personal
@@ -4357,6 +4471,10 @@
                 <input id="modal-new-pin" type="password" placeholder="Nuevo PIN" class="flex-1 px-3 py-1.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs text-on-surface"/>
                 <button onclick="updateMySupabasePin()" class="px-3.5 py-1.5 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-primary hover:text-on-primary transition">Actualizar PIN</button>
               </div>
+              <button onclick="logoutCurrentUserSession()" class="mt-1 w-full py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold transition flex items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">logout</span>
+                Cerrar sesión (Volver a modo Invitado)
+              </button>
             </div>
           ` : ''}
         </div>
@@ -4386,15 +4504,34 @@
       if (!user) return;
       const isHugo = user.nombre.toLowerCase().trim() === 'hugo';
       const userPass = (user.password || '0000').trim();
-      const valid = (pin === userPass) || (isHugo && (pin === 'hugo123' || pin === '0000' || pin === ''));
+
+      if (!pin) {
+        alert(`Introduce la contraseña / PIN de ${user.nombre}.`);
+        return;
+      }
+
+      const valid = isHugo ? (pin === userPass) : (pin === userPass);
 
       if (!valid) {
-        alert(`PIN incorrecto para ${user.nombre}. (Por defecto los miembros tienen 0000)`);
+        alert(`Contraseña / PIN incorrecto para ${user.nombre}.`);
         return;
       }
 
       await switchToUserSession(Number(user.id), isHugo);
       closeUniversalModal();
+    }
+
+    async function logoutCurrentUserSession() {
+      loggedUserId = null;
+      isAdmin = false;
+      localStorage.removeItem('logged_user_id');
+      localStorage.removeItem('is_admin');
+      activeMainView = 'cuentas';
+      activeP2PTab = 'cloud';
+      S = blankState(0);
+      closeUniversalModal();
+      showToast("Sesión cerrada • Modo Invitado (Grupo General)");
+      await cargarDatosSupabase(false);
     }
 
     async function quickSwitchToUser(uidNum) {
@@ -4414,6 +4551,8 @@
       isAdmin = !!adminFlag;
       localStorage.setItem('logged_user_id', String(loggedUserId));
       localStorage.setItem('is_admin', isAdmin ? 'true' : 'false');
+      activeMainView = 'inicio';
+      activeP2PTab = 'owed';
 
       // Load the new user's isolated state from localStorage + Supabase Cloud
       loadLocalStateForCurrentUser();
@@ -4909,10 +5048,12 @@ ALTER TABLE public.movimientos
             </div>
             <input id="cloud-pay-amount" type="number" step="0.01" value="${Number(currentDeuda || 0).toFixed(2)}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-2xl font-extrabold text-secondary text-center"/>
           </div>
-          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
-            <input id="cloud-pay-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
-            <span>${isMyOwnDebt ? `Apuntar también como Gasto (−) en mi Control Mensual` : `Apuntar también como Ingreso (+) en mi Control Mensual`}</span>
-          </label>
+          ${loggedUserId ? `
+            <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+              <input id="cloud-pay-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
+              <span>${isMyOwnDebt ? `Apuntar también como Gasto (−) en mi Control Mensual` : `Apuntar también como Ingreso (+) en mi Control Mensual`}</span>
+            </label>
+          ` : ''}
           <button onclick="submitCloudPayment(${userId}, '${esc(userName)}', '${esc(gName)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
             ${canApproveDirectly ? 'Confirmar Pago Recibido' : 'Avisar de mi Pago'}
           </button>
@@ -5076,6 +5217,11 @@ ALTER TABLE public.movimientos
     }
 
     function openCloudUserDetailsModal(userId, userName) {
+      if (!loggedUserId) {
+        showToast("🔒 Inicia sesión para ver la posición en otros grupos");
+        openProfileOrLogin();
+        return;
+      }
       const userRels = sbAllGroupRelations.filter(r => Number(r.usuario_id) === Number(userId));
       let totalGlobal = 0;
       const rowsHtml = userRels.map(rel => {

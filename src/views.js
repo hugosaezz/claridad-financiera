@@ -2,6 +2,19 @@
     // 8. NAVIGATION, PERIOD & VIEW RENDERER ORCHESTRATION
     // ============================================================================
     function switchMainView(viewName, subTab = null) {
+      // Guest guard: unauthenticated visitors can ONLY view Deudas -> Grupo General
+      if (!loggedUserId && viewName !== 'cuentas') {
+        activeMainView = 'cuentas';
+        activeP2PTab = 'cloud';
+        renderAllViews();
+        showToast("🔒 Inicia sesión con tu usuario y PIN para acceder a tu Control Mensual");
+        openProfileOrLogin();
+        return;
+      }
+      if (!loggedUserId) {
+        viewName = 'cuentas';
+        activeP2PTab = 'cloud';
+      }
       activeMainView = viewName;
       ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
         const container = $('#view-' + v);
@@ -17,16 +30,17 @@
       });
 
       // Update large bottom navigation tabs (inicio and gastos both map to 'nav-inicio')
-      const activeNavKey = (viewName === 'gastos') ? 'inicio' : viewName;
+      const activeNavKey = !loggedUserId ? 'cuentas' : (viewName === 'gastos') ? 'inicio' : viewName;
       ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
         const navBtn = $('#nav-' + k);
         if (!navBtn) return;
         const iconSpan = navBtn.querySelector('.material-symbols-outlined');
         const pillSpan = navBtn.querySelector('.nav-pill');
         const isActive = (k === activeNavKey);
+        const isGuestLocked = !loggedUserId && k !== 'cuentas';
         navBtn.className = isActive
           ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
-          : "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative";
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
         if (iconSpan) iconSpan.classList.toggle('filled', isActive);
         if (pillSpan) {
           pillSpan.className = isActive
@@ -86,6 +100,52 @@
     }
 
     function renderAllViews() {
+      if (!loggedUserId) {
+        activeMainView = 'cuentas';
+        activeP2PTab = 'cloud';
+      }
+      ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
+        const container = $('#view-' + v);
+        if (container) {
+          if (v === activeMainView) {
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+          } else {
+            container.classList.add('hidden');
+            container.classList.remove('flex');
+          }
+        }
+      });
+      const periodBar = $('#period-filter-bar');
+      if (periodBar) {
+        if (activeMainView === 'cuentas') {
+          periodBar.classList.add('hidden');
+          periodBar.classList.remove('flex');
+        } else {
+          periodBar.classList.remove('hidden');
+          periodBar.classList.add('flex');
+        }
+      }
+      // Ensure bottom nav visual state matches activeMainView
+      const activeNavKey = !loggedUserId ? 'cuentas' : (activeMainView === 'gastos') ? 'inicio' : activeMainView;
+      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
+        const navBtn = $('#nav-' + k);
+        if (!navBtn) return;
+        const iconSpan = navBtn.querySelector('.material-symbols-outlined');
+        const pillSpan = navBtn.querySelector('.nav-pill');
+        const isActive = (k === activeNavKey);
+        const isGuestLocked = !loggedUserId && k !== 'cuentas';
+        navBtn.className = isActive
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
+        if (iconSpan) iconSpan.classList.toggle('filled', isActive);
+        if (pillSpan) {
+          pillSpan.className = isActive
+            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
+        }
+      });
+
       ensureCarried();
       renderPeriodBar();
       updateCloudHeaderUI();

@@ -14,9 +14,16 @@
     let sbUsuariosGrupo = [];
     let sbMovimientos = [];
     let sbAllGroupRelations = [];
+    // Migrate away from old unauthenticated auto-login: require explicit password login
+    if (localStorage.getItem('claridad_auth_v4') !== 'strict') {
+      localStorage.removeItem('logged_user_id');
+      localStorage.removeItem('is_admin');
+      localStorage.setItem('claridad_auth_v4', 'strict');
+    }
+
     let currentGroupId = localStorage.getItem('last_group_id') || null;
-    let loggedUserId = localStorage.getItem('logged_user_id') ? Number(localStorage.getItem('logged_user_id')) : 2;
-    let isAdmin = localStorage.getItem('is_admin') !== null ? localStorage.getItem('is_admin') === 'true' : (loggedUserId === 2);
+    let loggedUserId = localStorage.getItem('logged_user_id') ? Number(localStorage.getItem('logged_user_id')) : null;
+    let isAdmin = (loggedUserId !== null) && (localStorage.getItem('is_admin') === 'true');
     let sbConnected = false;
     let hasDatosPersonalesColumn = false;
     let cloudSyncTimer = null;
@@ -33,8 +40,8 @@
 
     let S = null;
     let viewMk = null;
-    let activeMainView = "inicio"; // 'inicio' (Mensual) | 'gastos' (Movimientos) | 'cuentas' (Deudas) | 'analitica' | 'ajustes'
-    let activeP2PTab = "owed";     // 'owed' (Me deben) | 'owe' (Debo) | 'cloud' (Grupos Cloud) | 'split' (Reparto Tricount)
+    let activeMainView = loggedUserId ? "inicio" : "cuentas"; // Guest defaults to Deudas ('cuentas') -> General
+    let activeP2PTab = loggedUserId ? "owed" : "cloud";       // Guest sees ONLY Grupo General ('cloud')
     let activeAjustesSub = null;
     let movFilter = { q: "", type: "all", cat: "", tag: "", method: "" };
 
@@ -124,8 +131,9 @@
       return String(name || 'U').slice(0, 2).toUpperCase();
     }
     function currentLoggedUserName() {
+      if (!loggedUserId) return "Invitado";
       const u = sbGlobalUsers.find(x => Number(x.id) === Number(loggedUserId));
-      return u ? u.nombre : (loggedUserId === 2 ? "Hugo" : "Invitado");
+      return u ? u.nombre : (loggedUserId === 2 ? "Hugo" : `Usuario #${loggedUserId}`);
     }
     function allCats() {
       return CATS.concat((S && Array.isArray(S.customCats)) ? S.customCats.map(c => ({
@@ -1159,11 +1167,17 @@
           sbGrupos = sbAllGrupos.filter(g => Number(g.admin_id) === Number(loggedUserId) || misGruposIds.includes(g.id));
           if (sbGrupos.length === 0 && sbAllGrupos.length > 0) sbGrupos = [sbAllGrupos[0]];
         } else {
-          sbGrupos = sbAllGrupos.length > 0 ? [sbAllGrupos[0]] : [];
+          // Guest (not logged in): can ONLY see the General group (Spotify)
+          const generalGrp = sbAllGrupos.find(g => g.nombre.toLowerCase() === 'general' || Number(g.id) === 1) || sbAllGrupos[0];
+          sbGrupos = generalGrp ? [generalGrp] : [];
+          activeMainView = 'cuentas';
+          activeP2PTab = 'cloud';
         }
 
         if (sbGrupos.length > 0) {
-          if (!currentGroupId || !sbGrupos.some(g => String(g.id) === String(currentGroupId))) {
+          if (!loggedUserId) {
+            currentGroupId = sbGrupos[0].id;
+          } else if (!currentGroupId || !sbGrupos.some(g => String(g.id) === String(currentGroupId))) {
             currentGroupId = sbGrupos[0].id;
           }
           localStorage.setItem('last_group_id', currentGroupId);
@@ -1210,27 +1224,32 @@
       const userPill = $('#header-user-pill');
       const secTitle = $('#header-section-title');
 
-      if (avatarEl) avatarEl.textContent = isAdmin ? "👑" : initials(userName);
-      if (greetEl) greetEl.textContent = loggedUserId ? `Cuenta de ${userName} 👋 • Toca para cambiar` : `Modo Invitado • Identifícate o regístrate`;
-      if (userPill) userPill.textContent = userName;
+      if (avatarEl) avatarEl.textContent = !loggedUserId ? "👤" : isAdmin ? "👑" : initials(userName);
+      if (greetEl) greetEl.textContent = loggedUserId ? `Cuenta de ${userName} 👋 • Toca para cambiar o salir` : `Sin sesión iniciada • Toca para Iniciar Sesión`;
+      if (userPill) userPill.textContent = loggedUserId ? userName : "Iniciar Sesión";
 
       const sectionNames = {
         inicio: "Control Mensual",
         gastos: "Movimientos del Mes",
-        cuentas: "Deudas y Grupos",
+        cuentas: loggedUserId ? "Deudas y Grupos" : "Grupo General (Spotify)",
         analitica: "Analítica y Asesor",
         ajustes: "Planificación y Cuenta"
       };
       if (secTitle) secTitle.textContent = sectionNames[activeMainView] || "Claridad Financiera";
 
-      // Update top mode switcher pills
+      // Update top mode switcher pills (hide Control Mensual pill if guest)
       const pillMensual = $('#top-pill-mensual');
       const pillDeudas = $('#top-pill-deudas');
       if (pillMensual && pillDeudas) {
+        if (!loggedUserId) {
+          pillMensual.classList.add('hidden');
+        } else {
+          pillMensual.classList.remove('hidden');
+        }
         const isDeudas = activeMainView === 'cuentas';
-        pillMensual.className = !isDeudas
+        pillMensual.className = (!loggedUserId ? "hidden " : "") + (!isDeudas
           ? "px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1"
-          : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1";
+          : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1");
         pillDeudas.className = isDeudas
           ? "px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1"
           : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1";
@@ -1244,7 +1263,8 @@
           badgeEl.textContent = "Cuenta Personal";
           badgeEl.classList.remove('hidden');
         } else {
-          badgeEl.classList.add('hidden');
+          badgeEl.textContent = "Invitado";
+          badgeEl.classList.remove('hidden');
         }
       }
       if (dotEl) {

@@ -16,6 +16,11 @@
     }
 
     function openQuickActionSheet() {
+      if (!loggedUserId) {
+        showToast("🔒 Inicia sesión para añadir gastos o movimientos");
+        openProfileOrLogin();
+        return;
+      }
       $('#quick-action-sheet')?.classList.remove('hidden');
     }
     function closeQuickActionSheet() {
@@ -185,7 +190,7 @@
             </select>
             <div>
               <label class="text-[11px] font-bold text-on-surface-variant block mb-1">Tu contraseña / PIN</label>
-              <input id="modal-login-pin" type="password" placeholder="PIN (por defecto 0000 o hugo123)" onkeypress="if(event.key==='Enter') performSupabaseLogin()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+              <input id="modal-login-pin" type="password" placeholder="Introduce tu contraseña / PIN" onkeypress="if(event.key==='Enter') performSupabaseLogin()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-sm font-bold text-on-surface"/>
             </div>
             <button onclick="performSupabaseLogin()" class="w-full py-2.5 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold hover:bg-primary-container transition active-scale">
               Entrar a mi Registro Personal
@@ -225,6 +230,10 @@
                 <input id="modal-new-pin" type="password" placeholder="Nuevo PIN" class="flex-1 px-3 py-1.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs text-on-surface"/>
                 <button onclick="updateMySupabasePin()" class="px-3.5 py-1.5 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-primary hover:text-on-primary transition">Actualizar PIN</button>
               </div>
+              <button onclick="logoutCurrentUserSession()" class="mt-1 w-full py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold transition flex items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">logout</span>
+                Cerrar sesión (Volver a modo Invitado)
+              </button>
             </div>
           ` : ''}
         </div>
@@ -254,15 +263,34 @@
       if (!user) return;
       const isHugo = user.nombre.toLowerCase().trim() === 'hugo';
       const userPass = (user.password || '0000').trim();
-      const valid = (pin === userPass) || (isHugo && (pin === 'hugo123' || pin === '0000' || pin === ''));
+
+      if (!pin) {
+        alert(`Introduce la contraseña / PIN de ${user.nombre}.`);
+        return;
+      }
+
+      const valid = isHugo ? (pin === userPass) : (pin === userPass);
 
       if (!valid) {
-        alert(`PIN incorrecto para ${user.nombre}. (Por defecto los miembros tienen 0000)`);
+        alert(`Contraseña / PIN incorrecto para ${user.nombre}.`);
         return;
       }
 
       await switchToUserSession(Number(user.id), isHugo);
       closeUniversalModal();
+    }
+
+    async function logoutCurrentUserSession() {
+      loggedUserId = null;
+      isAdmin = false;
+      localStorage.removeItem('logged_user_id');
+      localStorage.removeItem('is_admin');
+      activeMainView = 'cuentas';
+      activeP2PTab = 'cloud';
+      S = blankState(0);
+      closeUniversalModal();
+      showToast("Sesión cerrada • Modo Invitado (Grupo General)");
+      await cargarDatosSupabase(false);
     }
 
     async function quickSwitchToUser(uidNum) {
@@ -282,6 +310,8 @@
       isAdmin = !!adminFlag;
       localStorage.setItem('logged_user_id', String(loggedUserId));
       localStorage.setItem('is_admin', isAdmin ? 'true' : 'false');
+      activeMainView = 'inicio';
+      activeP2PTab = 'owed';
 
       // Load the new user's isolated state from localStorage + Supabase Cloud
       loadLocalStateForCurrentUser();
@@ -777,10 +807,12 @@ ALTER TABLE public.movimientos
             </div>
             <input id="cloud-pay-amount" type="number" step="0.01" value="${Number(currentDeuda || 0).toFixed(2)}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-2xl font-extrabold text-secondary text-center"/>
           </div>
-          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
-            <input id="cloud-pay-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
-            <span>${isMyOwnDebt ? `Apuntar también como Gasto (−) en mi Control Mensual` : `Apuntar también como Ingreso (+) en mi Control Mensual`}</span>
-          </label>
+          ${loggedUserId ? `
+            <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+              <input id="cloud-pay-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
+              <span>${isMyOwnDebt ? `Apuntar también como Gasto (−) en mi Control Mensual` : `Apuntar también como Ingreso (+) en mi Control Mensual`}</span>
+            </label>
+          ` : ''}
           <button onclick="submitCloudPayment(${userId}, '${esc(userName)}', '${esc(gName)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
             ${canApproveDirectly ? 'Confirmar Pago Recibido' : 'Avisar de mi Pago'}
           </button>
@@ -944,6 +976,11 @@ ALTER TABLE public.movimientos
     }
 
     function openCloudUserDetailsModal(userId, userName) {
+      if (!loggedUserId) {
+        showToast("🔒 Inicia sesión para ver la posición en otros grupos");
+        openProfileOrLogin();
+        return;
+      }
       const userRels = sbAllGroupRelations.filter(r => Number(r.usuario_id) === Number(userId));
       let totalGlobal = 0;
       const rowsHtml = userRels.map(rel => {

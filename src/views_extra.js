@@ -5,6 +5,11 @@
       const el = $('#view-cuentas');
       if (!el) return;
 
+      // If no user is logged in, lock the view strictly to the General Group ('cloud')
+      if (!loggedUserId) {
+        activeP2PTab = 'cloud';
+      }
+
       const userName = currentLoggedUserName();
       const p2p = computeP2PMetrics();
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
@@ -12,7 +17,26 @@
       const isFantasy = groupName.toLowerCase().includes('fantasy');
       const isDeudas = groupName.toLowerCase().includes('deuda');
       const isGeneral = Number(currentGroupId) === 1 || Number(currentGroupId) === Number(window.generalGroupId);
-      const canManageGroup = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
+      const canManageGroup = !!loggedUserId && (isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId)));
+
+      // Guest notice banner for unauthenticated visitors viewing the General (Spotify) group
+      const guestBannerHtml = !loggedUserId ? `
+        <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined">music_note</span>
+            </span>
+            <div>
+              <h4 class="font-label-lg text-sm font-extrabold text-on-surface">Vista Pública • Grupo General (Spotify)</h4>
+              <p class="font-body-sm text-xs text-on-surface-variant">Estás viendo las deudas del Spotify sin iniciar sesión. Si ya has pagado por Bizum, pulsa «He pagado» en tu tarjeta o inicia sesión para entrar a tu cuenta personal.</p>
+            </div>
+          </div>
+          <button onclick="openProfileOrLogin()" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-extrabold hover:bg-primary-container transition self-start sm:self-auto active-scale flex items-center gap-1 flex-shrink-0">
+            <span class="material-symbols-outlined text-[16px]">login</span>
+            Iniciar Sesión
+          </button>
+        </div>
+      ` : '';
 
       // Pending notifications alert banner for Admin if any
       const pendingPayments = sbMovimientos.filter(m => m.tipo === 'pago' && m.estado === 'pendiente');
@@ -337,15 +361,17 @@
         }).join('') || `<div class="p-6 text-center text-on-surface-variant text-sm">Sin movimientos en el historial de este grupo.</div>`;
 
         tabContentHtml = `
-          <div class="flex items-center justify-between gap-2 overflow-x-auto custom-scroll pb-1">
-            <div class="flex items-center gap-2">
-              ${groupPillsHtml}
-              <button onclick="openNewGroupModal()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-container-low text-primary font-label-md text-xs font-bold hover:bg-surface-container transition flex-shrink-0">
-                <span class="material-symbols-outlined text-[16px]">add</span>
-                Crear Grupo Cloud
-              </button>
+          ${loggedUserId ? `
+            <div class="flex items-center justify-between gap-2 overflow-x-auto custom-scroll pb-1">
+              <div class="flex items-center gap-2">
+                ${groupPillsHtml}
+                <button onclick="openNewGroupModal()" class="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-container-low text-primary font-label-md text-xs font-bold hover:bg-surface-container transition flex-shrink-0">
+                  <span class="material-symbols-outlined text-[16px]">add</span>
+                  Crear Grupo Cloud
+                </button>
+              </div>
             </div>
-          </div>
+          ` : ''}
 
           ${bannerHtml}
 
@@ -463,28 +489,31 @@
       }
 
       el.innerHTML = `
+        ${guestBannerHtml}
         ${pendingBannerHtml}
-        ${debtKpiHeaderHtml}
+        ${loggedUserId ? `
+          ${debtKpiHeaderHtml}
 
-        <!-- 4-Way Segmented Control in Deudas -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 bg-surface-container p-1 rounded-2xl gap-1">
-          <button onclick="activeP2PTab='owed'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owed' ? 'font-extrabold bg-surface-container-lowest text-secondary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
-            Me deben (${p2p.countMeDeben})
-          </button>
-          <button onclick="activeP2PTab='owe'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owe' ? 'font-extrabold bg-surface-container-lowest text-tertiary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
-            Debo (${p2p.countQueDebo})
-          </button>
-          <button onclick="activeP2PTab='cloud'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'cloud' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">cloud_done</span>
-            Grupos Cloud (${sbGrupos.length})
-          </button>
-          <button onclick="activeP2PTab='split'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'split' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
-            <span class="material-symbols-outlined text-[16px]">call_split</span>
-            Reparto Tricount (${(S.groups || []).length})
-          </button>
-        </div>
+          <!-- 4-Way Segmented Control in Deudas (Only for logged-in users) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 bg-surface-container p-1 rounded-2xl gap-1">
+            <button onclick="activeP2PTab='owed'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owed' ? 'font-extrabold bg-surface-container-lowest text-secondary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+              Me deben (${p2p.countMeDeben})
+            </button>
+            <button onclick="activeP2PTab='owe'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'owe' ? 'font-extrabold bg-surface-container-lowest text-tertiary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+              Debo (${p2p.countQueDebo})
+            </button>
+            <button onclick="activeP2PTab='cloud'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'cloud' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">cloud_done</span>
+              Grupos Cloud (${sbGrupos.length})
+            </button>
+            <button onclick="activeP2PTab='split'; renderCuentasView()" class="py-2.5 px-3 rounded-xl font-label-md text-xs transition-all flex items-center justify-center gap-1.5 ${activeP2PTab === 'split' ? 'font-extrabold bg-surface-container-lowest text-primary shadow-xs' : 'font-semibold text-on-surface-variant hover:text-on-surface'}">
+              <span class="material-symbols-outlined text-[16px]">call_split</span>
+              Reparto Tricount (${(S.groups || []).length})
+            </button>
+          </div>
+        ` : ''}
 
         ${tabContentHtml}
       `;
