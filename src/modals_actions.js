@@ -490,36 +490,70 @@ ALTER TABLE public.movimientos
       await cargarDatosSupabase();
     }
 
-    // Global / Selective Group Charge Split Modal
-    function openGlobalChargeModal() {
+    // Global / Selective / Exact-Per-Person Group Charge Split Modal
+    let globalSplitMode = "equal"; // 'equal' | 'exact'
+
+    function openGlobalChargeModal(mode = "equal") {
+      globalSplitMode = mode;
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const gName = currGroup ? currGroup.nombre : "Grupo";
 
-      const membersCheckboxes = sbUsuariosGrupo.map(u => `
-        <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 cursor-pointer">
-          <div class="flex items-center gap-2.5">
-            <input type="checkbox" data-split-member="${u.id}" checked onchange="recalcGlobalModalSplit()" class="w-4 h-4 rounded text-primary focus:ring-primary"/>
-            <span class="text-xs font-bold text-on-surface">${esc(u.nombre)}</span>
-          </div>
-          <span class="text-[11px] text-on-surface-variant tabular-nums">Deuda actual: ${fmt(u.deuda)}</span>
-        </label>
-      `).join('');
+      const membersRowsHtml = sbUsuariosGrupo.map(u => {
+        if (globalSplitMode === "exact") {
+          return `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 gap-2">
+              <div class="min-w-0">
+                <p class="text-xs font-extrabold text-on-surface truncate">${esc(u.nombre)}</p>
+                <p class="text-[10px] text-on-surface-variant">Deuda actual: ${fmt(u.deuda)}</p>
+              </div>
+              <div class="relative w-28 flex-shrink-0">
+                <input type="number" step="0.01" data-exact-member="${u.id}" placeholder="0.00" oninput="recalcGlobalModalSplit()" class="w-full pr-6 pl-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant/40 text-right text-xs font-extrabold text-on-surface"/>
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-outline">€</span>
+              </div>
+            </div>`;
+        }
+        return `
+          <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 cursor-pointer">
+            <div class="flex items-center gap-2.5">
+              <input type="checkbox" data-split-member="${u.id}" checked onchange="recalcGlobalModalSplit()" class="w-4 h-4 rounded text-primary focus:ring-primary"/>
+              <span class="text-xs font-bold text-on-surface">${esc(u.nombre)}</span>
+            </div>
+            <span class="text-[11px] text-on-surface-variant tabular-nums">Deuda: ${fmt(u.deuda)}</span>
+          </label>`;
+      }).join('');
 
       openUniversalModal(`
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-3.5">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <div>
               <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Repartir Gasto en ${esc(gName)}</h3>
-              <p class="text-xs text-on-surface-variant">Divide a partes iguales entre todos o los seleccionados</p>
+              <p class="text-xs text-on-surface-variant">Partes iguales o importe personalizado por amigo</p>
             </div>
             <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
           </div>
 
+          <!-- Mode Switcher: Equal vs Exact -->
+          <div class="grid grid-cols-2 bg-surface-container p-1 rounded-xl gap-1">
+            <button type="button" onclick="openGlobalChargeModal('equal')" class="py-2 rounded-lg text-xs font-extrabold transition ${globalSplitMode === 'equal' ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant'}">
+              ⚖️ A partes iguales
+            </button>
+            <button type="button" onclick="openGlobalChargeModal('exact')" class="py-2 rounded-lg text-xs font-extrabold transition ${globalSplitMode === 'exact' ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant'}">
+              🎯 Importes exactos
+            </button>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe TOTAL a dividir (€)</label>
-              <input id="global-split-amount" type="number" step="0.01" placeholder="21.00" oninput="recalcGlobalModalSplit()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-lg font-extrabold text-on-surface"/>
-            </div>
+            ${globalSplitMode === 'equal' ? `
+              <div>
+                <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe TOTAL a dividir (€)</label>
+                <input id="global-split-amount" type="number" step="0.01" placeholder="21.00" oninput="recalcGlobalModalSplit()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-lg font-extrabold text-on-surface"/>
+              </div>
+            ` : `
+              <div class="p-3 rounded-xl bg-primary/10 flex flex-col justify-center">
+                <span class="text-[10px] font-extrabold uppercase text-primary">Suma total del reparto</span>
+                <span id="global-exact-sum" class="font-headline-sm text-lg font-extrabold text-primary tabular-nums">0,00 €</span>
+              </div>
+            `}
             <div>
               <label class="text-xs font-bold text-on-surface-variant block mb-1">Categoría</label>
               <select id="global-split-cat" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface">
@@ -539,11 +573,11 @@ ALTER TABLE public.movimientos
 
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="text-xs font-bold text-on-surface-variant">Participantes en este gasto</label>
+              <label class="text-xs font-bold text-on-surface-variant">${globalSplitMode === 'equal' ? 'Marca quiénes participan' : 'Escribe cuánto paga cada uno'}</label>
               <span id="global-split-preview" class="text-xs font-extrabold text-primary">0,00 € por persona</span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-              ${membersCheckboxes}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+              ${membersRowsHtml}
             </div>
           </div>
 
@@ -556,27 +590,79 @@ ALTER TABLE public.movimientos
     }
 
     function recalcGlobalModalSplit() {
+      const preview = $('#global-split-preview');
+      if (globalSplitMode === 'exact') {
+        const inputs = [...$$('[data-exact-member]')];
+        let sum = 0;
+        let activeCount = 0;
+        inputs.forEach(inp => {
+          const val = parseAmount(inp.value);
+          if (val > 0) {
+            sum += val;
+            activeCount++;
+          }
+        });
+        const sumEl = $('#global-exact-sum');
+        if (sumEl) sumEl.textContent = fmt(sum);
+        if (preview) preview.textContent = `${activeCount} miembro(s) con cargo • Total ${fmt(sum)}`;
+        return;
+      }
+
       const total = parseAmount($('#global-split-amount')?.value);
       const checked = $$('[data-split-member]:checked');
       const count = checked.length;
-      const preview = $('#global-split-preview');
       if (preview) {
         preview.textContent = count > 0 ? `${count} seleccionados → ${fmt(total / count)} c/u` : 'Selecciona al menos 1 miembro';
       }
     }
 
     async function submitGlobalCloudCharge() {
-      const total = parseAmount($('#global-split-amount')?.value);
+      if (!supabaseClient) return;
       const concept = ($('#global-split-concept')?.value || '').trim() || 'Cargo Compartido';
       const categoria = $('#global-split-cat')?.value || 'General';
-      const checkedIds = [...$$('[data-split-member]:checked')].map(el => Number(el.dataset.splitMember));
+      const nuevosMovs = [];
 
-      if (!(total > 0) || checkedIds.length === 0 || !supabaseClient) return;
+      if (globalSplitMode === 'exact') {
+        const inputs = [...$$('[data-exact-member]')];
+        const items = inputs.map(inp => ({
+          uidNum: Number(inp.dataset.exactMember),
+          amt: Math.round(parseAmount(inp.value) * 100) / 100
+        })).filter(x => x.amt > 0);
+
+        if (items.length === 0) return;
+        closeUniversalModal();
+
+        for (const it of items) {
+          const u = sbUsuariosGrupo.find(x => Number(x.id) === it.uidNum);
+          if (!u) continue;
+          const nuevaDeuda = parseFloat(u.deuda || 0) + it.amt;
+          if (u.relacion_id) {
+            await supabaseClient.from('grupo_usuarios').update({ deuda: nuevaDeuda }).eq('id', u.relacion_id);
+          } else {
+            await supabaseClient.from('usuarios').update({ deuda: nuevaDeuda }).eq('id', u.id);
+          }
+          nuevosMovs.push({
+            usuario_id: u.id,
+            tipo: 'cargo',
+            monto: it.amt,
+            concepto: concept,
+            estado: 'completado',
+            categoria: categoria,
+            grupo_id: currentGroupId
+          });
+        }
+        await supabaseClient.from('movimientos').insert(nuevosMovs);
+        showToast(`Cargos exactos aplicados a ${items.length} miembro(s) ✓`);
+        await cargarDatosSupabase();
+        return;
+      }
+
+      const total = parseAmount($('#global-split-amount')?.value);
+      const checkedIds = [...$$('[data-split-member]:checked')].map(el => Number(el.dataset.splitMember));
+      if (!(total > 0) || checkedIds.length === 0) return;
       closeUniversalModal();
 
       const porCabeza = Math.round((total / checkedIds.length) * 100) / 100;
-      const nuevosMovs = [];
-
       for (const uidNum of checkedIds) {
         const u = sbUsuariosGrupo.find(x => Number(x.id) === uidNum);
         if (!u) continue;
@@ -663,15 +749,17 @@ ALTER TABLE public.movimientos
       await cargarDatosSupabase();
     }
 
-    // Cloud Payment Modal
+    // Cloud Payment Modal (with optional reflection in Control Mensual)
     function openCloudPaymentModal(userId, userName, currentDeuda) {
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
+      const gName = currGroup ? currGroup.nombre : "Grupo";
       const canApproveDirectly = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
+      const isMyOwnDebt = Number(userId) === Number(loggedUserId);
 
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
-            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${canApproveDirectly ? `Confirmar Cobro de ${esc(userName)}` : `Notificar mi Pago (${esc(userName)})`}</h3>
+            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${canApproveDirectly && !isMyOwnDebt ? `Confirmar Cobro de ${esc(userName)}` : `Notificar mi Pago (${esc(userName)})`}</h3>
             <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
           </div>
           ${!canApproveDirectly ? `
@@ -686,21 +774,27 @@ ALTER TABLE public.movimientos
             </div>
             <input id="cloud-pay-amount" type="number" step="0.01" value="${Number(currentDeuda || 0).toFixed(2)}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-2xl font-extrabold text-secondary text-center"/>
           </div>
-          <button onclick="submitCloudPayment(${userId})" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+            <input id="cloud-pay-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
+            <span>${isMyOwnDebt ? `Apuntar también como Gasto (−) en mi Control Mensual` : `Apuntar también como Ingreso (+) en mi Control Mensual`}</span>
+          </label>
+          <button onclick="submitCloudPayment(${userId}, '${esc(userName)}', '${esc(gName)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
             ${canApproveDirectly ? 'Confirmar Pago Recibido' : 'Avisar de mi Pago'}
           </button>
         </div>
       `);
     }
 
-    async function submitCloudPayment(userId) {
+    async function submitCloudPayment(userId, userName = "Miembro", gName = "Grupo") {
       const amount = parseAmount($('#cloud-pay-amount')?.value);
+      const reflectInMensual = !!$('#cloud-pay-reflect-mensual')?.checked;
       if (!(amount > 0) || !supabaseClient) return;
       closeUniversalModal();
 
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const canApproveDirectly = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
       const estado = canApproveDirectly ? 'completado' : 'pendiente';
+      const isMyOwnDebt = Number(userId) === Number(loggedUserId);
 
       await supabaseClient.from('movimientos').insert([{
         usuario_id: userId,
@@ -721,6 +815,33 @@ ALTER TABLE public.movimientos
           }
         }
       }
+
+      if (reflectInMensual && S) {
+        if (isMyOwnDebt) {
+          S.expenses.push({
+            id: uid(),
+            amount: Math.round(amount * 100) / 100,
+            cat: 'otros',
+            method: 'bizum',
+            note: `Pago grupo ${gName} #deuda`,
+            date: todayStr(),
+            tripId: '',
+            refund: false,
+            ts: Date.now()
+          });
+        } else {
+          S.incomes.push({
+            id: uid(),
+            amount: Math.round(amount * 100) / 100,
+            cat: 'bizum',
+            source: `Cobro de ${userName} (${gName})`,
+            note: 'Deuda grupo saldada',
+            date: todayStr()
+          });
+        }
+        saveLocalState(true);
+      }
+
       showToast(canApproveDirectly ? "Pago confirmado ✓" : "Pago enviado a revisión ✓");
       await cargarDatosSupabase();
     }
@@ -889,6 +1010,61 @@ ALTER TABLE public.movimientos
       const motivo = concept ? ` por *${concept}*` : '';
       const msg = `¡Hola ${personName}! 👋 Te recuerdo que tienes pendiente *${fmt(amount)}*${motivo}. Cuando puedas mándame un Bizum y lo dejamos saldado. ¡Gracias! 💸`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function openBizumClaimModal(personName, amount, concept = "Cuentas pendientes") {
+      const cleanAmt = Number(amount || 0).toFixed(2).replace('.', ',');
+      const bizumConcept = `${concept} (${personName})`.slice(0, 35);
+      const fullText = `¡Hola ${personName}! 👋 Tienes pendiente ${fmt(amount)} por «${concept}». Concepto Bizum: ${bizumConcept}`;
+
+      openUniversalModal(`
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
+            <div class="flex items-center gap-2.5">
+              <span class="w-10 h-10 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center">
+                <span class="material-symbols-outlined">send_to_mobile</span>
+              </span>
+              <div>
+                <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Reclamar por Bizum a ${esc(personName)}</h3>
+                <p class="text-xs text-on-surface-variant">Copia rápida de importe y concepto o envío por WhatsApp</p>
+              </div>
+            </div>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-2">
+              <div>
+                <span class="text-[10px] font-extrabold uppercase text-on-surface-variant">Importe exacto</span>
+                <p class="font-headline-md text-xl font-extrabold text-secondary tabular-nums">${fmt(amount)}</p>
+              </div>
+              <button onclick="navigator.clipboard?.writeText('${cleanAmt}'); showToast('Importe ${cleanAmt} copiado ✓')" class="py-1.5 px-2.5 rounded-xl bg-secondary/15 text-secondary text-xs font-extrabold hover:bg-secondary/25 transition">
+                Copiar importe
+              </button>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-2">
+              <div>
+                <span class="text-[10px] font-extrabold uppercase text-on-surface-variant">Concepto Bizum</span>
+                <p class="font-label-lg text-xs font-bold text-on-surface truncate">${esc(bizumConcept)}</p>
+              </div>
+              <button onclick="navigator.clipboard?.writeText('${esc(bizumConcept)}'); showToast('Concepto Bizum copiado ✓')" class="py-1.5 px-2.5 rounded-xl bg-primary/15 text-primary text-xs font-extrabold hover:bg-primary/25 transition">
+                Copiar concepto
+              </button>
+            </div>
+          </div>
+
+          <button onclick="navigator.clipboard?.writeText('${esc(fullText)}'); showToast('Mensaje completo copiado ✓')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-[17px]">content_copy</span>
+            Copiar recordatorio completo al portapapeles
+          </button>
+
+          <button onclick="closeUniversalModal(); sendIndividualWhatsAppClaim('${esc(personName)}', ${amount}, '${esc(concept)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition flex items-center justify-center gap-2 active-scale">
+            <span class="material-symbols-outlined text-[19px]">chat</span>
+            Enviar recordatorio por WhatsApp
+          </button>
+        </div>
+      `);
     }
 
     function openIOSDownloadModal() {

@@ -2,12 +2,12 @@
 <html class="light" lang="es">
 <head>
   <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Claridad"/>
-  <meta name="theme-color" content="#3525cd"/>
+  <meta name="theme-color" content="#faf8ff"/>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png"/>
@@ -169,12 +169,35 @@
       --background: #0b0f19;
       --on-background: #eef0ff;
     }
-    body {
+    html, body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--background);
       color: var(--on-surface);
       min-height: 100dvh;
       -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+      touch-action: pan-x pan-y;
+      overscroll-behavior-y: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, textarea, select {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    @media (max-width: 640px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+    .app-header-safe {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    .app-tabbar-safe {
+      padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    }
+    .app-body-safe {
+      padding-bottom: calc(96px + env(safe-area-inset-bottom, 16px));
     }
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 550, 'GRAD' 0, 'opsz' 24;
@@ -226,10 +249,10 @@
   </style>
 </head>
 
-<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md pb-24 selection:bg-primary/20">
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md app-body-safe selection:bg-primary/20">
 
-  <!-- TOP APP BAR (Stitch Shared Component Anchor) -->
-  <header class="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant/40 shadow-xs transition-all duration-150">
+  <!-- TOP APP BAR (Extends seamlessly behind iPhone status bar / clock / Dynamic Island via app-header-safe) -->
+  <header class="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-outline-variant/40 shadow-xs transition-all duration-150 app-header-safe">
     <div class="max-w-5xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
       <!-- Left: Brand Logo, User Profile & Greeting -->
       <div class="flex items-center gap-2.5 min-w-0">
@@ -251,11 +274,11 @@
 
       <!-- Center: Quick Mode Switcher Pill (Control Mensual vs Deudas P2P) -->
       <div class="hidden sm:flex items-center bg-surface-container p-1 rounded-xl border border-outline-variant/30 gap-1">
-        <button onclick="switchMainView('inicio')" id="top-pill-mensual" class="px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1">
+        <button onclick="switchMainView('inicio')" id="top-pill-mensual" class="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1">
           <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
           Control Mensual
         </button>
-        <button onclick="switchMainView('cuentas')" id="top-pill-deudas" class="px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1">
+        <button onclick="switchMainView('cuentas')" id="top-pill-deudas" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1">
           <span class="material-symbols-outlined text-[16px]">swap_horiz</span>
           Deudas &amp; Grupos
         </button>
@@ -263,28 +286,23 @@
 
       <!-- Right: iOS .IPA Download, User Switcher, Theme, Notifications & Quick New Action -->
       <div class="flex items-center gap-1.5 flex-shrink-0">
-        <button onclick="openIOSDownloadModal()" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold transition active-scale" title="Descargar aplicación en iPhone (.IPA / iOS)">
-          <span class="material-symbols-outlined text-[17px]">phone_iphone</span>
+        <button onclick="openIOSDownloadModal()" class="flex items-center gap-1 px-2.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold transition active-scale" title="Descargar aplicación en iPhone (.IPA / iOS)">
+          <span class="material-symbols-outlined text-[18px]">phone_iphone</span>
           <span class="hidden lg:inline">iPhone .IPA</span>
         </button>
 
-        <button onclick="openProfileOrLogin()" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/30 text-xs font-bold text-on-surface transition active-scale" title="Cambiar de usuario o crear cuenta">
+        <button onclick="openProfileOrLogin()" class="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/30 text-xs font-bold text-on-surface transition active-scale" title="Cambiar de usuario o crear cuenta">
           <span class="material-symbols-outlined text-[17px] text-primary">switch_account</span>
           <span id="header-user-pill">Hugo</span>
         </button>
 
         <button onclick="toggleTheme()" aria-label="Alternar tema claro/oscuro" class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Modo oscuro / claro">
-          <span id="theme-icon" class="material-symbols-outlined text-[21px]">dark_mode</span>
+          <span id="theme-icon" class="material-symbols-outlined text-[22px]">dark_mode</span>
         </button>
 
         <button onclick="toggleNotificationsDrawer()" aria-label="Notificaciones y alertas" class="relative p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Pagos pendientes y alertas">
-          <span class="material-symbols-outlined text-[22px]">notifications</span>
+          <span class="material-symbols-outlined text-[23px]">notifications</span>
           <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-surface">0</span>
-        </button>
-
-        <button onclick="openQuickActionSheet()" id="btn-quick-new" class="flex items-center gap-1.5 bg-primary-container text-on-primary px-3.5 py-2 rounded-xl font-label-lg text-label-lg shadow-sm hover:bg-primary transition-all active-scale">
-          <span class="material-symbols-outlined text-[19px]">add_circle</span>
-          <span class="hidden sm:inline font-bold">Nuevo</span>
         </button>
       </div>
     </div>
@@ -292,8 +310,8 @@
 
   <!-- NOTIFICATIONS & PENDING APPROVALS DRAWER -->
   <div id="notifications-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex justify-end">
-    <div class="bg-surface-container-lowest w-full max-w-md h-full shadow-2xl border-l border-outline-variant/30 flex flex-col justify-between p-5 overflow-y-auto animate-fade-in">
-      <div class="flex flex-col gap-4">
+    <div class="bg-surface-container-lowest w-full max-w-md h-full shadow-2xl border-l border-outline-variant/30 flex flex-col justify-between p-5 app-header-safe app-tabbar-safe overflow-y-auto animate-fade-in">
+      <div class="flex flex-col gap-4 pt-2">
         <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-primary">notifications_active</span>
@@ -305,19 +323,19 @@
         </div>
         <div id="notifications-content" class="flex flex-col gap-3"></div>
       </div>
-      <button onclick="toggleNotificationsDrawer()" class="mt-4 w-full py-2.5 rounded-xl bg-surface-container text-on-surface font-bold text-sm hover:bg-surface-container-high transition">
+      <button onclick="toggleNotificationsDrawer()" class="mt-4 w-full py-3 rounded-xl bg-surface-container text-on-surface font-bold text-sm hover:bg-surface-container-high transition">
         Cerrar panel
       </button>
     </div>
   </div>
 
-  <!-- QUICK ACTION BOTTOM SHEET MODAL (Stitch Contextual Task Layer) -->
-  <div id="quick-action-sheet" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl border border-outline-variant/30 flex flex-col gap-3.5 animate-slide-up">
+  <!-- QUICK ACTION BOTTOM SHEET MODAL (Triggered by Central '+' Button) -->
+  <div id="quick-action-sheet" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 flex flex-col gap-3 animate-slide-up max-h-[90dvh] overflow-y-auto">
       <div class="flex justify-between items-center pb-2 border-b border-outline-variant/25">
         <div>
-          <h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">Registrar nueva operación</h3>
-          <p class="font-body-sm text-xs text-on-surface-variant">En tu cuenta personal o en el apartado de deudas</p>
+          <h3 class="font-headline-sm text-headline-sm text-on-surface font-extrabold">Nueva operación rápida</h3>
+          <p class="font-body-sm text-xs text-on-surface-variant">Control mensual o apartado de deudas</p>
         </div>
         <button onclick="closeQuickActionSheet()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container">
           <span class="material-symbols-outlined">close</span>
@@ -326,28 +344,43 @@
 
       <div class="grid grid-cols-1 gap-2.5">
         <div class="text-[10px] font-extrabold uppercase tracking-wider text-primary px-1">Control Mensual (Mi Bolsillo)</div>
+
         <!-- 1. Gasto personal -->
-        <button onclick="closeQuickActionSheet(); openTxModal('exp')" class="flex items-center justify-between p-3.5 rounded-xl border border-outline-variant/50 bg-surface-container-low hover:bg-surface-container transition-all text-left active-scale">
+        <button onclick="closeQuickActionSheet(); openTxModal('exp')" class="flex items-center justify-between p-3.5 rounded-2xl border border-outline-variant/50 bg-surface-container-low hover:bg-surface-container transition-all text-left active-scale">
           <div class="flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined">receipt_long</span>
+            <span class="w-11 h-11 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[22px]">receipt_long</span>
             </span>
             <div>
-              <p class="font-label-lg text-label-lg text-on-surface font-bold">Gasto personal mensual</p>
+              <p class="font-label-lg text-sm text-on-surface font-extrabold">Gasto personal mensual</p>
               <p class="font-body-sm text-xs text-on-surface-variant">Supermercado, restaurante, factura, voz o #tag</p>
             </div>
           </div>
           <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
 
-        <!-- 2. Ingreso personal -->
-        <button onclick="closeQuickActionSheet(); openTxModal('inc')" class="flex items-center justify-between p-3.5 rounded-xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
+        <!-- 2. Escáner de tickets por Foto / OCR -->
+        <button onclick="closeQuickActionSheet(); openReceiptScannerModal()" class="flex items-center justify-between p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
           <div class="flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined">account_balance_wallet</span>
+            <span class="w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-[22px]">photo_camera</span>
             </span>
             <div>
-              <p class="font-label-lg text-label-lg text-on-surface font-bold">Ingreso extra o Nómina</p>
+              <p class="font-label-lg text-sm text-on-surface font-extrabold">Escanear ticket con cámara (OCR)</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Haz foto al recibo y extrae importe y comercio solo</p>
+            </div>
+          </div>
+          <span class="material-symbols-outlined text-outline">chevron_right</span>
+        </button>
+
+        <!-- 3. Ingreso personal -->
+        <button onclick="closeQuickActionSheet(); openTxModal('inc')" class="flex items-center justify-between p-3.5 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
+          <div class="flex items-center gap-3">
+            <span class="w-11 h-11 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[22px]">account_balance_wallet</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-sm text-on-surface font-extrabold">Ingreso extra o Nómina</p>
               <p class="font-body-sm text-xs text-on-surface-variant">Freelance, Bizum recibido, ventas o regalo</p>
             </div>
           </div>
@@ -355,43 +388,44 @@
         </button>
 
         <div class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant px-1 pt-1">Apartado Deudas (Me deben / Debo / Grupos)</div>
-        <!-- 3. Me deben (P2P) -->
-        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owed')" class="flex items-center justify-between p-3.5 rounded-xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
+
+        <!-- 4. Me deben (P2P) -->
+        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owed')" class="flex items-center justify-between p-3.5 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
           <div class="flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined">arrow_downward</span>
+            <span class="w-11 h-11 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[22px]">arrow_downward</span>
             </span>
             <div>
-              <p class="font-label-lg text-label-lg text-on-surface font-bold">Me deben (Cobro pendiente)</p>
+              <p class="font-label-lg text-sm text-on-surface font-extrabold">Me deben (Cobro pendiente)</p>
               <p class="font-body-sm text-xs text-on-surface-variant">Préstamo o gasto anticipado a otra persona</p>
             </div>
           </div>
           <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
 
-        <!-- 4. Debo (P2P) -->
-        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owe')" class="flex items-center justify-between p-3.5 rounded-xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left active-scale">
+        <!-- 5. Debo (P2P) -->
+        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owe')" class="flex items-center justify-between p-3.5 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left active-scale">
           <div class="flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined">arrow_upward</span>
+            <span class="w-11 h-11 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+              <span class="material-symbols-outlined text-[22px]">arrow_upward</span>
             </span>
             <div>
-              <p class="font-label-lg text-label-lg text-on-surface font-bold">Debo (Pago pendiente)</p>
+              <p class="font-label-lg text-sm text-on-surface font-extrabold">Debo (Pago pendiente)</p>
               <p class="font-body-sm text-xs text-on-surface-variant">Deuda que tengo que saldar con alguien</p>
             </div>
           </div>
           <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
 
-        <!-- 5. Cargo en Grupo Cloud (Supabase) -->
-        <button onclick="closeQuickActionSheet(); openGlobalChargeModal()" class="flex items-center justify-between p-3.5 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
+        <!-- 6. Cargo en Grupo Cloud (Supabase) -->
+        <button onclick="closeQuickActionSheet(); openGlobalChargeModal()" class="flex items-center justify-between p-3.5 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
           <div class="flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
-              <span class="material-symbols-outlined">groups</span>
+            <span class="w-11 h-11 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-[22px]">groups</span>
             </span>
             <div>
-              <p class="font-label-lg text-label-lg text-on-surface font-bold">Repartir cargo en Grupo Cloud</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Dividir Spotify, Fantasy o gasto común en Supabase</p>
+              <p class="font-label-lg text-sm text-on-surface font-extrabold">Repartir cargo en Grupo Cloud</p>
+              <p class="font-body-sm text-xs text-on-surface-variant">Partes iguales o importes exactos en Supabase</p>
             </div>
           </div>
           <span class="material-symbols-outlined text-outline">chevron_right</span>
@@ -403,7 +437,7 @@
   <!-- MAIN CANVAS CONTAINER -->
   <main class="w-full max-w-5xl mx-auto px-4 pt-4 flex flex-col gap-5">
 
-    <!-- DATE & PERIOD FILTER BAR (Shown on Monthly Control views: Mensual, Gastos, Analítica) -->
+    <!-- DATE & PERIOD FILTER BAR (Shown on Monthly Control views: Mensual, Movimientos, Analítica) -->
     <section id="period-filter-bar" class="flex flex-wrap items-center justify-between gap-2 bento-card px-4 py-2.5 rounded-2xl">
       <div class="flex items-center gap-2">
         <span class="material-symbols-outlined text-primary">calendar_month</span>
@@ -414,18 +448,18 @@
       </div>
       <div class="flex items-center gap-1.5">
         <div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30">
-          <button onclick="shiftMonth(-1)" aria-label="Mes anterior" class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
-            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+          <button onclick="shiftMonth(-1)" aria-label="Mes anterior" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[19px]">chevron_left</span>
           </button>
-          <button onclick="resetToCurrentMonth()" id="btn-period-today" class="font-label-md text-xs text-primary px-2 py-0.5 rounded-md font-bold hover:bg-surface-container transition-colors">
+          <button onclick="resetToCurrentMonth()" id="btn-period-today" class="font-label-md text-xs text-primary px-2.5 py-1 rounded-md font-bold hover:bg-surface-container transition-colors">
             Actual
           </button>
-          <button onclick="shiftMonth(1)" aria-label="Mes siguiente" class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
-            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+          <button onclick="shiftMonth(1)" aria-label="Mes siguiente" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[19px]">chevron_right</span>
           </button>
         </div>
         <button onclick="cargarDatosSupabase(true)" class="p-2 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all active-scale" title="Sincronizar tu cuenta con Supabase Cloud">
-          <span id="sync-icon" class="material-symbols-outlined text-[18px]">sync</span>
+          <span id="sync-icon" class="material-symbols-outlined text-[19px]">sync</span>
         </button>
       </div>
     </section>
@@ -447,35 +481,54 @@
 
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (5 Tabs with Deudas clearly separated from Control Mensual) -->
-  <nav class="fixed bottom-0 left-0 w-full z-40 bg-surface-container-lowest/95 backdrop-blur-md border-t border-outline-variant/40 shadow-lg">
-    <div class="max-w-lg mx-auto flex justify-around items-center px-2 h-16">
-      <button onclick="switchMainView('inicio')" id="nav-inicio" class="nav-tab flex flex-col items-center justify-center text-primary font-bold gap-0.5 py-1 flex-1 transition-all active-scale">
-        <span class="material-symbols-outlined filled text-[22px]">account_balance_wallet</span>
-        <span class="font-label-sm text-[11px]">Mensual</span>
+  <!-- BOTTOM NAVIGATION BAR (Large Thumb-Friendly iPhone Tabs + Central Floating '+' Button) -->
+  <nav class="fixed bottom-0 left-0 w-full z-40 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/40 shadow-2xl app-tabbar-safe">
+    <div class="max-w-lg mx-auto grid grid-cols-5 items-center px-2 pt-2 min-h-[74px]">
+      <!-- Tab 1: Mensual -->
+      <button onclick="switchMainView('inicio')" id="nav-inicio" class="nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale">
+        <span class="nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined filled text-[26px]">account_balance_wallet</span>
+        </span>
+        <span class="text-[12px] leading-tight tracking-tight">Mensual</span>
       </button>
-      <button onclick="switchMainView('gastos')" id="nav-gastos" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale">
-        <span class="material-symbols-outlined text-[22px]">receipt_long</span>
-        <span class="font-label-sm text-[11px]">Movimientos</span>
+
+      <!-- Tab 2: Deudas (Separated Section) -->
+      <button onclick="switchMainView('cuentas')" id="nav-cuentas" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative">
+        <span class="nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[26px]">swap_horiz</span>
+        </span>
+        <span class="text-[12px] leading-tight tracking-tight">Deudas</span>
       </button>
-      <button onclick="switchMainView('cuentas')" id="nav-cuentas" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale relative">
-        <span class="material-symbols-outlined text-[22px]">swap_horiz</span>
-        <span class="font-label-sm text-[11px]">Deudas</span>
+
+      <!-- Center: Large Floating '+' Button for 1-Thumb iPhone Operation -->
+      <div class="flex flex-col items-center justify-center">
+        <button onclick="openQuickActionSheet()" aria-label="Nueva operación" class="w-14 h-14 -mt-6 rounded-2xl hero-indigo text-white flex items-center justify-center shadow-xl ring-4 ring-surface active-scale transition-transform">
+          <span class="material-symbols-outlined text-[32px]">add</span>
+        </button>
+        <span class="text-[11px] font-extrabold text-primary mt-0.5 leading-tight">Añadir</span>
+      </div>
+
+      <!-- Tab 4: Analítica -->
+      <button onclick="switchMainView('analitica')" id="nav-analitica" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
+        <span class="nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[26px]">insights</span>
+        </span>
+        <span class="text-[12px] leading-tight tracking-tight">Analítica</span>
       </button>
-      <button onclick="switchMainView('analitica')" id="nav-analitica" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale">
-        <span class="material-symbols-outlined text-[22px]">insights</span>
-        <span class="font-label-sm text-[11px]">Analítica</span>
-      </button>
-      <button onclick="switchMainView('ajustes')" id="nav-ajustes" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale">
-        <span class="material-symbols-outlined text-[22px]">tune</span>
-        <span class="font-label-sm text-[11px]">Plan &amp; Cuenta</span>
+
+      <!-- Tab 5: Plan & Más -->
+      <button onclick="switchMainView('ajustes')" id="nav-ajustes" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
+        <span class="nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[26px]">tune</span>
+        </span>
+        <span class="text-[12px] leading-tight tracking-tight">Plan &amp; Más</span>
       </button>
     </div>
   </nav>
 
   <!-- UNIVERSAL MODAL CONTAINER -->
   <div id="universal-modal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div id="universal-modal-box" class="bg-surface-container-lowest w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl border border-outline-variant/30 max-h-[92dvh] overflow-y-auto animate-slide-up">
+    <div id="universal-modal-box" class="bg-surface-container-lowest w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 max-h-[92dvh] overflow-y-auto animate-slide-up">
     </div>
   </div>
 
@@ -854,6 +907,15 @@
     // ============================================================================
     // 6. PER-USER STATE MANAGEMENT & SUPABASE CLOUD SYNC
     // ============================================================================
+    const CLARIDAD_CLEAN_VERSION = "v3_clean_zero";
+    const DEFAULT_QUICK_PRESETS = [
+      { id: "qp1", label: "Café / Desayuno", emoji: "☕", amount: 1.80, cat: "ocio", method: "tarjeta" },
+      { id: "qp2", label: "Menú del día",    emoji: "🍽️", amount: 13.50, cat: "comida", method: "tarjeta" },
+      { id: "qp3", label: "Supermercado",    emoji: "🛒", amount: 35.00, cat: "comida", method: "applepay" },
+      { id: "qp4", label: "Gasolina",        emoji: "⛽", amount: 40.00, cat: "transporte", method: "tarjeta" },
+      { id: "qp5", label: "Parking / Metro", emoji: "🚇", amount: 2.50, cat: "transporte", method: "applepay" }
+    ];
+
     function blankState(defaultSalary = 0) {
       return {
         expenses: [],
@@ -867,6 +929,7 @@
         groups: [],
         trips: [],
         goals: [],
+        quickPresets: JSON.parse(JSON.stringify(DEFAULT_QUICK_PRESETS)),
         rules: [
           { id: uid(), match: "mercadona", cat: "comida" },
           { id: uid(), match: "spotify", cat: "susc" },
@@ -876,6 +939,7 @@
         customCats: [],
         settings: { salary: defaultSalary, salaryDay: 1, salaryAuto: defaultSalary > 0, dark: false, bizumPhone: "" },
         seeded: true,
+        isDemoSeeded: false,
         startMk: monthKey(todayStr()),
         updatedAt: Date.now()
       };
@@ -892,6 +956,9 @@
       if (!Array.isArray(obj.debts)) obj.debts = [];
       if (!Array.isArray(obj.recurring)) obj.recurring = [];
       if (!Array.isArray(obj.trips)) obj.trips = [];
+      if (!Array.isArray(obj.quickPresets) || obj.quickPresets.length === 0) {
+        obj.quickPresets = JSON.parse(JSON.stringify(DEFAULT_QUICK_PRESETS));
+      }
       if (!obj.budgets) obj.budgets = { hogar: 450, comida: 300, ocio: 180, transporte: 150, compras: 150, otros: 80 };
       if (!obj.rollover) obj.rollover = {};
       if (!obj.carried) obj.carried = {};
@@ -904,11 +971,49 @@
         if (!Array.isArray(d.log)) d.log = [];
         if (typeof d.settled !== "boolean") d.settled = false;
       });
+      obj.recurring.forEach(r => {
+        if (typeof r.autoCharge !== "boolean") r.autoCharge = true;
+      });
       obj.expenses.forEach(e => {
         if (!e.method) e.method = "tarjeta";
         if (typeof e.refund !== "boolean") e.refund = false;
       });
       return obj;
+    }
+
+    // Automatically log recurring subscriptions on their billing day if autoCharge is enabled
+    function checkAutoRecurringExpenses() {
+      if (!S || !Array.isArray(S.recurring) || S.recurring.length === 0) return;
+      const curMk = monthKey(todayStr());
+      const todayDay = new Date().getDate();
+      let added = 0;
+
+      S.recurring.forEach(r => {
+        if (r.autoCharge === false || !r.day) return;
+        if (todayDay >= Number(r.day) && !recPaidThisMonth(r, curMk)) {
+          const dayPadded = String(Math.min(Number(r.day), 28)).padStart(2, '0');
+          S.expenses.push({
+            id: uid(),
+            amount: Math.round(Number(r.amount || 0) * 100) / 100,
+            cat: r.cat || 'susc',
+            method: 'domiciliacion',
+            note: `${r.name} (Cargo fijo automático)`,
+            date: `${curMk}-${dayPadded}`,
+            tripId: '',
+            refund: false,
+            autoRecurringId: r.id,
+            ts: Date.now()
+          });
+          added++;
+        }
+      });
+
+      if (added > 0) {
+        saveLocalState(true);
+        if (typeof showToast === 'function') {
+          showToast(`🔄 ${added} suscripción(es) registrada(s) automáticamente ✓`);
+        }
+      }
     }
 
     function saveLocalState(syncCloud = true) {
@@ -928,6 +1033,13 @@
     }
 
     function loadLocalStateForCurrentUser() {
+      // One-time cleanup of old random demo data so the user starts clean at 0,00 €
+      if (localStorage.getItem('claridad_clean_marker') !== CLARIDAD_CLEAN_VERSION) {
+        localStorage.removeItem(LEGACY_LSKEY);
+        localStorage.removeItem(userStorageKey(2));
+        localStorage.setItem('claridad_clean_marker', CLARIDAD_CLEAN_VERSION);
+      }
+
       const key = userStorageKey(loggedUserId);
       let loaded = null;
       try {
@@ -936,27 +1048,14 @@
         loaded = null;
       }
 
-      // If Hugo (ID 2) doesn't have `claridad_user_2` yet, check legacy `bolsillo_v1` or seed Hugo's data
-      if (!loaded && Number(loggedUserId) === 2) {
-        try {
-          loaded = JSON.parse(localStorage.getItem(LEGACY_LSKEY));
-        } catch (e) {
-          loaded = null;
-        }
-        if (!loaded || !loaded.seeded) {
-          loaded = blankState(1800);
-          S = loaded;
-          seedInitialData();
-        }
-      }
-
-      // For any other user (e.g. Ivan, Lucia, Ximo, new user), start with a clean personal profile
+      // Start every user with a clean 0,00 € account unless they already saved real data
       if (!loaded) {
         loaded = blankState(0);
       }
 
       S = normalizeStateObject(loaded);
       localStorage.setItem(key, JSON.stringify(S));
+      checkAutoRecurringExpenses();
     }
 
     // Cloud Sync of per-user personal state (`Control Mensual` + personal `Deudas`) in Supabase
@@ -1100,6 +1199,7 @@
     function seedInitialData() {
       const now = new Date();
       const mk = monthKey(todayStr());
+      S.isDemoSeeded = true;
       S.settings.salary = 1800;
       S.settings.salaryAuto = true;
       S.budgets = { hogar: 450, comida: 320, ocio: 200, transporte: 180, compras: 180, susc: 60, salud: 90, otros: 100 };
@@ -1356,7 +1456,6 @@
       activeMainView = viewName;
       ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
         const container = $('#view-' + v);
-        const navBtn = $('#nav-' + v);
         if (container) {
           if (v === viewName) {
             container.classList.remove('hidden');
@@ -1366,15 +1465,24 @@
             container.classList.remove('flex');
           }
         }
-        if (navBtn) {
-          const iconSpan = navBtn.querySelector('.material-symbols-outlined');
-          if (v === viewName) {
-            navBtn.className = "nav-tab flex flex-col items-center justify-center text-primary font-bold gap-0.5 py-1 flex-1 transition-all active-scale";
-            if (iconSpan) iconSpan.classList.add('filled');
-          } else {
-            navBtn.className = "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale";
-            if (iconSpan) iconSpan.classList.remove('filled');
-          }
+      });
+
+      // Update large bottom navigation tabs (inicio and gastos both map to 'nav-inicio')
+      const activeNavKey = (viewName === 'gastos') ? 'inicio' : viewName;
+      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
+        const navBtn = $('#nav-' + k);
+        if (!navBtn) return;
+        const iconSpan = navBtn.querySelector('.material-symbols-outlined');
+        const pillSpan = navBtn.querySelector('.nav-pill');
+        const isActive = (k === activeNavKey);
+        navBtn.className = isActive
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
+          : "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative";
+        if (iconSpan) iconSpan.classList.toggle('filled', isActive);
+        if (pillSpan) {
+          pillSpan.className = isActive
+            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
         }
       });
 
@@ -1464,27 +1572,75 @@
       const fc = forecast(viewMk);
       const cats = byCat(exps);
 
+      const hasPersonalData = (S.expenses || []).length > 0 || (S.incomes || []).length > 0 || (S.debts || []).length > 0 || S.isDemoSeeded;
+
+      // Top Monthly Control Bar (Resumen vs Movimientos + Borrar datos de prueba)
+      const monthlyTopNavHtml = `
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
+            <button onclick="switchMainView('inicio')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">dashboard</span>
+              Resumen Mensual
+            </button>
+            <button onclick="switchMainView('gastos')" class="px-3.5 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+              Movimientos (${exps.length + incs.length})
+            </button>
+          </div>
+          ${hasPersonalData ? `
+            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale" title="Borra los gastos/datos de prueba del Control Mensual sin tocar la base de datos de Deudas de Supabase">
+              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+              Borrar datos de Control Mensual
+            </button>
+          ` : ''}
+        </div>
+      `;
+
+      // 1-Tap Quick Expense Presets Bar
+      const quickPresetsHtml = `
+        <section class="bento-card p-3.5 rounded-2xl flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px]">bolt</span>
+              Gasto Rápido en 1 Toque (Suma al instante)
+            </span>
+            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[14px]">edit</span>
+              Personalizar
+            </button>
+          </div>
+          <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-0.5">
+            ${(S.quickPresets || []).map(qp => `
+              <button onclick="triggerQuickPresetExpense('${qp.id}')" class="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-primary/10 border border-outline-variant/40 hover:border-primary/40 flex items-center gap-2 flex-shrink-0 transition active-scale text-left">
+                <span class="text-base">${esc(qp.emoji || '💸')}</span>
+                <div>
+                  <p class="text-xs font-extrabold text-on-surface leading-tight">${esc(qp.label)}</p>
+                  <p class="text-[11px] font-bold text-primary tabular-nums">${fmt(qp.amount)}</p>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        </section>
+      `;
+
       // Welcome onboarding banner if this user has no personal expenses and no salary set yet
       const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
       const onboardingBannerHtml = isFreshAccount ? `
-        <div class="bento-card p-5 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex items-start gap-3">
-            <span class="w-11 h-11 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined">person_check</span>
+            <span class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined">verified_user</span>
             </span>
             <div>
-              <h3 class="font-headline-sm text-base font-extrabold text-on-surface">¡Bienvenido a tu espacio personal, ${esc(userName)}!</h3>
+              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Cuenta limpia a 0,00 € (${esc(userName)})</h3>
               <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                Tu registro de Control Mensual es privado y se guarda en tu cuenta de Supabase (#${loggedUserId || 'Invitado'}). Configura tu nómina o añade tu primer gasto para empezar.
+                Sin datos aleatorios. Configura tu nómina, usa los botones de «Gasto Rápido en 1 toque» o escanea un ticket con la cámara.
               </p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
             <button onclick="switchMainView('ajustes', 'ingresos')" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold hover:bg-primary-container transition active-scale">
               Configurar Nómina
-            </button>
-            <button onclick="seedDemoForCurrentUser()" class="px-3 py-2 rounded-xl bg-surface-container text-on-surface-variant font-label-md text-xs font-bold hover:bg-surface-container-high transition active-scale">
-              Cargar ejemplo
             </button>
           </div>
         </div>
@@ -1564,7 +1720,9 @@
       }).join('');
 
       el.innerHTML = `
+        ${monthlyTopNavHtml}
         ${onboardingBannerHtml}
+        ${quickPresetsHtml}
 
         <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (100% Personal Finance) -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1677,13 +1835,13 @@
             </div>
           </button>
 
-          <button onclick="openTxModal('inc')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">payments</span>
+          <button onclick="openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
+            <span class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[19px]">photo_camera</span>
             </span>
             <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Ingreso</p>
-              <p class="text-[10px] text-on-surface-variant">Extra, Bizum, venta</p>
+              <p class="font-label-lg text-xs font-extrabold text-on-surface">Escanear Ticket</p>
+              <p class="text-[10px] text-on-surface-variant">Foto / OCR automático</p>
             </div>
           </button>
 
@@ -1697,13 +1855,13 @@
             </div>
           </button>
 
-          <button onclick="switchMainView('analitica')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">psychology_alt</span>
+          <button onclick="openTxModal('inc')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
+            <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[19px]">payments</span>
             </span>
             <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">Simulador</p>
-              <p class="text-[10px] text-on-surface-variant">¿Me lo puedo permitir?</p>
+              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Ingreso</p>
+              <p class="text-[10px] text-on-surface-variant">Extra, Bizum, venta</p>
             </div>
           </button>
         </section>
@@ -1841,7 +1999,7 @@
             </button>
 
             ${(!isClear && !isMe) ? `
-              <button onclick="sendIndividualWhatsAppClaim('${esc(user.nombre)}', ${deuda})" class="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale" title="Reclamar por Bizum / WhatsApp">
+              <button onclick="openBizumClaimModal('${esc(user.nombre)}', ${deuda}, '${esc(currGroup ? currGroup.nombre : 'Grupo')}')" class="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale" title="Reclamar por Bizum / WhatsApp">
                 <span class="material-symbols-outlined text-[15px]">send</span>
                 <span class="hidden sm:inline">Bizum</span>
               </button>
@@ -1908,7 +2066,7 @@
               Registrar abono
             </button>
             ${isOwed ? `
-              <button onclick="sendIndividualWhatsAppClaim('${esc(d.person)}', ${d.amount}, '${esc(d.note || '')}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
+              <button onclick="openBizumClaimModal('${esc(d.person)}', ${d.amount}, '${esc(d.note || 'Préstamo P2P')}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
                 <span class="material-symbols-outlined text-[15px]">send</span>
                 Reclamar Bizum
               </button>
@@ -2099,7 +2257,7 @@
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2 pt-2 border-t border-outline-variant/20">
-              <button onclick="sendIndividualWhatsAppClaim('${esc(item.usuario_nombre)}', ${item.deuda}, 'Grupo ${esc(item.grupo_nombre)}')" class="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
+              <button onclick="openBizumClaimModal('${esc(item.usuario_nombre)}', ${item.deuda}, 'Grupo ${esc(item.grupo_nombre)}')" class="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
                 <span class="material-symbols-outlined text-[15px]">send</span>
                 Reclamar por Bizum
               </button>
@@ -2570,7 +2728,26 @@
         </div>`;
 
       el.innerHTML = `
-        <div class="grid grid-cols-3 gap-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
+            <button onclick="switchMainView('inicio')" class="px-3.5 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">dashboard</span>
+              Resumen Mensual
+            </button>
+            <button onclick="switchMainView('gastos')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+              Movimientos (${exps.length + incs.length})
+            </button>
+          </div>
+          ${(exps.length + incs.length > 0) ? `
+            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale">
+              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+              Borrar datos de Control Mensual
+            </button>
+          ` : ''}
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <button onclick="openTxModal('exp')" class="bento-card p-3.5 rounded-2xl flex items-center gap-3 hover:bg-surface-container-low transition active-scale text-left">
             <span class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined">add_shopping_cart</span>
@@ -2578,6 +2755,16 @@
             <div>
               <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Nuevo Gasto</p>
               <p class="text-[11px] text-on-surface-variant hidden sm:block">Manual o #etiqueta</p>
+            </div>
+          </button>
+
+          <button onclick="openReceiptScannerModal()" class="bento-card p-3.5 rounded-2xl flex items-center gap-3 hover:bg-surface-container-low transition active-scale text-left">
+            <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined">photo_camera</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-xs font-extrabold text-on-surface">Escanear Ticket</p>
+              <p class="text-[11px] text-on-surface-variant hidden sm:block">Foto / OCR automático</p>
             </div>
           </button>
 
@@ -3141,8 +3328,11 @@
                         <span class="material-symbols-outlined text-[20px]">${c.icon}</span>
                       </span>
                       <div class="min-w-0">
-                        <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(r.name)}</p>
-                        <p class="text-xs text-on-surface-variant">${esc(c.name)} • Día ${r.day || '—'} de cada mes • ${paid ? '<span class="text-secondary font-bold">Pagado este mes</span>' : '<span class="text-amber-600 font-bold">Pendiente este mes</span>'}</p>
+                        <div class="flex items-center gap-1.5">
+                          <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(r.name)}</p>
+                          ${r.autoCharge !== false ? `<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-primary/10 text-primary">Auto-cobro</span>` : ''}
+                        </div>
+                        <p class="text-xs text-on-surface-variant">${esc(c.name)} • Día ${r.day || '—'} de cada mes • ${paid ? '<span class="text-secondary font-bold">Sumado este mes ✓</span>' : '<span class="text-amber-600 font-bold">Pendiente este mes</span>'}</p>
                       </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">
@@ -3933,36 +4123,70 @@ ALTER TABLE public.movimientos
       await cargarDatosSupabase();
     }
 
-    // Global / Selective Group Charge Split Modal
-    function openGlobalChargeModal() {
+    // Global / Selective / Exact-Per-Person Group Charge Split Modal
+    let globalSplitMode = "equal"; // 'equal' | 'exact'
+
+    function openGlobalChargeModal(mode = "equal") {
+      globalSplitMode = mode;
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const gName = currGroup ? currGroup.nombre : "Grupo";
 
-      const membersCheckboxes = sbUsuariosGrupo.map(u => `
-        <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 cursor-pointer">
-          <div class="flex items-center gap-2.5">
-            <input type="checkbox" data-split-member="${u.id}" checked onchange="recalcGlobalModalSplit()" class="w-4 h-4 rounded text-primary focus:ring-primary"/>
-            <span class="text-xs font-bold text-on-surface">${esc(u.nombre)}</span>
-          </div>
-          <span class="text-[11px] text-on-surface-variant tabular-nums">Deuda actual: ${fmt(u.deuda)}</span>
-        </label>
-      `).join('');
+      const membersRowsHtml = sbUsuariosGrupo.map(u => {
+        if (globalSplitMode === "exact") {
+          return `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 gap-2">
+              <div class="min-w-0">
+                <p class="text-xs font-extrabold text-on-surface truncate">${esc(u.nombre)}</p>
+                <p class="text-[10px] text-on-surface-variant">Deuda actual: ${fmt(u.deuda)}</p>
+              </div>
+              <div class="relative w-28 flex-shrink-0">
+                <input type="number" step="0.01" data-exact-member="${u.id}" placeholder="0.00" oninput="recalcGlobalModalSplit()" class="w-full pr-6 pl-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-outline-variant/40 text-right text-xs font-extrabold text-on-surface"/>
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-bold text-outline">€</span>
+              </div>
+            </div>`;
+        }
+        return `
+          <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 cursor-pointer">
+            <div class="flex items-center gap-2.5">
+              <input type="checkbox" data-split-member="${u.id}" checked onchange="recalcGlobalModalSplit()" class="w-4 h-4 rounded text-primary focus:ring-primary"/>
+              <span class="text-xs font-bold text-on-surface">${esc(u.nombre)}</span>
+            </div>
+            <span class="text-[11px] text-on-surface-variant tabular-nums">Deuda: ${fmt(u.deuda)}</span>
+          </label>`;
+      }).join('');
 
       openUniversalModal(`
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-3.5">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <div>
               <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Repartir Gasto en ${esc(gName)}</h3>
-              <p class="text-xs text-on-surface-variant">Divide a partes iguales entre todos o los seleccionados</p>
+              <p class="text-xs text-on-surface-variant">Partes iguales o importe personalizado por amigo</p>
             </div>
             <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
           </div>
 
+          <!-- Mode Switcher: Equal vs Exact -->
+          <div class="grid grid-cols-2 bg-surface-container p-1 rounded-xl gap-1">
+            <button type="button" onclick="openGlobalChargeModal('equal')" class="py-2 rounded-lg text-xs font-extrabold transition ${globalSplitMode === 'equal' ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant'}">
+              ⚖️ A partes iguales
+            </button>
+            <button type="button" onclick="openGlobalChargeModal('exact')" class="py-2 rounded-lg text-xs font-extrabold transition ${globalSplitMode === 'exact' ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant'}">
+              🎯 Importes exactos
+            </button>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe TOTAL a dividir (€)</label>
-              <input id="global-split-amount" type="number" step="0.01" placeholder="21.00" oninput="recalcGlobalModalSplit()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-lg font-extrabold text-on-surface"/>
-            </div>
+            ${globalSplitMode === 'equal' ? `
+              <div>
+                <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe TOTAL a dividir (€)</label>
+                <input id="global-split-amount" type="number" step="0.01" placeholder="21.00" oninput="recalcGlobalModalSplit()" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-lg font-extrabold text-on-surface"/>
+              </div>
+            ` : `
+              <div class="p-3 rounded-xl bg-primary/10 flex flex-col justify-center">
+                <span class="text-[10px] font-extrabold uppercase text-primary">Suma total del reparto</span>
+                <span id="global-exact-sum" class="font-headline-sm text-lg font-extrabold text-primary tabular-nums">0,00 €</span>
+              </div>
+            `}
             <div>
               <label class="text-xs font-bold text-on-surface-variant block mb-1">Categoría</label>
               <select id="global-split-cat" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface">
@@ -3982,11 +4206,11 @@ ALTER TABLE public.movimientos
 
           <div>
             <div class="flex items-center justify-between mb-1.5">
-              <label class="text-xs font-bold text-on-surface-variant">Participantes en este gasto</label>
+              <label class="text-xs font-bold text-on-surface-variant">${globalSplitMode === 'equal' ? 'Marca quiénes participan' : 'Escribe cuánto paga cada uno'}</label>
               <span id="global-split-preview" class="text-xs font-extrabold text-primary">0,00 € por persona</span>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-              ${membersCheckboxes}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+              ${membersRowsHtml}
             </div>
           </div>
 
@@ -3999,27 +4223,79 @@ ALTER TABLE public.movimientos
     }
 
     function recalcGlobalModalSplit() {
+      const preview = $('#global-split-preview');
+      if (globalSplitMode === 'exact') {
+        const inputs = [...$$('[data-exact-member]')];
+        let sum = 0;
+        let activeCount = 0;
+        inputs.forEach(inp => {
+          const val = parseAmount(inp.value);
+          if (val > 0) {
+            sum += val;
+            activeCount++;
+          }
+        });
+        const sumEl = $('#global-exact-sum');
+        if (sumEl) sumEl.textContent = fmt(sum);
+        if (preview) preview.textContent = `${activeCount} miembro(s) con cargo • Total ${fmt(sum)}`;
+        return;
+      }
+
       const total = parseAmount($('#global-split-amount')?.value);
       const checked = $$('[data-split-member]:checked');
       const count = checked.length;
-      const preview = $('#global-split-preview');
       if (preview) {
         preview.textContent = count > 0 ? `${count} seleccionados → ${fmt(total / count)} c/u` : 'Selecciona al menos 1 miembro';
       }
     }
 
     async function submitGlobalCloudCharge() {
-      const total = parseAmount($('#global-split-amount')?.value);
+      if (!supabaseClient) return;
       const concept = ($('#global-split-concept')?.value || '').trim() || 'Cargo Compartido';
       const categoria = $('#global-split-cat')?.value || 'General';
-      const checkedIds = [...$$('[data-split-member]:checked')].map(el => Number(el.dataset.splitMember));
+      const nuevosMovs = [];
 
-      if (!(total > 0) || checkedIds.length === 0 || !supabaseClient) return;
+      if (globalSplitMode === 'exact') {
+        const inputs = [...$$('[data-exact-member]')];
+        const items = inputs.map(inp => ({
+          uidNum: Number(inp.dataset.exactMember),
+          amt: Math.round(parseAmount(inp.value) * 100) / 100
+        })).filter(x => x.amt > 0);
+
+        if (items.length === 0) return;
+        closeUniversalModal();
+
+        for (const it of items) {
+          const u = sbUsuariosGrupo.find(x => Number(x.id) === it.uidNum);
+          if (!u) continue;
+          const nuevaDeuda = parseFloat(u.deuda || 0) + it.amt;
+          if (u.relacion_id) {
+            await supabaseClient.from('grupo_usuarios').update({ deuda: nuevaDeuda }).eq('id', u.relacion_id);
+          } else {
+            await supabaseClient.from('usuarios').update({ deuda: nuevaDeuda }).eq('id', u.id);
+          }
+          nuevosMovs.push({
+            usuario_id: u.id,
+            tipo: 'cargo',
+            monto: it.amt,
+            concepto: concept,
+            estado: 'completado',
+            categoria: categoria,
+            grupo_id: currentGroupId
+          });
+        }
+        await supabaseClient.from('movimientos').insert(nuevosMovs);
+        showToast(`Cargos exactos aplicados a ${items.length} miembro(s) ✓`);
+        await cargarDatosSupabase();
+        return;
+      }
+
+      const total = parseAmount($('#global-split-amount')?.value);
+      const checkedIds = [...$$('[data-split-member]:checked')].map(el => Number(el.dataset.splitMember));
+      if (!(total > 0) || checkedIds.length === 0) return;
       closeUniversalModal();
 
       const porCabeza = Math.round((total / checkedIds.length) * 100) / 100;
-      const nuevosMovs = [];
-
       for (const uidNum of checkedIds) {
         const u = sbUsuariosGrupo.find(x => Number(x.id) === uidNum);
         if (!u) continue;
@@ -4106,15 +4382,17 @@ ALTER TABLE public.movimientos
       await cargarDatosSupabase();
     }
 
-    // Cloud Payment Modal
+    // Cloud Payment Modal (with optional reflection in Control Mensual)
     function openCloudPaymentModal(userId, userName, currentDeuda) {
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
+      const gName = currGroup ? currGroup.nombre : "Grupo";
       const canApproveDirectly = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
+      const isMyOwnDebt = Number(userId) === Number(loggedUserId);
 
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
-            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${canApproveDirectly ? `Confirmar Cobro de ${esc(userName)}` : `Notificar mi Pago (${esc(userName)})`}</h3>
+            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${canApproveDirectly && !isMyOwnDebt ? `Confirmar Cobro de ${esc(userName)}` : `Notificar mi Pago (${esc(userName)})`}</h3>
             <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
           </div>
           ${!canApproveDirectly ? `
@@ -4129,21 +4407,27 @@ ALTER TABLE public.movimientos
             </div>
             <input id="cloud-pay-amount" type="number" step="0.01" value="${Number(currentDeuda || 0).toFixed(2)}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-2xl font-extrabold text-secondary text-center"/>
           </div>
-          <button onclick="submitCloudPayment(${userId})" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+            <input id="cloud-pay-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
+            <span>${isMyOwnDebt ? `Apuntar también como Gasto (−) en mi Control Mensual` : `Apuntar también como Ingreso (+) en mi Control Mensual`}</span>
+          </label>
+          <button onclick="submitCloudPayment(${userId}, '${esc(userName)}', '${esc(gName)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
             ${canApproveDirectly ? 'Confirmar Pago Recibido' : 'Avisar de mi Pago'}
           </button>
         </div>
       `);
     }
 
-    async function submitCloudPayment(userId) {
+    async function submitCloudPayment(userId, userName = "Miembro", gName = "Grupo") {
       const amount = parseAmount($('#cloud-pay-amount')?.value);
+      const reflectInMensual = !!$('#cloud-pay-reflect-mensual')?.checked;
       if (!(amount > 0) || !supabaseClient) return;
       closeUniversalModal();
 
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const canApproveDirectly = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
       const estado = canApproveDirectly ? 'completado' : 'pendiente';
+      const isMyOwnDebt = Number(userId) === Number(loggedUserId);
 
       await supabaseClient.from('movimientos').insert([{
         usuario_id: userId,
@@ -4164,6 +4448,33 @@ ALTER TABLE public.movimientos
           }
         }
       }
+
+      if (reflectInMensual && S) {
+        if (isMyOwnDebt) {
+          S.expenses.push({
+            id: uid(),
+            amount: Math.round(amount * 100) / 100,
+            cat: 'otros',
+            method: 'bizum',
+            note: `Pago grupo ${gName} #deuda`,
+            date: todayStr(),
+            tripId: '',
+            refund: false,
+            ts: Date.now()
+          });
+        } else {
+          S.incomes.push({
+            id: uid(),
+            amount: Math.round(amount * 100) / 100,
+            cat: 'bizum',
+            source: `Cobro de ${userName} (${gName})`,
+            note: 'Deuda grupo saldada',
+            date: todayStr()
+          });
+        }
+        saveLocalState(true);
+      }
+
       showToast(canApproveDirectly ? "Pago confirmado ✓" : "Pago enviado a revisión ✓");
       await cargarDatosSupabase();
     }
@@ -4332,6 +4643,61 @@ ALTER TABLE public.movimientos
       const motivo = concept ? ` por *${concept}*` : '';
       const msg = `¡Hola ${personName}! 👋 Te recuerdo que tienes pendiente *${fmt(amount)}*${motivo}. Cuando puedas mándame un Bizum y lo dejamos saldado. ¡Gracias! 💸`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function openBizumClaimModal(personName, amount, concept = "Cuentas pendientes") {
+      const cleanAmt = Number(amount || 0).toFixed(2).replace('.', ',');
+      const bizumConcept = `${concept} (${personName})`.slice(0, 35);
+      const fullText = `¡Hola ${personName}! 👋 Tienes pendiente ${fmt(amount)} por «${concept}». Concepto Bizum: ${bizumConcept}`;
+
+      openUniversalModal(`
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
+            <div class="flex items-center gap-2.5">
+              <span class="w-10 h-10 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center">
+                <span class="material-symbols-outlined">send_to_mobile</span>
+              </span>
+              <div>
+                <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Reclamar por Bizum a ${esc(personName)}</h3>
+                <p class="text-xs text-on-surface-variant">Copia rápida de importe y concepto o envío por WhatsApp</p>
+              </div>
+            </div>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-2">
+              <div>
+                <span class="text-[10px] font-extrabold uppercase text-on-surface-variant">Importe exacto</span>
+                <p class="font-headline-md text-xl font-extrabold text-secondary tabular-nums">${fmt(amount)}</p>
+              </div>
+              <button onclick="navigator.clipboard?.writeText('${cleanAmt}'); showToast('Importe ${cleanAmt} copiado ✓')" class="py-1.5 px-2.5 rounded-xl bg-secondary/15 text-secondary text-xs font-extrabold hover:bg-secondary/25 transition">
+                Copiar importe
+              </button>
+            </div>
+
+            <div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-2">
+              <div>
+                <span class="text-[10px] font-extrabold uppercase text-on-surface-variant">Concepto Bizum</span>
+                <p class="font-label-lg text-xs font-bold text-on-surface truncate">${esc(bizumConcept)}</p>
+              </div>
+              <button onclick="navigator.clipboard?.writeText('${esc(bizumConcept)}'); showToast('Concepto Bizum copiado ✓')" class="py-1.5 px-2.5 rounded-xl bg-primary/15 text-primary text-xs font-extrabold hover:bg-primary/25 transition">
+                Copiar concepto
+              </button>
+            </div>
+          </div>
+
+          <button onclick="navigator.clipboard?.writeText('${esc(fullText)}'); showToast('Mensaje completo copiado ✓')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-[17px]">content_copy</span>
+            Copiar recordatorio completo al portapapeles
+          </button>
+
+          <button onclick="closeUniversalModal(); sendIndividualWhatsAppClaim('${esc(personName)}', ${amount}, '${esc(concept)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition flex items-center justify-center gap-2 active-scale">
+            <span class="material-symbols-outlined text-[19px]">chat</span>
+            Enviar recordatorio por WhatsApp
+          </button>
+        </div>
+      `);
     }
 
     function openIOSDownloadModal() {
@@ -4838,26 +5204,35 @@ ALTER TABLE public.movimientos
       showToast("Cuenta P2P registrada ✓");
     }
 
-    function openP2PPartialModal(debtId) {
+    function openP2PPartialModal(debtId, prefillFull = false) {
       const d = (S.debts || []).find(x => x.id === debtId);
       if (!d) return;
+      const isOwed = d.type === 'owed';
+      const defaultAmt = prefillFull ? d.amount.toFixed(2) : (d.amount / 2).toFixed(2);
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
-            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Registrar Abono Parcial • ${esc(d.person)}</h3>
+            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${prefillFull ? (isOwed ? 'Marcar Cobrado' : 'Saldar Deuda') : 'Registrar Abono Parcial'} • ${esc(d.person)}</h3>
             <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
           </div>
-          <p class="text-xs text-on-surface-variant">Saldo pendiente actual: <strong>${fmt(d.amount)}</strong></p>
-          <div>
-            <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe abonado ahora (€)</label>
-            <input id="p2p-partial-amount" type="number" step="0.01" placeholder="${(d.amount / 2).toFixed(2)}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xl font-extrabold text-on-surface text-center"/>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-on-surface-variant">Saldo pendiente: <strong>${fmt(d.amount)}</strong></span>
+            <button onclick="$('#p2p-partial-amount').value='${d.amount.toFixed(2)}'" class="text-primary font-bold hover:underline">Importe total (${fmt(d.amount)})</button>
           </div>
           <div>
-            <label class="text-xs font-bold text-on-surface-variant block mb-1">Nota del abono</label>
-            <input id="p2p-partial-note" type="text" placeholder="Ej. Bizum parcial" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+            <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe (€)</label>
+            <input id="p2p-partial-amount" type="number" step="0.01" value="${defaultAmt}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xl font-extrabold text-on-surface text-center"/>
           </div>
-          <button onclick="saveP2PPartialModal('${d.id}')" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold hover:bg-primary-container transition active-scale">
-            Descontar Abono
+          <div>
+            <label class="text-xs font-bold text-on-surface-variant block mb-1">Nota del movimiento</label>
+            <input id="p2p-partial-note" type="text" placeholder="Ej. Bizum recibido / pagado" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+          </div>
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+            <input id="p2p-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
+            <span>${isOwed ? `Apuntar también como Ingreso (+) en mi Control Mensual` : `Apuntar también como Gasto (−) en mi Control Mensual`}</span>
+          </label>
+          <button onclick="saveP2PPartialModal('${d.id}')" class="w-full py-3 rounded-xl ${isOwed ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'} font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
+            ${prefillFull ? 'Confirmar Liquidación' : 'Registrar Abono'}
           </button>
         </div>
       `);
@@ -4866,7 +5241,8 @@ ALTER TABLE public.movimientos
     function saveP2PPartialModal(debtId) {
       const d = (S.debts || []).find(x => x.id === debtId);
       const amt = parseAmount($('#p2p-partial-amount')?.value);
-      const note = ($('#p2p-partial-note')?.value || '').trim() || 'Abono parcial';
+      const note = ($('#p2p-partial-note')?.value || '').trim() || 'Liquidación P2P';
+      const reflect = !!$('#p2p-reflect-mensual')?.checked;
       if (!d || !(amt > 0)) return;
       d.amount = Math.max(0, Math.round((d.amount - amt) * 100) / 100);
       d.log.push({ d: todayStr(), a: amt, k: "pay", n: note });
@@ -4875,6 +5251,30 @@ ALTER TABLE public.movimientos
         d.settled = true;
         if (typeof confetti === 'function') confetti({ particleCount: 100, spread: 65, origin: { y: 0.6 } });
       }
+      if (reflect) {
+        if (d.type === 'owed') {
+          S.incomes.push({
+            id: uid(),
+            amount: Math.round(amt * 100) / 100,
+            cat: 'bizum',
+            source: `Cobro deuda de ${d.person}`,
+            note: d.note || note,
+            date: todayStr()
+          });
+        } else {
+          S.expenses.push({
+            id: uid(),
+            amount: Math.round(amt * 100) / 100,
+            cat: 'otros',
+            method: 'bizum',
+            note: `Pago deuda a ${d.person} (${d.note || note}) #deuda`,
+            date: todayStr(),
+            tripId: '',
+            refund: false,
+            ts: Date.now()
+          });
+        }
+      }
       saveLocalState();
       closeUniversalModal();
       renderAllViews();
@@ -4882,15 +5282,7 @@ ALTER TABLE public.movimientos
     }
 
     function settleFullP2PDebt(debtId) {
-      const d = (S.debts || []).find(x => x.id === debtId);
-      if (!d) return;
-      d.log.push({ d: todayStr(), a: d.amount, k: "pay", n: "Liquidación total" });
-      d.amount = 0;
-      d.settled = true;
-      saveLocalState();
-      if (typeof confetti === 'function') confetti({ particleCount: 110, spread: 70, origin: { y: 0.6 } });
-      renderAllViews();
-      showToast(`Cuenta con ${d.person} saldada ✓`);
+      openP2PPartialModal(debtId, true);
     }
 
     function openP2PDebtHistoryModal(debtId) {
@@ -5174,6 +5566,10 @@ ALTER TABLE public.movimientos
           <select id="rec-cat" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface">
             ${allCats().map(c => `<option value="${c.id}" ${c.id === 'susc' ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
           </select>
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+            <input id="rec-autocharge" type="checkbox" checked class="w-4 h-4 rounded text-primary"/>
+            <span>Auto-sumar al Control Mensual automáticamente cuando llegue su día de cobro</span>
+          </label>
           <button onclick="saveRecurringModal()" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold">Guardar Suscripción</button>
         </div>
       `);
@@ -5184,8 +5580,10 @@ ALTER TABLE public.movimientos
       const amount = parseAmount($('#rec-amount')?.value);
       const day = parseInt($('#rec-day')?.value) || 1;
       const cat = $('#rec-cat')?.value || 'susc';
+      const autoCharge = !!$('#rec-autocharge')?.checked;
       if (!(amount > 0)) return;
-      S.recurring.push({ id: uid(), name, amount, day, cat });
+      S.recurring.push({ id: uid(), name, amount, day, cat, autoCharge });
+      checkAutoRecurringExpenses();
       saveLocalState();
       closeUniversalModal();
       renderAllViews();
@@ -5536,20 +5934,302 @@ ALTER TABLE public.movimientos
     }
 
     function resetLocalPersonalData() {
-      if (!confirm("¿Vaciar los movimientos personales y deudas P2P de tu cuenta activa? (Los grupos compartidos de Supabase no se borrarán)")) return;
-      S = blankState(S?.settings?.salary || 0);
+      if (!confirm("¿Borrar todos los gastos, ingresos y datos de prueba de tu Control Mensual?\n\n(La base de datos de Deudas y Grupos de Supabase NO se tocará)")) return;
+      const keepSalary = 0;
+      S = blankState(keepSalary);
       saveLocalState(true);
       renderAllViews();
-      showToast("Cuenta personal reiniciada a 0,00 € ✓");
+      showToast("Control Mensual limpio a 0,00 € (Deudas Supabase intactas) ✓");
     }
 
     // ============================================================================
-    // 18. INITIALIZATION ON DOM CONTENT LOADED
+    // 18. 1-TAP QUICK EXPENSE PRESETS & CAMERA RECEIPT OCR SCANNER
+    // ============================================================================
+    function triggerQuickPresetExpense(presetId) {
+      const qp = (S.quickPresets || []).find(x => x.id === presetId);
+      if (!qp) return;
+      S.expenses.push({
+        id: uid(),
+        amount: Math.round(Number(qp.amount || 0) * 100) / 100,
+        cat: qp.cat || 'comida',
+        method: qp.method || 'tarjeta',
+        note: `${qp.emoji || ''} ${qp.label}`.trim(),
+        date: todayStr(),
+        tripId: '',
+        refund: false,
+        ts: Date.now()
+      });
+      saveLocalState(true);
+      viewMk = monthKey(todayStr());
+      renderAllViews();
+      showToast(`⚡ Sumado: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
+    }
+
+    function openEditQuickPresetsModal() {
+      const rowsHtml = (S.quickPresets || []).map(qp => `
+        <div class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-lg">${esc(qp.emoji || '💸')}</span>
+            <div class="min-w-0">
+              <p class="text-xs font-extrabold text-on-surface truncate">${esc(qp.label)}</p>
+              <p class="text-[11px] text-primary font-bold">${fmt(qp.amount)} • ${esc(catById(qp.cat).name)}</p>
+            </div>
+          </div>
+          <button onclick="deleteQuickPreset('${qp.id}')" class="p-1 text-outline hover:text-error">
+            <span class="material-symbols-outlined text-[18px]">delete</span>
+          </button>
+        </div>
+      `).join('');
+
+      openUniversalModal(`
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
+            <div>
+              <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Personalizar Gastos Rápidos (1 Toque)</h3>
+              <p class="text-xs text-on-surface-variant">Tus compras frecuentes para sumar sin escribir</p>
+            </div>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2.5">
+            <span class="text-[11px] font-extrabold uppercase text-primary">+ Añadir nuevo botón rápido</span>
+            <div class="grid grid-cols-4 gap-2">
+              <input id="qp-emoji" type="text" value="☕" placeholder="Emoji" class="col-span-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-center text-sm font-bold"/>
+              <input id="qp-label" type="text" placeholder="Concepto (ej. Gimnasio, Café...)" class="col-span-3 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-bold text-on-surface"/>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="qp-amount" type="number" step="0.10" placeholder="Importe (€)" class="px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-extrabold text-on-surface"/>
+              <select id="qp-cat" class="px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-bold text-on-surface">
+                ${allCats().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+              </select>
+            </div>
+            <button onclick="addCustomQuickPreset()" class="w-full py-2 rounded-xl bg-primary text-on-primary text-xs font-extrabold hover:bg-primary-container transition">
+              + Guardar Botón Rápido
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-2 max-h-60 overflow-y-auto">
+            ${rowsHtml}
+          </div>
+        </div>
+      `);
+    }
+
+    function addCustomQuickPreset() {
+      const emoji = ($('#qp-emoji')?.value || '💸').trim().slice(0, 4);
+      const label = ($('#qp-label')?.value || '').trim();
+      const amount = parseAmount($('#qp-amount')?.value);
+      const cat = $('#qp-cat')?.value || 'comida';
+      if (!label || !(amount > 0)) return;
+      S.quickPresets.push({ id: 'qp_' + uid(), emoji, label, amount: Math.round(amount * 100) / 100, cat, method: 'applepay' });
+      saveLocalState(true);
+      openEditQuickPresetsModal();
+      renderAllViews();
+      showToast("Botón rápido añadido ✓");
+    }
+
+    function deleteQuickPreset(id) {
+      S.quickPresets = (S.quickPresets || []).filter(x => x.id !== id);
+      saveLocalState(true);
+      openEditQuickPresetsModal();
+      renderAllViews();
+    }
+
+    // Camera Receipt OCR Scanner Modal
+    function openReceiptScannerModal() {
+      openUniversalModal(`
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
+            <div class="flex items-center gap-2.5">
+              <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center">
+                <span class="material-symbols-outlined">photo_camera</span>
+              </span>
+              <div>
+                <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Escáner de Tickets (Cámara / OCR)</h3>
+                <p class="text-xs text-on-surface-variant">Haz una foto al ticket para extraer importe y comercio</p>
+              </div>
+            </div>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+          </div>
+
+          <label class="w-full p-5 rounded-2xl border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-center cursor-pointer flex flex-col items-center gap-2 transition active-scale">
+            <span class="material-symbols-outlined text-4xl text-primary">add_a_photo</span>
+            <span class="font-label-lg text-sm font-extrabold text-primary">Hacer foto al ticket o elegir de la galería</span>
+            <span class="text-[11px] text-on-surface-variant">Compatible con tickets de supermercado, restaurantes y gasolineras</span>
+            <input type="file" accept="image/*" capture="environment" onchange="processReceiptImageForOCR(this)" class="hidden"/>
+          </label>
+
+          <div id="ocr-status-box" class="hidden p-3 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined animate-spin text-primary text-[18px]">sync</span>
+            <span id="ocr-status-text">Analizando imagen del ticket...</span>
+          </div>
+
+          <img id="ocr-preview-img" class="hidden w-full max-h-40 object-contain rounded-xl border border-outline-variant/30 bg-black/5"/>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Importe detectado (€)</label>
+              <input id="ocr-amount" type="number" step="0.01" placeholder="0.00" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-lg font-extrabold text-on-surface"/>
+            </div>
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Categoría</label>
+              <select id="ocr-cat" class="w-full px-3 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface">
+                ${allCats().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Comercio / Concepto</label>
+              <input id="ocr-note" type="text" placeholder="Ej. Ticket Mercadona" class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+            </div>
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Fecha</label>
+              <input id="ocr-date" type="date" value="${todayStr()}" class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface"/>
+            </div>
+          </div>
+
+          <button onclick="saveScannedReceiptExpense()" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold shadow-sm hover:bg-primary-container transition active-scale">
+            Guardar Gasto del Ticket
+          </button>
+        </div>
+      `);
+    }
+
+    async function processReceiptImageForOCR(inputEl) {
+      const file = inputEl.files?.[0];
+      if (!file) return;
+
+      const statusBox = $('#ocr-status-box');
+      const statusText = $('#ocr-status-text');
+      const previewImg = $('#ocr-preview-img');
+      if (statusBox) statusBox.classList.remove('hidden');
+      if (statusText) statusText.textContent = "Leyendo texto e importe del ticket (OCR)...";
+
+      const url = URL.createObjectURL(file);
+      if (previewImg) {
+        previewImg.src = url;
+        previewImg.classList.remove('hidden');
+      }
+
+      try {
+        if (!window.Tesseract) {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        }
+        const res = await window.Tesseract.recognize(file, 'spa');
+        const rawText = res?.data?.text || "";
+        const extracted = extractReceiptDataFromOCRText(rawText, file.name);
+
+        if (extracted.amount > 0 && $('#ocr-amount')) $('#ocr-amount').value = extracted.amount.toFixed(2);
+        if (extracted.merchant && $('#ocr-note')) $('#ocr-note').value = extracted.merchant;
+        if (extracted.cat && $('#ocr-cat')) $('#ocr-cat').value = extracted.cat;
+        if (extracted.date && $('#ocr-date')) $('#ocr-date').value = extracted.date;
+
+        if (statusText) {
+          statusText.textContent = extracted.amount > 0
+            ? `✓ Detectado: ${fmt(extracted.amount)} en ${extracted.merchant}`
+            : `Texto leído. Confirma o ajusta el importe abajo.`;
+        }
+      } catch (e) {
+        if (statusText) statusText.textContent = "Foto cargada. Confirma el importe y guarda.";
+      }
+    }
+
+    function extractReceiptDataFromOCRText(text, fallbackName = "") {
+      const clean = String(text || "");
+      const lines = clean.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      // 1. Detect merchant from known brands or first non-numeric line
+      let merchant = "Ticket escaneado";
+      const knownBrands = ["Mercadona", "Carrefour", "Lidl", "Aldi", "Consum", "Repsol", "Cepsa", "Zara", "Ikea", "Decathlon", "McDonald", "Starbucks", "Tagliatella", "El Corte Inglés", "Dia", "Eroski"];
+      for (const b of knownBrands) {
+        if (clean.toLowerCase().includes(b.toLowerCase())) {
+          merchant = b;
+          break;
+        }
+      }
+      if (merchant === "Ticket escaneado" && lines.length > 0) {
+        const firstLine = lines.find(l => l.length >= 3 && !/^\d+$/.test(l));
+        if (firstLine) merchant = firstLine.slice(0, 36);
+      }
+
+      // 2. Extract amount (prioritize lines with TOTAL / IMPORTE / EUR / €)
+      let amount = 0;
+      const totalRegex = /(?:total|importe|pagar|venta|eur|€)[^\d]{0,18}(\d{1,4}[\.,]\d{2})/gi;
+      const totalMatches = [...clean.matchAll(totalRegex)].map(m => parseFloat(m[1].replace(',', '.'))).filter(n => n > 0 && n < 10000);
+      if (totalMatches.length > 0) {
+        amount = Math.max(...totalMatches);
+      } else {
+        const allNums = [...clean.matchAll(/(\d{1,4}[\.,]\d{2})/g)].map(m => parseFloat(m[1].replace(',', '.'))).filter(n => n > 0 && n < 5000);
+        if (allNums.length > 0) amount = Math.max(...allNums);
+      }
+
+      // 3. Extract date DD/MM/YYYY or DD-MM-YYYY
+      let date = todayStr();
+      const dateMatch = clean.match(/\b(\d{2})[\/\-](\d{2})[\/\-](20\d{2})\b/);
+      if (dateMatch) {
+        date = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+      }
+
+      const cat = applyRule(merchant) || guessCatFromMerchant(merchant + " " + fallbackName);
+      return { amount, merchant, cat, date };
+    }
+
+    function saveScannedReceiptExpense() {
+      const amount = parseAmount($('#ocr-amount')?.value);
+      if (!(amount > 0)) {
+        $('#ocr-amount')?.focus();
+        return;
+      }
+      const note = ($('#ocr-note')?.value || '').trim() || 'Ticket escaneado';
+      const cat = $('#ocr-cat')?.value || 'comida';
+      const date = $('#ocr-date')?.value || todayStr();
+
+      S.expenses.push({
+        id: uid(),
+        amount: Math.round(amount * 100) / 100,
+        cat,
+        method: 'tarjeta',
+        note: `${note} #ticket`,
+        date,
+        tripId: '',
+        refund: false,
+        ts: Date.now()
+      });
+      saveLocalState(true);
+      closeUniversalModal();
+      viewMk = monthKey(date);
+      renderAllViews();
+      showToast(`📷 Ticket guardado: ${fmt(amount)} en ${note} ✓`);
+    }
+
+    // ============================================================================
+    // 19. INITIALIZATION ON DOM CONTENT LOADED
     // ============================================================================
     document.addEventListener("DOMContentLoaded", () => {
       loadLocalStateForCurrentUser();
       initTheme();
       viewMk = monthKey(todayStr());
+
+      // Prevent pinch-to-zoom and double-tap zoom on iOS Safari & WKWebView
+      document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+      document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+      document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 280) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
 
       // Backdrop click handlers
       $('#quick-action-sheet')?.addEventListener('click', (e) => {

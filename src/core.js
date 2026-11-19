@@ -373,6 +373,15 @@
     // ============================================================================
     // 6. PER-USER STATE MANAGEMENT & SUPABASE CLOUD SYNC
     // ============================================================================
+    const CLARIDAD_CLEAN_VERSION = "v3_clean_zero";
+    const DEFAULT_QUICK_PRESETS = [
+      { id: "qp1", label: "Café / Desayuno", emoji: "☕", amount: 1.80, cat: "ocio", method: "tarjeta" },
+      { id: "qp2", label: "Menú del día",    emoji: "🍽️", amount: 13.50, cat: "comida", method: "tarjeta" },
+      { id: "qp3", label: "Supermercado",    emoji: "🛒", amount: 35.00, cat: "comida", method: "applepay" },
+      { id: "qp4", label: "Gasolina",        emoji: "⛽", amount: 40.00, cat: "transporte", method: "tarjeta" },
+      { id: "qp5", label: "Parking / Metro", emoji: "🚇", amount: 2.50, cat: "transporte", method: "applepay" }
+    ];
+
     function blankState(defaultSalary = 0) {
       return {
         expenses: [],
@@ -386,6 +395,7 @@
         groups: [],
         trips: [],
         goals: [],
+        quickPresets: JSON.parse(JSON.stringify(DEFAULT_QUICK_PRESETS)),
         rules: [
           { id: uid(), match: "mercadona", cat: "comida" },
           { id: uid(), match: "spotify", cat: "susc" },
@@ -395,6 +405,7 @@
         customCats: [],
         settings: { salary: defaultSalary, salaryDay: 1, salaryAuto: defaultSalary > 0, dark: false, bizumPhone: "" },
         seeded: true,
+        isDemoSeeded: false,
         startMk: monthKey(todayStr()),
         updatedAt: Date.now()
       };
@@ -411,6 +422,9 @@
       if (!Array.isArray(obj.debts)) obj.debts = [];
       if (!Array.isArray(obj.recurring)) obj.recurring = [];
       if (!Array.isArray(obj.trips)) obj.trips = [];
+      if (!Array.isArray(obj.quickPresets) || obj.quickPresets.length === 0) {
+        obj.quickPresets = JSON.parse(JSON.stringify(DEFAULT_QUICK_PRESETS));
+      }
       if (!obj.budgets) obj.budgets = { hogar: 450, comida: 300, ocio: 180, transporte: 150, compras: 150, otros: 80 };
       if (!obj.rollover) obj.rollover = {};
       if (!obj.carried) obj.carried = {};
@@ -423,11 +437,49 @@
         if (!Array.isArray(d.log)) d.log = [];
         if (typeof d.settled !== "boolean") d.settled = false;
       });
+      obj.recurring.forEach(r => {
+        if (typeof r.autoCharge !== "boolean") r.autoCharge = true;
+      });
       obj.expenses.forEach(e => {
         if (!e.method) e.method = "tarjeta";
         if (typeof e.refund !== "boolean") e.refund = false;
       });
       return obj;
+    }
+
+    // Automatically log recurring subscriptions on their billing day if autoCharge is enabled
+    function checkAutoRecurringExpenses() {
+      if (!S || !Array.isArray(S.recurring) || S.recurring.length === 0) return;
+      const curMk = monthKey(todayStr());
+      const todayDay = new Date().getDate();
+      let added = 0;
+
+      S.recurring.forEach(r => {
+        if (r.autoCharge === false || !r.day) return;
+        if (todayDay >= Number(r.day) && !recPaidThisMonth(r, curMk)) {
+          const dayPadded = String(Math.min(Number(r.day), 28)).padStart(2, '0');
+          S.expenses.push({
+            id: uid(),
+            amount: Math.round(Number(r.amount || 0) * 100) / 100,
+            cat: r.cat || 'susc',
+            method: 'domiciliacion',
+            note: `${r.name} (Cargo fijo automático)`,
+            date: `${curMk}-${dayPadded}`,
+            tripId: '',
+            refund: false,
+            autoRecurringId: r.id,
+            ts: Date.now()
+          });
+          added++;
+        }
+      });
+
+      if (added > 0) {
+        saveLocalState(true);
+        if (typeof showToast === 'function') {
+          showToast(`🔄 ${added} suscripción(es) registrada(s) automáticamente ✓`);
+        }
+      }
     }
 
     function saveLocalState(syncCloud = true) {
@@ -447,6 +499,13 @@
     }
 
     function loadLocalStateForCurrentUser() {
+      // One-time cleanup of old random demo data so the user starts clean at 0,00 €
+      if (localStorage.getItem('claridad_clean_marker') !== CLARIDAD_CLEAN_VERSION) {
+        localStorage.removeItem(LEGACY_LSKEY);
+        localStorage.removeItem(userStorageKey(2));
+        localStorage.setItem('claridad_clean_marker', CLARIDAD_CLEAN_VERSION);
+      }
+
       const key = userStorageKey(loggedUserId);
       let loaded = null;
       try {
@@ -455,27 +514,14 @@
         loaded = null;
       }
 
-      // If Hugo (ID 2) doesn't have `claridad_user_2` yet, check legacy `bolsillo_v1` or seed Hugo's data
-      if (!loaded && Number(loggedUserId) === 2) {
-        try {
-          loaded = JSON.parse(localStorage.getItem(LEGACY_LSKEY));
-        } catch (e) {
-          loaded = null;
-        }
-        if (!loaded || !loaded.seeded) {
-          loaded = blankState(1800);
-          S = loaded;
-          seedInitialData();
-        }
-      }
-
-      // For any other user (e.g. Ivan, Lucia, Ximo, new user), start with a clean personal profile
+      // Start every user with a clean 0,00 € account unless they already saved real data
       if (!loaded) {
         loaded = blankState(0);
       }
 
       S = normalizeStateObject(loaded);
       localStorage.setItem(key, JSON.stringify(S));
+      checkAutoRecurringExpenses();
     }
 
     // Cloud Sync of per-user personal state (`Control Mensual` + personal `Deudas`) in Supabase
@@ -619,6 +665,7 @@
     function seedInitialData() {
       const now = new Date();
       const mk = monthKey(todayStr());
+      S.isDemoSeeded = true;
       S.settings.salary = 1800;
       S.settings.salaryAuto = true;
       S.budgets = { hogar: 450, comida: 320, ocio: 200, transporte: 180, compras: 180, susc: 60, salud: 90, otros: 100 };

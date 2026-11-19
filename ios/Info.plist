@@ -76,5 +76,11 @@
   <string>Permite dictar tus gastos por voz en Claridad Financiera.</string>
   <key>NSSpeechRecognitionUsageDescription</key>
   <string>Reconocimiento de voz en español para registrar gastos rápidamente.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Permite escanear tickets y facturas con la cámara para extraer el importe automáticamente.</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>Permite seleccionar fotos de tickets o recibos para extraer sus datos.</string>
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <true/>
 </dict>
 </plist>

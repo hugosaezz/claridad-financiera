@@ -5,7 +5,6 @@
       activeMainView = viewName;
       ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
         const container = $('#view-' + v);
-        const navBtn = $('#nav-' + v);
         if (container) {
           if (v === viewName) {
             container.classList.remove('hidden');
@@ -15,15 +14,24 @@
             container.classList.remove('flex');
           }
         }
-        if (navBtn) {
-          const iconSpan = navBtn.querySelector('.material-symbols-outlined');
-          if (v === viewName) {
-            navBtn.className = "nav-tab flex flex-col items-center justify-center text-primary font-bold gap-0.5 py-1 flex-1 transition-all active-scale";
-            if (iconSpan) iconSpan.classList.add('filled');
-          } else {
-            navBtn.className = "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-semibold gap-0.5 py-1 flex-1 hover:text-primary transition-all active-scale";
-            if (iconSpan) iconSpan.classList.remove('filled');
-          }
+      });
+
+      // Update large bottom navigation tabs (inicio and gastos both map to 'nav-inicio')
+      const activeNavKey = (viewName === 'gastos') ? 'inicio' : viewName;
+      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
+        const navBtn = $('#nav-' + k);
+        if (!navBtn) return;
+        const iconSpan = navBtn.querySelector('.material-symbols-outlined');
+        const pillSpan = navBtn.querySelector('.nav-pill');
+        const isActive = (k === activeNavKey);
+        navBtn.className = isActive
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
+          : "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative";
+        if (iconSpan) iconSpan.classList.toggle('filled', isActive);
+        if (pillSpan) {
+          pillSpan.className = isActive
+            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
         }
       });
 
@@ -113,27 +121,75 @@
       const fc = forecast(viewMk);
       const cats = byCat(exps);
 
+      const hasPersonalData = (S.expenses || []).length > 0 || (S.incomes || []).length > 0 || (S.debts || []).length > 0 || S.isDemoSeeded;
+
+      // Top Monthly Control Bar (Resumen vs Movimientos + Borrar datos de prueba)
+      const monthlyTopNavHtml = `
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
+            <button onclick="switchMainView('inicio')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">dashboard</span>
+              Resumen Mensual
+            </button>
+            <button onclick="switchMainView('gastos')" class="px-3.5 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+              Movimientos (${exps.length + incs.length})
+            </button>
+          </div>
+          ${hasPersonalData ? `
+            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale" title="Borra los gastos/datos de prueba del Control Mensual sin tocar la base de datos de Deudas de Supabase">
+              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+              Borrar datos de Control Mensual
+            </button>
+          ` : ''}
+        </div>
+      `;
+
+      // 1-Tap Quick Expense Presets Bar
+      const quickPresetsHtml = `
+        <section class="bento-card p-3.5 rounded-2xl flex flex-col gap-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px]">bolt</span>
+              Gasto Rápido en 1 Toque (Suma al instante)
+            </span>
+            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[14px]">edit</span>
+              Personalizar
+            </button>
+          </div>
+          <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-0.5">
+            ${(S.quickPresets || []).map(qp => `
+              <button onclick="triggerQuickPresetExpense('${qp.id}')" class="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-primary/10 border border-outline-variant/40 hover:border-primary/40 flex items-center gap-2 flex-shrink-0 transition active-scale text-left">
+                <span class="text-base">${esc(qp.emoji || '💸')}</span>
+                <div>
+                  <p class="text-xs font-extrabold text-on-surface leading-tight">${esc(qp.label)}</p>
+                  <p class="text-[11px] font-bold text-primary tabular-nums">${fmt(qp.amount)}</p>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        </section>
+      `;
+
       // Welcome onboarding banner if this user has no personal expenses and no salary set yet
       const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
       const onboardingBannerHtml = isFreshAccount ? `
-        <div class="bento-card p-5 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex items-start gap-3">
-            <span class="w-11 h-11 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined">person_check</span>
+            <span class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined">verified_user</span>
             </span>
             <div>
-              <h3 class="font-headline-sm text-base font-extrabold text-on-surface">¡Bienvenido a tu espacio personal, ${esc(userName)}!</h3>
+              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Cuenta limpia a 0,00 € (${esc(userName)})</h3>
               <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                Tu registro de Control Mensual es privado y se guarda en tu cuenta de Supabase (#${loggedUserId || 'Invitado'}). Configura tu nómina o añade tu primer gasto para empezar.
+                Sin datos aleatorios. Configura tu nómina, usa los botones de «Gasto Rápido en 1 toque» o escanea un ticket con la cámara.
               </p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
             <button onclick="switchMainView('ajustes', 'ingresos')" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold hover:bg-primary-container transition active-scale">
               Configurar Nómina
-            </button>
-            <button onclick="seedDemoForCurrentUser()" class="px-3 py-2 rounded-xl bg-surface-container text-on-surface-variant font-label-md text-xs font-bold hover:bg-surface-container-high transition active-scale">
-              Cargar ejemplo
             </button>
           </div>
         </div>
@@ -213,7 +269,9 @@
       }).join('');
 
       el.innerHTML = `
+        ${monthlyTopNavHtml}
         ${onboardingBannerHtml}
+        ${quickPresetsHtml}
 
         <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (100% Personal Finance) -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -326,13 +384,13 @@
             </div>
           </button>
 
-          <button onclick="openTxModal('inc')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">payments</span>
+          <button onclick="openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
+            <span class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[19px]">photo_camera</span>
             </span>
             <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Ingreso</p>
-              <p class="text-[10px] text-on-surface-variant">Extra, Bizum, venta</p>
+              <p class="font-label-lg text-xs font-extrabold text-on-surface">Escanear Ticket</p>
+              <p class="text-[10px] text-on-surface-variant">Foto / OCR automático</p>
             </div>
           </button>
 
@@ -346,13 +404,13 @@
             </div>
           </button>
 
-          <button onclick="switchMainView('analitica')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">psychology_alt</span>
+          <button onclick="openTxModal('inc')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
+            <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[19px]">payments</span>
             </span>
             <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">Simulador</p>
-              <p class="text-[10px] text-on-surface-variant">¿Me lo puedo permitir?</p>
+              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Ingreso</p>
+              <p class="text-[10px] text-on-surface-variant">Extra, Bizum, venta</p>
             </div>
           </button>
         </section>
@@ -490,7 +548,7 @@
             </button>
 
             ${(!isClear && !isMe) ? `
-              <button onclick="sendIndividualWhatsAppClaim('${esc(user.nombre)}', ${deuda})" class="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale" title="Reclamar por Bizum / WhatsApp">
+              <button onclick="openBizumClaimModal('${esc(user.nombre)}', ${deuda}, '${esc(currGroup ? currGroup.nombre : 'Grupo')}')" class="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale" title="Reclamar por Bizum / WhatsApp">
                 <span class="material-symbols-outlined text-[15px]">send</span>
                 <span class="hidden sm:inline">Bizum</span>
               </button>
@@ -557,7 +615,7 @@
               Registrar abono
             </button>
             ${isOwed ? `
-              <button onclick="sendIndividualWhatsAppClaim('${esc(d.person)}', ${d.amount}, '${esc(d.note || '')}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
+              <button onclick="openBizumClaimModal('${esc(d.person)}', ${d.amount}, '${esc(d.note || 'Préstamo P2P')}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
                 <span class="material-symbols-outlined text-[15px]">send</span>
                 Reclamar Bizum
               </button>

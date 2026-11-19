@@ -134,7 +134,7 @@
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2 pt-2 border-t border-outline-variant/20">
-              <button onclick="sendIndividualWhatsAppClaim('${esc(item.usuario_nombre)}', ${item.deuda}, 'Grupo ${esc(item.grupo_nombre)}')" class="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
+              <button onclick="openBizumClaimModal('${esc(item.usuario_nombre)}', ${item.deuda}, 'Grupo ${esc(item.grupo_nombre)}')" class="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
                 <span class="material-symbols-outlined text-[15px]">send</span>
                 Reclamar por Bizum
               </button>
@@ -605,7 +605,26 @@
         </div>`;
 
       el.innerHTML = `
-        <div class="grid grid-cols-3 gap-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
+            <button onclick="switchMainView('inicio')" class="px-3.5 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">dashboard</span>
+              Resumen Mensual
+            </button>
+            <button onclick="switchMainView('gastos')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+              Movimientos (${exps.length + incs.length})
+            </button>
+          </div>
+          ${(exps.length + incs.length > 0) ? `
+            <button onclick="resetLocalPersonalData()" class="px-3 py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold flex items-center gap-1 transition active-scale">
+              <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+              Borrar datos de Control Mensual
+            </button>
+          ` : ''}
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <button onclick="openTxModal('exp')" class="bento-card p-3.5 rounded-2xl flex items-center gap-3 hover:bg-surface-container-low transition active-scale text-left">
             <span class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined">add_shopping_cart</span>
@@ -613,6 +632,16 @@
             <div>
               <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Nuevo Gasto</p>
               <p class="text-[11px] text-on-surface-variant hidden sm:block">Manual o #etiqueta</p>
+            </div>
+          </button>
+
+          <button onclick="openReceiptScannerModal()" class="bento-card p-3.5 rounded-2xl flex items-center gap-3 hover:bg-surface-container-low transition active-scale text-left">
+            <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined">photo_camera</span>
+            </span>
+            <div>
+              <p class="font-label-lg text-xs font-extrabold text-on-surface">Escanear Ticket</p>
+              <p class="text-[11px] text-on-surface-variant hidden sm:block">Foto / OCR automático</p>
             </div>
           </button>
 

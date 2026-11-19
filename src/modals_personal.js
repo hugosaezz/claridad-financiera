@@ -410,26 +410,35 @@
       showToast("Cuenta P2P registrada ✓");
     }
 
-    function openP2PPartialModal(debtId) {
+    function openP2PPartialModal(debtId, prefillFull = false) {
       const d = (S.debts || []).find(x => x.id === debtId);
       if (!d) return;
+      const isOwed = d.type === 'owed';
+      const defaultAmt = prefillFull ? d.amount.toFixed(2) : (d.amount / 2).toFixed(2);
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
-            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Registrar Abono Parcial • ${esc(d.person)}</h3>
+            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${prefillFull ? (isOwed ? 'Marcar Cobrado' : 'Saldar Deuda') : 'Registrar Abono Parcial'} • ${esc(d.person)}</h3>
             <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
           </div>
-          <p class="text-xs text-on-surface-variant">Saldo pendiente actual: <strong>${fmt(d.amount)}</strong></p>
-          <div>
-            <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe abonado ahora (€)</label>
-            <input id="p2p-partial-amount" type="number" step="0.01" placeholder="${(d.amount / 2).toFixed(2)}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xl font-extrabold text-on-surface text-center"/>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-on-surface-variant">Saldo pendiente: <strong>${fmt(d.amount)}</strong></span>
+            <button onclick="$('#p2p-partial-amount').value='${d.amount.toFixed(2)}'" class="text-primary font-bold hover:underline">Importe total (${fmt(d.amount)})</button>
           </div>
           <div>
-            <label class="text-xs font-bold text-on-surface-variant block mb-1">Nota del abono</label>
-            <input id="p2p-partial-note" type="text" placeholder="Ej. Bizum parcial" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+            <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe (€)</label>
+            <input id="p2p-partial-amount" type="number" step="0.01" value="${defaultAmt}" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xl font-extrabold text-on-surface text-center"/>
           </div>
-          <button onclick="saveP2PPartialModal('${d.id}')" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold hover:bg-primary-container transition active-scale">
-            Descontar Abono
+          <div>
+            <label class="text-xs font-bold text-on-surface-variant block mb-1">Nota del movimiento</label>
+            <input id="p2p-partial-note" type="text" placeholder="Ej. Bizum recibido / pagado" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+          </div>
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+            <input id="p2p-reflect-mensual" type="checkbox" class="w-4 h-4 rounded text-primary"/>
+            <span>${isOwed ? `Apuntar también como Ingreso (+) en mi Control Mensual` : `Apuntar también como Gasto (−) en mi Control Mensual`}</span>
+          </label>
+          <button onclick="saveP2PPartialModal('${d.id}')" class="w-full py-3 rounded-xl ${isOwed ? 'bg-secondary text-on-secondary' : 'bg-primary text-on-primary'} font-label-lg text-sm font-bold hover:opacity-95 transition active-scale">
+            ${prefillFull ? 'Confirmar Liquidación' : 'Registrar Abono'}
           </button>
         </div>
       `);
@@ -438,7 +447,8 @@
     function saveP2PPartialModal(debtId) {
       const d = (S.debts || []).find(x => x.id === debtId);
       const amt = parseAmount($('#p2p-partial-amount')?.value);
-      const note = ($('#p2p-partial-note')?.value || '').trim() || 'Abono parcial';
+      const note = ($('#p2p-partial-note')?.value || '').trim() || 'Liquidación P2P';
+      const reflect = !!$('#p2p-reflect-mensual')?.checked;
       if (!d || !(amt > 0)) return;
       d.amount = Math.max(0, Math.round((d.amount - amt) * 100) / 100);
       d.log.push({ d: todayStr(), a: amt, k: "pay", n: note });
@@ -447,6 +457,30 @@
         d.settled = true;
         if (typeof confetti === 'function') confetti({ particleCount: 100, spread: 65, origin: { y: 0.6 } });
       }
+      if (reflect) {
+        if (d.type === 'owed') {
+          S.incomes.push({
+            id: uid(),
+            amount: Math.round(amt * 100) / 100,
+            cat: 'bizum',
+            source: `Cobro deuda de ${d.person}`,
+            note: d.note || note,
+            date: todayStr()
+          });
+        } else {
+          S.expenses.push({
+            id: uid(),
+            amount: Math.round(amt * 100) / 100,
+            cat: 'otros',
+            method: 'bizum',
+            note: `Pago deuda a ${d.person} (${d.note || note}) #deuda`,
+            date: todayStr(),
+            tripId: '',
+            refund: false,
+            ts: Date.now()
+          });
+        }
+      }
       saveLocalState();
       closeUniversalModal();
       renderAllViews();
@@ -454,15 +488,7 @@
     }
 
     function settleFullP2PDebt(debtId) {
-      const d = (S.debts || []).find(x => x.id === debtId);
-      if (!d) return;
-      d.log.push({ d: todayStr(), a: d.amount, k: "pay", n: "Liquidación total" });
-      d.amount = 0;
-      d.settled = true;
-      saveLocalState();
-      if (typeof confetti === 'function') confetti({ particleCount: 110, spread: 70, origin: { y: 0.6 } });
-      renderAllViews();
-      showToast(`Cuenta con ${d.person} saldada ✓`);
+      openP2PPartialModal(debtId, true);
     }
 
     function openP2PDebtHistoryModal(debtId) {
@@ -746,6 +772,10 @@
           <select id="rec-cat" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface">
             ${allCats().map(c => `<option value="${c.id}" ${c.id === 'susc' ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
           </select>
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs font-bold text-on-surface cursor-pointer">
+            <input id="rec-autocharge" type="checkbox" checked class="w-4 h-4 rounded text-primary"/>
+            <span>Auto-sumar al Control Mensual automáticamente cuando llegue su día de cobro</span>
+          </label>
           <button onclick="saveRecurringModal()" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold">Guardar Suscripción</button>
         </div>
       `);
@@ -756,8 +786,10 @@
       const amount = parseAmount($('#rec-amount')?.value);
       const day = parseInt($('#rec-day')?.value) || 1;
       const cat = $('#rec-cat')?.value || 'susc';
+      const autoCharge = !!$('#rec-autocharge')?.checked;
       if (!(amount > 0)) return;
-      S.recurring.push({ id: uid(), name, amount, day, cat });
+      S.recurring.push({ id: uid(), name, amount, day, cat, autoCharge });
+      checkAutoRecurringExpenses();
       saveLocalState();
       closeUniversalModal();
       renderAllViews();
@@ -1108,20 +1140,302 @@
     }
 
     function resetLocalPersonalData() {
-      if (!confirm("¿Vaciar los movimientos personales y deudas P2P de tu cuenta activa? (Los grupos compartidos de Supabase no se borrarán)")) return;
-      S = blankState(S?.settings?.salary || 0);
+      if (!confirm("¿Borrar todos los gastos, ingresos y datos de prueba de tu Control Mensual?\n\n(La base de datos de Deudas y Grupos de Supabase NO se tocará)")) return;
+      const keepSalary = 0;
+      S = blankState(keepSalary);
       saveLocalState(true);
       renderAllViews();
-      showToast("Cuenta personal reiniciada a 0,00 € ✓");
+      showToast("Control Mensual limpio a 0,00 € (Deudas Supabase intactas) ✓");
     }
 
     // ============================================================================
-    // 18. INITIALIZATION ON DOM CONTENT LOADED
+    // 18. 1-TAP QUICK EXPENSE PRESETS & CAMERA RECEIPT OCR SCANNER
+    // ============================================================================
+    function triggerQuickPresetExpense(presetId) {
+      const qp = (S.quickPresets || []).find(x => x.id === presetId);
+      if (!qp) return;
+      S.expenses.push({
+        id: uid(),
+        amount: Math.round(Number(qp.amount || 0) * 100) / 100,
+        cat: qp.cat || 'comida',
+        method: qp.method || 'tarjeta',
+        note: `${qp.emoji || ''} ${qp.label}`.trim(),
+        date: todayStr(),
+        tripId: '',
+        refund: false,
+        ts: Date.now()
+      });
+      saveLocalState(true);
+      viewMk = monthKey(todayStr());
+      renderAllViews();
+      showToast(`⚡ Sumado: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
+    }
+
+    function openEditQuickPresetsModal() {
+      const rowsHtml = (S.quickPresets || []).map(qp => `
+        <div class="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/30 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-lg">${esc(qp.emoji || '💸')}</span>
+            <div class="min-w-0">
+              <p class="text-xs font-extrabold text-on-surface truncate">${esc(qp.label)}</p>
+              <p class="text-[11px] text-primary font-bold">${fmt(qp.amount)} • ${esc(catById(qp.cat).name)}</p>
+            </div>
+          </div>
+          <button onclick="deleteQuickPreset('${qp.id}')" class="p-1 text-outline hover:text-error">
+            <span class="material-symbols-outlined text-[18px]">delete</span>
+          </button>
+        </div>
+      `).join('');
+
+      openUniversalModal(`
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
+            <div>
+              <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Personalizar Gastos Rápidos (1 Toque)</h3>
+              <p class="text-xs text-on-surface-variant">Tus compras frecuentes para sumar sin escribir</p>
+            </div>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2.5">
+            <span class="text-[11px] font-extrabold uppercase text-primary">+ Añadir nuevo botón rápido</span>
+            <div class="grid grid-cols-4 gap-2">
+              <input id="qp-emoji" type="text" value="☕" placeholder="Emoji" class="col-span-1 px-2.5 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-center text-sm font-bold"/>
+              <input id="qp-label" type="text" placeholder="Concepto (ej. Gimnasio, Café...)" class="col-span-3 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-bold text-on-surface"/>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="qp-amount" type="number" step="0.10" placeholder="Importe (€)" class="px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-extrabold text-on-surface"/>
+              <select id="qp-cat" class="px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-bold text-on-surface">
+                ${allCats().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+              </select>
+            </div>
+            <button onclick="addCustomQuickPreset()" class="w-full py-2 rounded-xl bg-primary text-on-primary text-xs font-extrabold hover:bg-primary-container transition">
+              + Guardar Botón Rápido
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-2 max-h-60 overflow-y-auto">
+            ${rowsHtml}
+          </div>
+        </div>
+      `);
+    }
+
+    function addCustomQuickPreset() {
+      const emoji = ($('#qp-emoji')?.value || '💸').trim().slice(0, 4);
+      const label = ($('#qp-label')?.value || '').trim();
+      const amount = parseAmount($('#qp-amount')?.value);
+      const cat = $('#qp-cat')?.value || 'comida';
+      if (!label || !(amount > 0)) return;
+      S.quickPresets.push({ id: 'qp_' + uid(), emoji, label, amount: Math.round(amount * 100) / 100, cat, method: 'applepay' });
+      saveLocalState(true);
+      openEditQuickPresetsModal();
+      renderAllViews();
+      showToast("Botón rápido añadido ✓");
+    }
+
+    function deleteQuickPreset(id) {
+      S.quickPresets = (S.quickPresets || []).filter(x => x.id !== id);
+      saveLocalState(true);
+      openEditQuickPresetsModal();
+      renderAllViews();
+    }
+
+    // Camera Receipt OCR Scanner Modal
+    function openReceiptScannerModal() {
+      openUniversalModal(`
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
+            <div class="flex items-center gap-2.5">
+              <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center">
+                <span class="material-symbols-outlined">photo_camera</span>
+              </span>
+              <div>
+                <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Escáner de Tickets (Cámara / OCR)</h3>
+                <p class="text-xs text-on-surface-variant">Haz una foto al ticket para extraer importe y comercio</p>
+              </div>
+            </div>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+          </div>
+
+          <label class="w-full p-5 rounded-2xl border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-center cursor-pointer flex flex-col items-center gap-2 transition active-scale">
+            <span class="material-symbols-outlined text-4xl text-primary">add_a_photo</span>
+            <span class="font-label-lg text-sm font-extrabold text-primary">Hacer foto al ticket o elegir de la galería</span>
+            <span class="text-[11px] text-on-surface-variant">Compatible con tickets de supermercado, restaurantes y gasolineras</span>
+            <input type="file" accept="image/*" capture="environment" onchange="processReceiptImageForOCR(this)" class="hidden"/>
+          </label>
+
+          <div id="ocr-status-box" class="hidden p-3 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined animate-spin text-primary text-[18px]">sync</span>
+            <span id="ocr-status-text">Analizando imagen del ticket...</span>
+          </div>
+
+          <img id="ocr-preview-img" class="hidden w-full max-h-40 object-contain rounded-xl border border-outline-variant/30 bg-black/5"/>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Importe detectado (€)</label>
+              <input id="ocr-amount" type="number" step="0.01" placeholder="0.00" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-lg font-extrabold text-on-surface"/>
+            </div>
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Categoría</label>
+              <select id="ocr-cat" class="w-full px-3 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface">
+                ${allCats().map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Comercio / Concepto</label>
+              <input id="ocr-note" type="text" placeholder="Ej. Ticket Mercadona" class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+            </div>
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Fecha</label>
+              <input id="ocr-date" type="date" value="${todayStr()}" class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface"/>
+            </div>
+          </div>
+
+          <button onclick="saveScannedReceiptExpense()" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold shadow-sm hover:bg-primary-container transition active-scale">
+            Guardar Gasto del Ticket
+          </button>
+        </div>
+      `);
+    }
+
+    async function processReceiptImageForOCR(inputEl) {
+      const file = inputEl.files?.[0];
+      if (!file) return;
+
+      const statusBox = $('#ocr-status-box');
+      const statusText = $('#ocr-status-text');
+      const previewImg = $('#ocr-preview-img');
+      if (statusBox) statusBox.classList.remove('hidden');
+      if (statusText) statusText.textContent = "Leyendo texto e importe del ticket (OCR)...";
+
+      const url = URL.createObjectURL(file);
+      if (previewImg) {
+        previewImg.src = url;
+        previewImg.classList.remove('hidden');
+      }
+
+      try {
+        if (!window.Tesseract) {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        }
+        const res = await window.Tesseract.recognize(file, 'spa');
+        const rawText = res?.data?.text || "";
+        const extracted = extractReceiptDataFromOCRText(rawText, file.name);
+
+        if (extracted.amount > 0 && $('#ocr-amount')) $('#ocr-amount').value = extracted.amount.toFixed(2);
+        if (extracted.merchant && $('#ocr-note')) $('#ocr-note').value = extracted.merchant;
+        if (extracted.cat && $('#ocr-cat')) $('#ocr-cat').value = extracted.cat;
+        if (extracted.date && $('#ocr-date')) $('#ocr-date').value = extracted.date;
+
+        if (statusText) {
+          statusText.textContent = extracted.amount > 0
+            ? `✓ Detectado: ${fmt(extracted.amount)} en ${extracted.merchant}`
+            : `Texto leído. Confirma o ajusta el importe abajo.`;
+        }
+      } catch (e) {
+        if (statusText) statusText.textContent = "Foto cargada. Confirma el importe y guarda.";
+      }
+    }
+
+    function extractReceiptDataFromOCRText(text, fallbackName = "") {
+      const clean = String(text || "");
+      const lines = clean.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      // 1. Detect merchant from known brands or first non-numeric line
+      let merchant = "Ticket escaneado";
+      const knownBrands = ["Mercadona", "Carrefour", "Lidl", "Aldi", "Consum", "Repsol", "Cepsa", "Zara", "Ikea", "Decathlon", "McDonald", "Starbucks", "Tagliatella", "El Corte Inglés", "Dia", "Eroski"];
+      for (const b of knownBrands) {
+        if (clean.toLowerCase().includes(b.toLowerCase())) {
+          merchant = b;
+          break;
+        }
+      }
+      if (merchant === "Ticket escaneado" && lines.length > 0) {
+        const firstLine = lines.find(l => l.length >= 3 && !/^\d+$/.test(l));
+        if (firstLine) merchant = firstLine.slice(0, 36);
+      }
+
+      // 2. Extract amount (prioritize lines with TOTAL / IMPORTE / EUR / €)
+      let amount = 0;
+      const totalRegex = /(?:total|importe|pagar|venta|eur|€)[^\d]{0,18}(\d{1,4}[\.,]\d{2})/gi;
+      const totalMatches = [...clean.matchAll(totalRegex)].map(m => parseFloat(m[1].replace(',', '.'))).filter(n => n > 0 && n < 10000);
+      if (totalMatches.length > 0) {
+        amount = Math.max(...totalMatches);
+      } else {
+        const allNums = [...clean.matchAll(/(\d{1,4}[\.,]\d{2})/g)].map(m => parseFloat(m[1].replace(',', '.'))).filter(n => n > 0 && n < 5000);
+        if (allNums.length > 0) amount = Math.max(...allNums);
+      }
+
+      // 3. Extract date DD/MM/YYYY or DD-MM-YYYY
+      let date = todayStr();
+      const dateMatch = clean.match(/\b(\d{2})[\/\-](\d{2})[\/\-](20\d{2})\b/);
+      if (dateMatch) {
+        date = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+      }
+
+      const cat = applyRule(merchant) || guessCatFromMerchant(merchant + " " + fallbackName);
+      return { amount, merchant, cat, date };
+    }
+
+    function saveScannedReceiptExpense() {
+      const amount = parseAmount($('#ocr-amount')?.value);
+      if (!(amount > 0)) {
+        $('#ocr-amount')?.focus();
+        return;
+      }
+      const note = ($('#ocr-note')?.value || '').trim() || 'Ticket escaneado';
+      const cat = $('#ocr-cat')?.value || 'comida';
+      const date = $('#ocr-date')?.value || todayStr();
+
+      S.expenses.push({
+        id: uid(),
+        amount: Math.round(amount * 100) / 100,
+        cat,
+        method: 'tarjeta',
+        note: `${note} #ticket`,
+        date,
+        tripId: '',
+        refund: false,
+        ts: Date.now()
+      });
+      saveLocalState(true);
+      closeUniversalModal();
+      viewMk = monthKey(date);
+      renderAllViews();
+      showToast(`📷 Ticket guardado: ${fmt(amount)} en ${note} ✓`);
+    }
+
+    // ============================================================================
+    // 19. INITIALIZATION ON DOM CONTENT LOADED
     // ============================================================================
     document.addEventListener("DOMContentLoaded", () => {
       loadLocalStateForCurrentUser();
       initTheme();
       viewMk = monthKey(todayStr());
+
+      // Prevent pinch-to-zoom and double-tap zoom on iOS Safari & WKWebView
+      document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+      document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+      document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 280) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
 
       // Backdrop click handlers
       $('#quick-action-sheet')?.addEventListener('click', (e) => {

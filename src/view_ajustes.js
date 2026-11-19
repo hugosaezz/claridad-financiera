@@ -160,8 +160,11 @@
                         <span class="material-symbols-outlined text-[20px]">${c.icon}</span>
                       </span>
                       <div class="min-w-0">
-                        <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(r.name)}</p>
-                        <p class="text-xs text-on-surface-variant">${esc(c.name)} • Día ${r.day || '—'} de cada mes • ${paid ? '<span class="text-secondary font-bold">Pagado este mes</span>' : '<span class="text-amber-600 font-bold">Pendiente este mes</span>'}</p>
+                        <div class="flex items-center gap-1.5">
+                          <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(r.name)}</p>
+                          ${r.autoCharge !== false ? `<span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-primary/10 text-primary">Auto-cobro</span>` : ''}
+                        </div>
+                        <p class="text-xs text-on-surface-variant">${esc(c.name)} • Día ${r.day || '—'} de cada mes • ${paid ? '<span class="text-secondary font-bold">Sumado este mes ✓</span>' : '<span class="text-amber-600 font-bold">Pendiente este mes</span>'}</p>
                       </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">

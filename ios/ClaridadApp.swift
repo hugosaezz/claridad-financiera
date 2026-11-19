@@ -34,31 +34,52 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelegate {
+class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelegate, UIScrollViewDelegate {
     private var webView: WKWebView!
     private var pendingQuery: String?
     private var isPageLoaded = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.98, green: 0.97, blue: 1.0, alpha: 1.0)
+        // Match Claridad surface color so status bar / safe area never flashes white
+        view.backgroundColor = UIColor(red: 250.0/255.0, green: 248.0/255.0, blue: 255.0/255.0, alpha: 1.0)
 
         let config = WKWebViewConfiguration()
         config.websiteDataStore = WKWebsiteDataStore.default()
         config.allowsInlineMediaPlayback = true
 
+        // Inject viewport lock script so pinch-to-zoom and double-tap zoom are disabled natively
+        let noZoomJS = """
+        var meta = document.querySelector('meta[name=viewport]');
+        if (meta) {
+          meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }
+        document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('gesturechange', function(e) { e.preventDefault(); }, { passive: false });
+        document.addEventListener('gestureend', function(e) { e.preventDefault(); }, { passive: false });
+        """
+        let userScript = WKUserScript(source: noZoomJS, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        config.userContentController.addUserScript(userScript)
+
         webView = WKWebView(frame: .zero, configuration: config)
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.uiDelegate = self
         webView.navigationDelegate = self
+        webView.scrollView.delegate = self
+
+        // Edge-to-edge full screen: let CSS env(safe-area-inset-top) and env(safe-area-inset-bottom) cover status bar & home indicator seamlessly
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.scrollView.bounces = true
         webView.scrollView.alwaysBounceHorizontal = false
+        webView.scrollView.minimumZoomScale = 1.0
+        webView.scrollView.maximumZoomScale = 1.0
+        webView.scrollView.bouncesZoom = false
         webView.isOpaque = false
         webView.backgroundColor = .clear
 
         view.addSubview(webView)
         NSLayoutConstraint.activate([
-            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.topAnchor.constraint(equalTo: view.topAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -69,6 +90,15 @@ class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelega
         } else if let remoteURL = URL(string: "https://hugosaezz.github.io/claridad-financiera/") {
             webView.load(URLRequest(url: remoteURL))
         }
+    }
+
+    // Completely disable zooming in WKWebView scrollView
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+        return nil
+    }
+
+    func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        scrollView.pinchGestureRecognizer?.isEnabled = false
     }
 
     func handleIncomingURL(_ url: URL) {
@@ -83,6 +113,7 @@ class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelega
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         isPageLoaded = true
+        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
         if let q = pendingQuery {
             pendingQuery = nil
             let escaped = q.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
