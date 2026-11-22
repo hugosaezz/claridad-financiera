@@ -29,7 +29,7 @@
         }
       });
 
-      // Update large bottom navigation tabs (inicio and gastos both map to 'nav-inicio')
+      // Update floating dock tabs (inicio and gastos both map to 'nav-inicio')
       const activeNavKey = !loggedUserId ? 'cuentas' : (viewName === 'gastos') ? 'inicio' : viewName;
       ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
         const navBtn = $('#nav-' + k);
@@ -39,13 +39,13 @@
         const isActive = (k === activeNavKey);
         const isGuestLocked = !loggedUserId && k !== 'cuentas';
         navBtn.className = isActive
-          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
-          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-55' : ''}`;
         if (iconSpan) iconSpan.classList.toggle('filled', isActive);
         if (pillSpan) {
           pillSpan.className = isActive
-            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
-            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
+            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
         }
       });
 
@@ -136,13 +136,13 @@
         const isActive = (k === activeNavKey);
         const isGuestLocked = !loggedUserId && k !== 'cuentas';
         navBtn.className = isActive
-          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
-          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-55' : ''}`;
         if (iconSpan) iconSpan.classList.toggle('filled', isActive);
         if (pillSpan) {
           pillSpan.className = isActive
-            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
-            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
+            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
         }
       });
 
@@ -226,7 +226,7 @@
                 </div>
               </div>
               <div class="text-right flex-shrink-0">
-                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
+                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums privacy-val">+${fmt(x.amount)}</span>
                 <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
               </div>
             </div>`;
@@ -236,7 +236,7 @@
           <div class="flex flex-col">
             <div class="px-4 py-2 bg-surface-container-low/90 border-y border-outline-variant/25 flex items-center justify-between">
               <span class="font-label-sm text-[10px] font-extrabold tracking-wider text-on-surface-variant uppercase">${esc(fmtRelativeDateHeader(g.date))}</span>
-              <span class="font-label-sm text-[11px] font-extrabold tabular-nums ${g.expSum > g.incSum ? 'text-on-surface-variant' : 'text-secondary'}">${dayHeaderRight}</span>
+              <span class="font-label-sm text-[11px] font-extrabold tabular-nums privacy-val ${g.expSum > g.incSum ? 'text-on-surface-variant' : 'text-secondary'}">${dayHeaderRight}</span>
             </div>
             <div class="divide-y divide-outline-variant/20">
               ${rows}
@@ -250,7 +250,7 @@
       if (!el) return;
 
       const userName = currentLoggedUserName();
-      const exps = monthExpenses(viewMk).sort((a, b) => b.date.localeCompare(a.date));
+      const exps = monthExpenses(viewMk).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0));
       const incs = incomeRows(viewMk);
       const totalExp = sumExp(exps);
       const totalInc = monthIncomeTotal(viewMk);
@@ -267,6 +267,11 @@
       const fc = forecast(viewMk);
       const cats = byCat(exps);
 
+      // Month-over-Month Trend Comparison
+      const pMk = prevMonthKey(viewMk);
+      const prevExp = sumExp(monthExpenses(pMk));
+      const expDeltaPct = prevExp > 0 ? Math.round(((totalExp - prevExp) / prevExp) * 100) : null;
+
       // Copilot Money-style Daily Pace Calculation
       const [Y, M] = viewMk.split('-').map(Number);
       const isCurMonth = viewMk === monthKey(todayStr());
@@ -276,53 +281,74 @@
       const dailySafeAllowance = Math.max(0, safe / daysRemaining);
       const elapsedMonthPct = Math.min(100, Math.round((currentDay / daysInMonth) * 100));
       const expectedSpendByToday = budgetTotal > 0 ? (budgetTotal * (currentDay / daysInMonth)) : 0;
-      const paceDiff = expectedSpendByToday - totalExp; // Positive = under budget pace (good!)
+      const paceDiff = expectedSpendByToday - totalExp;
       const isPaceGood = totalExp <= expectedSpendByToday + 0.01;
 
       const syncTimeText = lastCloudSyncTime
         ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
         : 'En vivo';
 
-      // Top Monthly Control Bar (Clean Segmented Control + Live Supabase Database Status Badge — NO delete button here)
+      // Top Monthly Control Bar
       const monthlyTopNavHtml = `
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
-            <button onclick="switchMainView('inicio')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
+          <div class="flex items-center bg-surface-container/90 p-1 rounded-2xl border border-outline-variant/30 gap-1">
+            <button onclick="haptic('selection'); switchMainView('inicio')" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px]">dashboard</span>
-              Resumen Mensual
+              Resumen
             </button>
-            <button onclick="switchMainView('gastos')" class="px-3.5 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
+            <button onclick="haptic('selection'); switchMainView('gastos')" class="px-3.5 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px]">receipt_long</span>
               Movimientos (${exps.length + incs.length})
             </button>
           </div>
-          <div onclick="cargarDatosSupabase(true)" class="cursor-pointer px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant transition active-scale" title="Toca para actualizar desde la Base de Datos de Supabase">
+          <button onclick="haptic('medium'); cargarDatosSupabase(true)" class="px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-surface-container border border-outline-variant/45 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant shadow-xs transition active-scale" title="Actualizar desde Supabase">
             <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
-            <span>☁️ BD ${esc(userName)} • ${esc(syncTimeText)}</span>
-          </div>
+            <span>BD ${esc(userName)} · ${esc(syncTimeText)}</span>
+          </button>
         </div>
       `;
 
-      // 1-Tap Quick Expense Presets Bar
-      const quickPresetsHtml = `
-        <section class="bento-card p-3.5 rounded-2xl flex flex-col gap-2.5">
-          <div class="flex items-center justify-between">
-            <span class="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
-              <span class="material-symbols-outlined text-[16px]">bolt</span>
-              Gasto Rápido en 1 Toque (Guarda en Base de Datos al instante)
+      // Welcome onboarding banner if account is clean at 0 €
+      const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
+      const onboardingBannerHtml = isFreshAccount ? `
+        <div class="bento-card p-4 rounded-3xl border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <span class="w-10 h-10 rounded-2xl hero-indigo text-white flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[20px]">cloud_done</span>
             </span>
-            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-0.5">
-              <span class="material-symbols-outlined text-[14px]">edit</span>
-              Personalizar
+            <div>
+              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Bienvenido a tu espacio personal, ${esc(userName)}</h3>
+              <p class="font-body-sm text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+                Tu registro personal en Supabase está limpio a 0,00 €. Configura tu nómina o toca un botón de Gasto Rápido para empezar.
+              </p>
+            </div>
+          </div>
+          <button onclick="switchMainView('ajustes', 'ingresos')" class="px-4 py-2.5 rounded-xl bg-primary text-on-primary font-label-md text-xs font-extrabold hover:bg-primary-container transition active-scale flex-shrink-0">
+            Configurar Nómina
+          </button>
+        </div>
+      ` : '';
+
+      // 1-Tap Quick Expense Presets Strip (Sleek Horizontal Chips)
+      const quickPresetsHtml = `
+        <section class="flex flex-col gap-2">
+          <div class="flex items-center justify-between px-1">
+            <span class="font-label-sm text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px] text-primary">bolt</span>
+              Gasto en 1 Toque
+            </span>
+            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[14px]">tune</span>
+              Editar
             </button>
           </div>
-          <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-0.5">
+          <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
             ${(S.quickPresets || []).map(qp => `
-              <button onclick="triggerQuickPresetExpense('${qp.id}')" class="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-primary/10 border border-outline-variant/40 hover:border-primary/40 flex items-center gap-2 flex-shrink-0 transition active-scale text-left">
-                <span class="text-base">${esc(qp.emoji || '💸')}</span>
+              <button onclick="triggerQuickPresetExpense('${qp.id}')" class="bento-card px-3.5 py-2.5 rounded-2xl flex items-center gap-2.5 flex-shrink-0 hover:border-primary/50 active-scale text-left">
+                <span class="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-base">${esc(qp.emoji || '💸')}</span>
                 <div>
                   <p class="text-xs font-extrabold text-on-surface leading-tight">${esc(qp.label)}</p>
-                  <p class="text-[11px] font-bold text-primary tabular-nums">${fmt(qp.amount)}</p>
+                  <p class="text-[11px] font-extrabold text-primary tabular-nums privacy-val mt-0.5">${fmt(qp.amount)}</p>
                 </div>
               </button>
             `).join('')}
@@ -330,30 +356,7 @@
         </section>
       `;
 
-      // Welcome onboarding banner if this user has no personal expenses and no salary set yet
-      const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
-      const onboardingBannerHtml = isFreshAccount ? `
-        <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-start gap-3">
-            <span class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined">cloud_done</span>
-            </span>
-            <div>
-              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Registro personal de ${esc(userName)} en Supabase a 0,00 €</h3>
-              <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                Todo lo que apuntes aquí o desde el atajo de Apple Pay se guarda en tu base de datos en tiempo real para verse en cualquier navegador y en tu iPhone.
-              </p>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
-            <button onclick="switchMainView('ajustes', 'ingresos')" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold hover:bg-primary-container transition active-scale">
-              Configurar Nómina
-            </button>
-          </div>
-        </div>
-      ` : '';
-
-      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style with micro-progress bars)
+      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style)
       const topCats = cats.slice(0, 6);
       const multiBarSegments = topCats.length > 0 ? topCats.map(d => {
         const c = catById(d.cat);
@@ -368,11 +371,11 @@
         const bdgPct = bdg > 0 ? Math.min(100, Math.round((d.total / bdg) * 100)) : pctOfTotal;
         const over = bdg > 0 && d.total > bdg;
         return `
-          <button onclick="openCategoryDetailModal('${c.id}')" class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition flex flex-col justify-between gap-1.5 text-left active-scale border ${over ? 'border-tertiary/50 bg-tertiary/5' : 'border-outline-variant/25'}">
+          <button onclick="haptic('light'); openCategoryDetailModal('${c.id}')" class="p-3 rounded-2xl bg-surface-container-low/80 hover:bg-surface-container transition flex flex-col justify-between gap-2 text-left active-scale border ${over ? 'border-tertiary/50 bg-tertiary/5' : 'border-outline-variant/25'}">
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-1.5 min-w-0">
-                <span class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1a;color:${c.c}">
-                  <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+                <span class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${c.c}1c;color:${c.c}">
+                  <span class="material-symbols-outlined text-[16px]">${c.icon}</span>
                 </span>
                 <span class="font-label-sm text-xs font-extrabold text-on-surface truncate">${esc(c.name)}</span>
               </div>
@@ -380,205 +383,250 @@
             </div>
             <div>
               <div class="flex items-baseline justify-between">
-                <span class="font-headline-sm text-[16px] font-extrabold text-on-surface tabular-nums">${fmt0(d.total)}</span>
-                ${bdg > 0 ? `<span class="text-[10px] text-outline tabular-nums">/ ${fmt0(bdg)}</span>` : ''}
+                <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums privacy-val">${fmt0(d.total)}</span>
+                ${bdg > 0 ? `<span class="text-[10px] text-outline tabular-nums privacy-val">/ ${fmt0(bdg)}</span>` : ''}
               </div>
-              <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+              <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-1.5">
                 <div class="h-full rounded-full transition-all duration-500" style="width:${bdgPct}%;background:${over ? '#e11d48' : c.c}"></div>
               </div>
             </div>
           </button>`;
       }).join('');
 
-      // Recent Monthly Transactions grouped by Date (Revolut / Apple Wallet style)
+      // Recent Monthly Transactions grouped by Date (Apple Wallet / Revolut style)
       const recentMixed = [
         ...exps.map(e => ({ ...e, _k: 'exp' })),
         ...incs.map(i => ({ ...i, _k: 'inc' }))
-      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 7);
+      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 8);
 
       const recentRowsHtml = recentMixed.length > 0
         ? renderDateGroupedTransactionsHtml(recentMixed)
         : `
           <div class="p-8 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
-            <span class="material-symbols-outlined text-3xl text-outline">receipt_long</span>
+            <span class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-outline">
+              <span class="material-symbols-outlined text-2xl">receipt_long</span>
+            </span>
             <p class="font-bold text-on-surface">Sin movimientos en ${monthLabel(viewMk)}</p>
-            <p class="text-xs">Usa los botones de Gasto Rápido arriba o el botón central «+» para registrar tu primer movimiento.</p>
+            <p class="text-xs max-w-xs">Usa un botón de Gasto en 1 Toque o pulsa el botón central «+» para registrar tu primer gasto o ingreso.</p>
           </div>`;
 
-      // Upcoming Subscriptions & Goals Summary
-      const upcomingHtml = upRecList.slice(0, 3).map(r => {
+      // Upcoming Subscriptions
+      const upcomingHtml = upRecList.slice(0, 4).map(r => {
         const c = catById(r.cat);
         return `
-          <div class="py-2 flex items-center justify-between text-xs border-b border-outline-variant/20 last:border-0">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[16px]" style="color:${c.c}">${c.icon}</span>
-              <span class="font-bold text-on-surface">${esc(r.name)}</span>
-              <span class="text-outline">${r.day ? `Día ${r.day}` : 'Este mes'}</span>
+          <div class="py-2.5 flex items-center justify-between text-xs border-b border-outline-variant/20 last:border-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1c;color:${c.c}">
+                <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+              </span>
+              <div class="min-w-0">
+                <p class="font-bold text-on-surface truncate">${esc(r.name)}</p>
+                <p class="text-[11px] text-outline">${r.day ? `Día ${r.day} de cada mes` : 'Este mes'}</p>
+              </div>
             </div>
-            <strong class="font-extrabold text-on-surface tabular-nums">−${fmt(r.amount)}</strong>
+            <strong class="font-extrabold text-on-surface tabular-nums privacy-val">−${fmt(r.amount)}</strong>
           </div>`;
       }).join('');
+
+      // Active Goals Mini Preview
+      const goalsMiniHtml = (S.goals || []).length > 0 ? `
+        <div class="bento-card p-4 rounded-3xl flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-secondary text-[18px]">emoji_events</span>
+              <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Metas de Ahorro</h3>
+            </div>
+            <button onclick="switchMainView('ajustes', 'obj')" class="text-xs font-bold text-primary hover:underline">Ver todas</button>
+          </div>
+          <div class="flex flex-col gap-2.5">
+            ${(S.goals || []).slice(0, 2).map(g => {
+              const gPct = Math.min(100, g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0);
+              return `
+                <div onclick="openGoalMoveModal('${g.id}', 1)" class="cursor-pointer p-3 rounded-2xl bg-surface-container-low hover:bg-surface-container transition flex flex-col gap-1.5 active-scale">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-extrabold text-on-surface">${esc(g.name)}</span>
+                    <span class="font-extrabold text-secondary tabular-nums privacy-val">${fmt0(g.saved)} / ${fmt0(g.target)} (${gPct}%)</span>
+                  </div>
+                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style="width:${gPct}%"></div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      ` : '';
 
       el.innerHTML = `
         ${monthlyTopNavHtml}
         ${onboardingBannerHtml}
-        ${quickPresetsHtml}
 
-        <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (Copilot / Monarch / Revolut Style) -->
+        <!-- HERO EXECUTIVE CARD + KPI BENTO GRID -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <!-- HERO KPI (2 cols): PUEDES GASTAR ESTE MES + DAILY ALLOWANCE VERDICT -->
-          <div class="col-span-2 hero-indigo text-on-primary p-4 sm:p-5 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden">
+          <!-- FLAGSHIP HERO CARD (2 cols): PUEDES GASTAR ESTE MES + DAILY SAFE VERDICT -->
+          <div class="col-span-2 hero-indigo text-white p-5 rounded-3xl flex flex-col justify-between gap-4 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div class="flex flex-col">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-label-sm text-[10px] text-on-primary-container font-extrabold tracking-wider uppercase">PUEDES GASTAR ESTE MES</span>
-                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white">${fmt0(dailySafeAllowance)}/día libres</span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="font-label-sm text-[10px] text-indigo-100/90 font-extrabold tracking-widest uppercase">DISPONIBLE REAL DEL MES</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white backdrop-blur-xs privacy-val">${fmt0(dailySafeAllowance)}/día</span>
                 </div>
-                <div class="flex items-baseline gap-2 mt-1">
-                  <span class="font-display-currency-mobile text-[30px] sm:text-[34px] leading-9 font-extrabold text-white tabular-nums">${fmt(safe)}</span>
-                  <span class="font-body-sm text-xs text-on-primary-container">disponibles</span>
+                <div class="flex items-baseline gap-2 mt-1.5">
+                  <span class="font-display-currency text-[34px] sm:text-[38px] leading-none font-extrabold text-white tracking-tight tabular-nums privacy-val">${fmt(safe)}</span>
                 </div>
+                <p class="text-[11px] text-indigo-100/80 mt-1 font-medium">
+                  ${daysRemaining} día${daysRemaining === 1 ? '' : 's'} restante${daysRemaining === 1 ? '' : 's'} · Previsión fin de mes: <strong class="text-white tabular-nums privacy-val">${fmtSigned(fc.end)}</strong>
+                </p>
               </div>
-              <div onclick="switchMainView('analitica')" class="cursor-pointer bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-right">
+
+              <button onclick="haptic('light'); switchMainView('analitica')" class="bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-2 rounded-2xl border border-white/20 text-right flex-shrink-0 active-scale">
                 <span class="font-label-sm text-xs text-white font-extrabold flex items-center justify-end gap-1">
-                  <span class="material-symbols-outlined text-[16px]">auto_awesome</span>
-                  Score ${scoreObj.score}/100
+                  <span class="material-symbols-outlined text-[15px]">auto_awesome</span>
+                  ${scoreObj.score}/100
                 </span>
-                <p class="font-body-sm text-[11px] text-on-primary-container">Ahorro: ${savingsRate}%</p>
-              </div>
+                <p class="text-[10px] text-indigo-100/90 font-semibold mt-0.5">Ahorro ${savingsRate}%</p>
+              </button>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 pt-2.5 border-t border-white/15 text-xs relative z-10">
+            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/15 text-xs relative z-10">
               <div>
-                <span class="text-on-primary-container text-[10px] uppercase font-bold block">Balance Mes</span>
-                <strong class="text-white font-extrabold tabular-nums">${fmtSigned(netMonth)}</strong>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Balance Mes</span>
+                <strong class="text-white font-extrabold tabular-nums privacy-val">${fmtSigned(netMonth)}</strong>
               </div>
               <div>
-                <span class="text-on-primary-container text-[10px] uppercase font-bold block">Fijos pend.</span>
-                <strong class="text-amber-200 font-extrabold tabular-nums">−${fmt0(upRecTotal)}</strong>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Fijos pend.</span>
+                <strong class="text-amber-200 font-extrabold tabular-nums privacy-val">−${fmt0(upRecTotal)}</strong>
               </div>
               <div class="text-right">
-                <span class="text-on-primary-container text-[10px] uppercase font-bold block">Reserva Obj.</span>
-                <strong class="text-emerald-200 font-extrabold tabular-nums">${fmt0(reserveGoals)}</strong>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Reserva Obj.</span>
+                <strong class="text-emerald-200 font-extrabold tabular-nums privacy-val">${fmt0(reserveGoals)}</strong>
               </div>
             </div>
           </div>
 
           <!-- KPI 2: INGRESOS DEL MES -->
-          <div onclick="switchMainView('ajustes', 'ingresos')" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale">
+          <div onclick="haptic('light'); switchMainView('ajustes', 'ingresos')" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">INGRESOS DEL MES</span>
-              <span class="w-7 h-7 rounded-full bg-secondary-fixed/60 text-secondary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">trending_up</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">INGRESOS</span>
+              <span class="w-8 h-8 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">trending_up</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[24px] sm:text-[26px] leading-8 font-extrabold text-secondary tracking-tight tabular-nums">+${fmt(totalInc)}</p>
-              <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-secondary px-2 py-0.5 rounded-full bg-secondary/10">
-                <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                ${incs.length} ingreso${incs.length === 1 ? '' : 's'}
+              <p class="font-display-currency-mobile text-[22px] sm:text-[26px] leading-7 font-extrabold text-secondary tracking-tight tabular-nums privacy-val">+${fmt(totalInc)}</p>
+              <span class="inline-flex items-center gap-1 mt-2 text-[11px] font-bold text-secondary px-2 py-0.5 rounded-full bg-secondary/10">
+                ${incs.length} registro${incs.length === 1 ? '' : 's'}
               </span>
             </div>
           </div>
 
-          <!-- KPI 3: GASTADO ESTE MES -->
-          <div onclick="switchMainView('gastos')" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale">
+          <!-- KPI 3: GASTADO ESTE MES + MONTH-OVER-MONTH BADGE -->
+          <div onclick="haptic('light'); switchMainView('gastos')" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">GASTADO ESTE MES</span>
-              <span class="w-7 h-7 rounded-full bg-tertiary-fixed/60 text-tertiary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">GASTADO</span>
+              <span class="w-8 h-8 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">receipt_long</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[24px] sm:text-[26px] leading-8 font-extrabold text-tertiary tracking-tight tabular-nums">−${fmt(totalExp)}</p>
-              <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-on-surface-variant px-2 py-0.5 rounded-full bg-surface-container">
-                Media: ${fmt0(fc.avg)}/día
-              </span>
+              <p class="font-display-currency-mobile text-[22px] sm:text-[26px] leading-7 font-extrabold text-tertiary tracking-tight tabular-nums privacy-val">−${fmt(totalExp)}</p>
+              <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                <span class="text-[11px] font-bold text-on-surface-variant px-2 py-0.5 rounded-full bg-surface-container privacy-val">
+                  ${fmt0(fc.avg)}/día
+                </span>
+                ${expDeltaPct !== null ? `
+                  <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${expDeltaPct <= 0 ? 'bg-secondary/12 text-secondary' : 'bg-tertiary/12 text-tertiary'}">
+                    ${expDeltaPct <= 0 ? '↓' : '↑'}${Math.abs(expDeltaPct)}% vs ant.
+                  </span>
+                ` : ''}
+              </div>
             </div>
           </div>
 
-          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR (GASTO VS RITMO IDEAL DEL MES) -->
-          <div class="col-span-2 lg:col-span-4 bento-card p-4 rounded-2xl flex flex-col gap-2.5">
+          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR -->
+          <div class="col-span-2 lg:col-span-4 bento-card p-4 sm:p-5 rounded-3xl flex flex-col gap-3">
             <div class="flex flex-wrap justify-between items-center gap-2">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-[20px]">speed</span>
-                <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Gasto vs. Presupuesto Mensual</span>
-                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'}">
-                  ${isPaceGood ? `🟢 Ritmo óptimo (${fmt0(Math.abs(paceDiff))} bajo el límite de hoy)` : `🟠 Ritmo alto (+${fmt0(Math.abs(paceDiff))} sobre el día ${currentDay})`}
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <span class="material-symbols-outlined text-[18px]">speed</span>
+                </span>
+                <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Presupuesto</span>
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'} privacy-val">
+                  ${isPaceGood ? `🟢 Óptimo (${fmt0(Math.abs(paceDiff))} bajo ritmo)` : `🟠 Alto (+${fmt0(Math.abs(paceDiff))} sobre día ${currentDay})`}
                 </span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="font-label-md text-xs font-extrabold ${budgetPct >= 100 ? 'text-tertiary bg-tertiary/10' : budgetPct >= 80 ? 'text-amber-700 bg-amber-500/15' : 'text-primary bg-primary/10'} px-2.5 py-0.5 rounded-lg">
-                  ${budgetPct}% gastado en el ${elapsedMonthPct}% del mes
+                <span class="font-label-md text-xs font-extrabold ${budgetPct >= 100 ? 'text-tertiary bg-tertiary/10' : budgetPct >= 80 ? 'text-amber-700 bg-amber-500/15' : 'text-primary bg-primary/10'} px-2.5 py-0.5 rounded-full">
+                  ${budgetPct}% en el ${elapsedMonthPct}% del mes
                 </span>
                 <button onclick="switchMainView('ajustes', 'pres')" class="text-xs font-bold text-primary hover:underline">Límites</button>
               </div>
             </div>
 
             <div class="flex items-baseline justify-between">
-              <p class="font-headline-md text-[22px] text-on-surface font-extrabold tabular-nums">
-                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)} presupuestados</span>
+              <p class="font-headline-md text-[20px] sm:text-[22px] text-on-surface font-extrabold tabular-nums privacy-val">
+                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)}</span>
               </p>
-              <p class="font-label-sm text-xs ${budgetRest >= 0 ? 'text-secondary' : 'text-tertiary'} font-extrabold tabular-nums">
-                ${budgetRest >= 0 ? `${fmt0(budgetRest)} libres del presupuesto` : `${fmt0(-budgetRest)} excedido`}
+              <p class="font-label-sm text-xs ${budgetRest >= 0 ? 'text-secondary' : 'text-tertiary'} font-extrabold tabular-nums privacy-val">
+                ${budgetRest >= 0 ? `${fmt0(budgetRest)} libres` : `${fmt0(-budgetRest)} excedido`}
               </p>
             </div>
 
-            <!-- Progress bar with Copilot "HOY (Día X)" vertical marker -->
             <div class="relative w-full pt-1 pb-2">
               <div class="w-full bg-surface-container h-3 rounded-full overflow-hidden">
-                <div class="${budgetPct >= 100 ? 'bg-tertiary' : !isPaceGood ? 'bg-amber-500' : 'bg-primary'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
+                <div class="${budgetPct >= 100 ? 'bg-tertiary' : !isPaceGood ? 'bg-amber-500' : 'bg-gradient-to-r from-primary to-indigo-400'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
               </div>
               ${isCurMonth ? `
-                <div class="absolute top-0 bottom-1 flex flex-col items-center pointer-events-none" style="left: clamp(4%, ${elapsedMonthPct}%, 96%); transform: translateX(-50%);">
+                <div class="absolute top-0 bottom-1 flex flex-col items-center pointer-events-none" style="left: clamp(5%, ${elapsedMonthPct}%, 95%); transform: translateX(-50%);">
                   <div class="w-0.5 h-5 bg-on-surface rounded-full shadow-xs"></div>
-                  <span class="text-[9px] font-extrabold text-on-surface-variant uppercase tracking-tighter mt-0.5 bg-surface-container-lowest px-1 rounded border border-outline-variant/40">Hoy D${currentDay}</span>
+                  <span class="text-[9px] font-extrabold text-on-surface uppercase tracking-tight mt-0.5 bg-surface-container-lowest px-1.5 py-0.2 rounded-full border border-outline-variant/60 shadow-xs">Hoy D${currentDay}</span>
                 </div>
               ` : ''}
             </div>
           </div>
         </section>
 
+        ${quickPresetsHtml}
+
         <!-- QUICK MONTHLY ACTION BAR -->
-        <section class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <button onclick="openTxModal('exp')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+        <section class="grid grid-cols-4 gap-2">
+          <button onclick="haptic('light'); openTxModal('exp')" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
+            <span class="w-9 h-9 rounded-xl bg-primary/12 text-primary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">add_shopping_cart</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Gasto</p>
-              <p class="text-[10px] text-on-surface-variant">Comida, ocio, recibo</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Gasto</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Manual / #tag</p>
             </div>
           </button>
 
-          <button onclick="openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
+          <button onclick="haptic('light'); openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
             <span class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">photo_camera</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">Escanear Ticket</p>
-              <p class="text-[10px] text-on-surface-variant">Foto / OCR automático</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Ticket OCR</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Foto cámara</p>
             </div>
           </button>
 
-          <button onclick="openTxModal('exp', null, true)" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center flex-shrink-0">
+          <button onclick="haptic('light'); openTxModal('exp', null, true)" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
+            <span class="w-9 h-9 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">mic</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">Dictar Gasto</p>
-              <p class="text-[10px] text-on-surface-variant">Reconocimiento voz</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Voz</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Dictar gasto</p>
             </div>
           </button>
 
-          <button onclick="openTxModal('inc')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
+          <button onclick="haptic('light'); openTxModal('inc')" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
+            <span class="w-9 h-9 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">payments</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Ingreso</p>
-              <p class="text-[10px] text-on-surface-variant">Extra, Bizum, venta</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Ingreso</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Extra / Bizum</p>
             </div>
           </button>
         </section>
@@ -586,30 +634,29 @@
         <!-- 2-COLUMN MONTHLY BREAKDOWN & RECENT MOVEMENTS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING SUBSCRIPTIONS -->
+          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING -->
           <section class="lg:col-span-6 flex flex-col gap-4">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between px-1">
               <div>
-                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Desglose por categorías</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)} • Toca una categoría para auditar</p>
+                <h2 class="font-headline-sm text-base font-extrabold text-on-surface">Desglose por categorías</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)}</p>
               </div>
-              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Editar límites</button>
+              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Límites</button>
             </div>
 
-            <div class="bento-card p-4 rounded-2xl flex flex-col gap-4">
-              <!-- Donut Ring + Stacked Bar Summary Header -->
+            <div class="bento-card p-4 rounded-3xl flex flex-col gap-4">
               <div class="flex items-center gap-4">
                 ${renderCategoryDonutSVG(cats, totalExp)}
                 <div class="flex-1 flex flex-col gap-2 min-w-0">
                   <div class="flex items-baseline justify-between">
                     <span class="text-xs font-extrabold text-on-surface">Total gastado</span>
-                    <span class="font-headline-sm text-base font-extrabold text-on-surface tabular-nums">${fmt(totalExp)}</span>
+                    <span class="font-headline-sm text-base font-extrabold text-on-surface tabular-nums privacy-val">${fmt(totalExp)}</span>
                   </div>
                   <div class="flex h-3 w-full rounded-full overflow-hidden gap-0.5 bg-surface-container">
                     ${multiBarSegments}
                   </div>
                   <p class="text-[11px] text-on-surface-variant">
-                    ${cats.length > 0 ? `${cats.length} categoría(s) activas este mes • Mayor gasto: <strong>${esc(catById(cats[0].cat).name)}</strong>` : 'Sin gastos registrados este mes'}
+                    ${cats.length > 0 ? `${cats.length} categoría(s) · Top: <strong class="text-on-surface">${esc(catById(cats[0].cat).name)}</strong>` : 'Sin gastos registrados este mes'}
                   </p>
                 </div>
               </div>
@@ -619,38 +666,40 @@
               </div>
             </div>
 
+            ${goalsMiniHtml}
+
             ${upRecList.length > 0 ? `
-              <div class="bento-card p-4 rounded-2xl flex flex-col gap-2">
+              <div class="bento-card p-4 rounded-3xl flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-amber-600 text-[18px]">schedule</span>
-                    <h3 class="font-label-lg text-sm font-bold text-on-surface">Próximos cargos fijos del mes</h3>
+                    <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Próximos cargos fijos</h3>
                   </div>
-                  <button onclick="switchMainView('ajustes', 'rec')" class="text-xs font-bold text-primary hover:underline">Gestionar (${fmt(upRecTotal)})</button>
+                  <button onclick="switchMainView('ajustes', 'rec')" class="text-xs font-bold text-primary hover:underline privacy-val">Ver (${fmt(upRecTotal)})</button>
                 </div>
-                <div class="divide-y divide-outline-variant/20">
+                <div>
                   ${upcomingHtml}
                 </div>
               </div>
             ` : ''}
           </section>
 
-          <!-- RIGHT (6 cols): DATE-GROUPED RECENT MONTHLY TRANSACTIONS -->
+          <!-- RIGHT (6 cols): DATE-GROUPED RECENT ACTIVITY FEED -->
           <section class="lg:col-span-6 flex flex-col gap-3">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between px-1">
               <div>
-                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Actividad reciente</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día • Sincronizada con Supabase</p>
+                <h2 class="font-headline-sm text-base font-extrabold text-on-surface">Actividad reciente</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día · Sincronizada en tiempo real</p>
               </div>
               <button onclick="switchMainView('gastos')" class="font-label-md text-xs text-primary font-bold hover:underline">Ver todos (${exps.length + incs.length})</button>
             </div>
 
-            <div class="bento-card rounded-2xl overflow-hidden">
+            <div class="bento-card rounded-3xl overflow-hidden">
               <div>
                 ${recentRowsHtml}
               </div>
-              <button onclick="switchMainView('gastos')" class="w-full block text-center py-3 bg-surface-container-low text-primary font-label-lg text-xs font-bold hover:bg-surface-container transition-colors border-t border-outline-variant/20 capitalize">
-                Abrir buscador y libro completo de ${monthLabel(viewMk)} →
+              <button onclick="switchMainView('gastos')" class="w-full block text-center py-3.5 bg-surface-container-low text-primary font-label-lg text-xs font-extrabold hover:bg-surface-container transition-colors border-t border-outline-variant/25 capitalize">
+                Explorar libro completo de ${monthLabel(viewMk)} →
               </button>
             </div>
           </section>
@@ -845,7 +894,7 @@
             </div>
           </div>
           <div class="text-right flex-shrink-0">
-            <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums">−${fmt(e.amount)}</span>
+            <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums privacy-val">−${fmt(e.amount)}</span>
             <p class="font-label-sm text-[10px] text-on-surface-variant uppercase">${esc(c.name)}</p>
           </div>
         </div>

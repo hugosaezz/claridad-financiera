@@ -1,4 +1,4 @@
-const CACHE_NAME = 'claridad-financiera-v3';
+const CACHE_NAME = 'claridad-financiera-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -26,14 +26,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  // Always go network-first for Supabase API calls
   if (url.hostname.includes('supabase.co')) return;
 
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
         return res;
       })
       .catch(() => caches.match(event.request))

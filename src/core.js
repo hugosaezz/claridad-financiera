@@ -90,6 +90,45 @@
     const todayStr = () => dstr(new Date());
     const monthKey = (ds) => String(ds || todayStr()).slice(0, 7);
 
+    // Native iOS Haptic Feedback Bridge (graceful no-op on Web)
+    function haptic(style = 'light') {
+      try {
+        if (typeof window.claridadHaptic === 'function') {
+          window.claridadHaptic(style);
+        } else if (navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(style === 'heavy' ? 20 : style === 'medium' ? 12 : 6);
+        }
+      } catch (e) {}
+    }
+
+    // Privacy Blur Mode (Hide / Show Currency Amounts)
+    let isPrivacyMode = localStorage.getItem('claridad_privacy_mode') === 'true';
+    function applyPrivacyModeUI() {
+      if (document.body) {
+        document.body.classList.toggle('privacy-blur', isPrivacyMode);
+      }
+      const ic = $('#privacy-icon');
+      const btn = $('#btn-privacy-toggle');
+      if (ic) ic.textContent = isPrivacyMode ? 'visibility_off' : 'visibility';
+      if (btn) btn.classList.toggle('text-primary', isPrivacyMode);
+    }
+    function togglePrivacyMode() {
+      haptic('selection');
+      isPrivacyMode = !isPrivacyMode;
+      localStorage.setItem('claridad_privacy_mode', isPrivacyMode ? 'true' : 'false');
+      applyPrivacyModeUI();
+      if (typeof showToast === 'function') {
+        showToast(isPrivacyMode ? '🙈 Modo privacidad activado (importes ocultos)' : '👁️ Importes visibles');
+      }
+    }
+
+    // Month-over-Month helper
+    function prevMonthKey(mk) {
+      const p = String(mk || monthKey(todayStr())).split('-');
+      const dt = new Date(+p[0], +p[1] - 2, 1);
+      return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+    }
+
     function fmt(n) {
       const val = Number(n) || 0;
       return val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -1135,19 +1174,21 @@
       if (syncIcon) syncIcon.classList.add('animate-spin');
 
       try {
-        const resGrupos = await supabaseClient.from('grupos').select('*').order('id', { ascending: true });
+        // Fetch core tables in parallel for ultra-fast initial & focus sync
+        const [resGrupos, resUsers, resAllRels] = await Promise.all([
+          supabaseClient.from('grupos').select('*').order('id', { ascending: true }),
+          supabaseClient.from('usuarios').select('*').order('id', { ascending: true }),
+          supabaseClient.from('grupo_usuarios').select('*')
+        ]);
         if (resGrupos.error) throw resGrupos.error;
+        if (resUsers.error) throw resUsers.error;
+
         sbAllGrupos = resGrupos.data || [];
         if (sbAllGrupos.length > 0) window.generalGroupId = sbAllGrupos[0].id;
-
-        const resUsers = await supabaseClient.from('usuarios').select('*').order('id', { ascending: true });
-        if (resUsers.error) throw resUsers.error;
         sbGlobalUsers = resUsers.data || [];
         if (sbGlobalUsers.length > 0 && 'datos_personales' in sbGlobalUsers[0]) {
           hasDatosPersonalesColumn = true;
         }
-
-        const resAllRels = await supabaseClient.from('grupo_usuarios').select('*');
         sbAllGroupRelations = resAllRels.data || [];
 
         // Load or sync the currently logged-in user's personal profile from Supabase

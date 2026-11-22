@@ -27,32 +27,48 @@
       $('#quick-action-sheet')?.classList.add('hidden');
     }
 
-    function showToast(msg) {
+    function showToast(msg, actionLabel = null, actionFn = null) {
       let t = $('#claridad-toast');
       if (!t) {
         t = document.createElement('div');
         t.id = 'claridad-toast';
-        t.className = 'fixed left-1/2 -translate-x-1/2 bottom-20 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-2xl font-label-md text-xs font-bold shadow-2xl border border-white/10 transition-all duration-200 opacity-0 pointer-events-none';
+        t.className = 'fixed left-1/2 -translate-x-1/2 bottom-24 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-2xl font-label-md text-xs font-bold shadow-2xl border border-white/10 transition-all duration-200 opacity-0 flex items-center gap-3 max-w-[92vw]';
         document.body.appendChild(t);
       }
-      t.textContent = msg;
+      t.innerHTML = `<span class="truncate">${esc(msg)}</span>` + (actionLabel ? `<button id="toast-action-btn" class="px-2.5 py-1 rounded-lg bg-primary text-white text-[11px] font-extrabold flex-shrink-0 active-scale">${esc(actionLabel)}</button>` : '');
+      t.style.pointerEvents = actionLabel ? 'auto' : 'none';
+      if (actionLabel && typeof actionFn === 'function') {
+        const btn = t.querySelector('#toast-action-btn');
+        if (btn) btn.onclick = () => {
+          clearTimeout(t._timer);
+          t.classList.remove('opacity-100');
+          t.classList.add('opacity-0');
+          t.style.pointerEvents = 'none';
+          actionFn();
+        };
+      }
       t.classList.remove('opacity-0');
       t.classList.add('opacity-100');
       clearTimeout(t._timer);
       t._timer = setTimeout(() => {
         t.classList.remove('opacity-100');
         t.classList.add('opacity-0');
-      }, 2800);
+        t.style.pointerEvents = 'none';
+      }, actionLabel ? 5200 : 2800);
     }
 
     function toggleTheme() {
+      haptic('selection');
       const html = document.documentElement;
       const isDark = html.classList.toggle('dark');
       html.classList.toggle('light', !isDark);
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      if (S && S.settings) {
+      const metaTheme = $('#meta-theme-color');
+      if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0b0f19' : '#f6f7fb');
+      if (typeof window.claridadSetNativeTheme === 'function') window.claridadSetNativeTheme(isDark);
+      if (S && S.settings && loggedUserId) {
         S.settings.dark = isDark;
-        saveLocalState();
+        saveLocalState(true);
       }
       const ic = $('#theme-icon');
       if (ic) ic.textContent = isDark ? 'light_mode' : 'dark_mode';
@@ -65,6 +81,9 @@
       const html = document.documentElement;
       html.classList.toggle('dark', isDark);
       html.classList.toggle('light', !isDark);
+      const metaTheme = $('#meta-theme-color');
+      if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0b0f19' : '#f6f7fb');
+      if (typeof window.claridadSetNativeTheme === 'function') window.claridadSetNativeTheme(isDark);
       const ic = $('#theme-icon');
       if (ic) ic.textContent = isDark ? 'light_mode' : 'dark_mode';
     }
@@ -1038,6 +1057,7 @@ ALTER TABLE public.movimientos
         showToast("¡Nadie debe dinero en este grupo!");
         return;
       }
+      haptic('light');
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const gName = currGroup ? currGroup.nombre : "Cuentas Hugo";
       const totalDeuda = deudores.reduce((acc, u) => acc + parseFloat(u.deuda), 0);
@@ -1050,9 +1070,23 @@ ALTER TABLE public.movimientos
     }
 
     function sendIndividualWhatsAppClaim(personName, amount, concept = "") {
+      haptic('light');
       const motivo = concept ? ` por *${concept}*` : '';
       const msg = `¡Hola ${personName}! 👋 Te recuerdo que tienes pendiente *${fmt(amount)}*${motivo}. Cuando puedas mándame un Bizum y lo dejamos saldado. ¡Gracias! 💸`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function shareTextNatively(title, text) {
+      haptic('light');
+      if (typeof window.claridadNativeShare === 'function' && window.claridadNativeShare(title, text, '')) {
+        return;
+      }
+      if (navigator && typeof navigator.share === 'function') {
+        navigator.share({ title, text }).catch(() => {});
+        return;
+      }
+      navigator.clipboard?.writeText(text);
+      showToast('Texto copiado al portapapeles ✓');
     }
 
     function openBizumClaimModal(personName, amount, concept = "Cuentas pendientes") {
@@ -1097,9 +1131,9 @@ ALTER TABLE public.movimientos
             </div>
           </div>
 
-          <button onclick="navigator.clipboard?.writeText('${esc(fullText)}'); showToast('Mensaje completo copiado ✓')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5">
-            <span class="material-symbols-outlined text-[17px]">content_copy</span>
-            Copiar recordatorio completo al portapapeles
+          <button onclick="shareTextNatively('Recordatorio Bizum', '${esc(fullText)}')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5 active-scale">
+            <span class="material-symbols-outlined text-[17px]">ios_share</span>
+            Compartir / Copiar recordatorio
           </button>
 
           <button onclick="closeUniversalModal(); sendIndividualWhatsAppClaim('${esc(personName)}', ${amount}, '${esc(concept)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition flex items-center justify-center gap-2 active-scale">

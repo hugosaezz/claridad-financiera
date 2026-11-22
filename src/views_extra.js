@@ -57,71 +57,69 @@
         </div>
       ` : '';
 
-      // Top Executive Debt KPI Bento Grid (Stitch Design — Separated into Deudas)
+      // Top Executive Debt KPI Bento Grid (Neo-Fintech Rounded-3xl Design)
       const debtKpiHeaderHtml = `
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <!-- KPI 1: TOTAL ME DEBEN -->
-          <div onclick="activeP2PTab='owed'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owed' ? 'ring-2 ring-secondary' : ''}">
+          <div onclick="haptic('selection'); activeP2PTab='owed'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owed' ? 'ring-2 ring-secondary' : ''}">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">TOTAL ME DEBEN</span>
-              <span class="w-7 h-7 rounded-full bg-secondary-fixed/60 text-secondary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">ME DEBEN</span>
+              <span class="w-8 h-8 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">arrow_downward</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[25px] sm:text-[28px] leading-8 font-extrabold text-secondary tracking-tight tabular-nums">+${fmt(p2p.totalMeDeben)}</p>
+              <p class="font-display-currency-mobile text-[24px] sm:text-[28px] leading-8 font-extrabold text-secondary tracking-tight tabular-nums privacy-val">+${fmt(p2p.totalMeDeben)}</p>
               <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-secondary px-2 py-0.5 rounded-full bg-secondary/10">
-                <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                ${p2p.countMeDeben} cobro${p2p.countMeDeben === 1 ? '' : 's'} (${p2p.cloudOwedCount} grupo • ${p2p.localOwedCount} P2P)
+                ${p2p.countMeDeben} cobro${p2p.countMeDeben === 1 ? '' : 's'}
               </span>
             </div>
           </div>
 
           <!-- KPI 2: TOTAL QUE DEBO -->
-          <div onclick="activeP2PTab='owe'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owe' ? 'ring-2 ring-tertiary' : ''}">
+          <div onclick="haptic('selection'); activeP2PTab='owe'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owe' ? 'ring-2 ring-tertiary' : ''}">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">TOTAL QUE DEBO</span>
-              <span class="w-7 h-7 rounded-full bg-tertiary-fixed/60 text-tertiary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">DEBO</span>
+              <span class="w-8 h-8 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">arrow_upward</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[25px] sm:text-[28px] leading-8 font-extrabold text-tertiary tracking-tight tabular-nums">−${fmt(p2p.totalQueDebo)}</p>
+              <p class="font-display-currency-mobile text-[24px] sm:text-[28px] leading-8 font-extrabold text-tertiary tracking-tight tabular-nums privacy-val">−${fmt(p2p.totalQueDebo)}</p>
               <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-tertiary px-2 py-0.5 rounded-full bg-tertiary/10">
-                <span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                ${p2p.countQueDebo} pago${p2p.countQueDebo === 1 ? '' : 's'} (${p2p.cloudOweCount} grupo • ${p2p.localOweCount} P2P)
+                ${p2p.countQueDebo} pago${p2p.countQueDebo === 1 ? '' : 's'}
               </span>
             </div>
           </div>
 
           <!-- KPI 3: BALANCE NETO P2P (2 cols) -->
-          <div class="col-span-2 hero-indigo text-on-primary p-4 sm:p-5 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden">
+          <div class="col-span-2 ${p2p.balanceNeto >= 0 ? 'hero-emerald' : 'hero-indigo'} text-white p-5 rounded-3xl flex flex-col justify-between gap-3.5 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div class="flex flex-col">
-                <span class="font-label-sm text-[10px] text-on-primary-container font-bold tracking-wider uppercase">BALANCE NETO DE DEUDAS (${esc(userName.toUpperCase())})</span>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                  <span class="font-display-currency-mobile text-[30px] leading-9 font-extrabold text-white tabular-nums">${fmtSigned(p2p.balanceNeto)}</span>
-                  <span class="font-body-sm text-xs text-on-primary-container">${p2p.balanceNeto >= 0 ? 'a tu favor' : 'por saldar'}</span>
+                <span class="font-label-sm text-[10px] text-white/80 font-extrabold tracking-widest uppercase">BALANCE NETO DE DEUDAS (${esc(userName.toUpperCase())})</span>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="font-display-currency-mobile text-[32px] leading-9 font-extrabold text-white tabular-nums privacy-val">${fmtSigned(p2p.balanceNeto)}</span>
+                  <span class="font-body-sm text-xs text-white/80">${p2p.balanceNeto >= 0 ? 'a tu favor' : 'por saldar'}</span>
                 </div>
               </div>
-              <div class="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-right">
+              <div class="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-2xl border border-white/20 text-right">
                 <span class="font-label-sm text-xs text-white font-extrabold flex items-center justify-end gap-1">
-                  <span class="material-symbols-outlined text-[16px]">${p2p.balanceNeto >= 0 ? 'verified' : 'schedule'}</span>
+                  <span class="material-symbols-outlined text-[15px]">${p2p.balanceNeto >= 0 ? 'verified' : 'schedule'}</span>
                   ${p2p.balanceNeto >= 0 ? 'Saneado' : 'Pendiente'}
                 </span>
-                <p class="font-body-sm text-[11px] text-on-primary-container">${p2p.balanceNeto >= 0 ? 'Cobros cubren deudas' : 'Tienes pagos por saldar'}</p>
+                <p class="font-body-sm text-[10px] text-white/85">${p2p.balanceNeto >= 0 ? 'Cobros cubren deudas' : 'Pagos por saldar'}</p>
               </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-white/15 relative z-10">
-              <button onclick="openP2PDebtModal('owed')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
+            <div class="flex flex-wrap items-center gap-2 pt-2.5 border-t border-white/15 relative z-10">
+              <button onclick="haptic('light'); openP2PDebtModal('owed')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
                 <span class="material-symbols-outlined text-[15px]">arrow_downward</span>
                 + Me deben
               </button>
-              <button onclick="openP2PDebtModal('owe')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
+              <button onclick="haptic('light'); openP2PDebtModal('owe')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
                 <span class="material-symbols-outlined text-[15px]">arrow_upward</span>
                 + Debo
               </button>
-              <button onclick="openSplitBillModal()" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
+              <button onclick="haptic('light'); openSplitBillModal()" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
                 <span class="material-symbols-outlined text-[15px]">call_split</span>
                 Dividir ticket
               </button>

@@ -7,14 +7,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Claridad"/>
-  <meta name="theme-color" content="#faf8ff"/>
+  <meta name="theme-color" id="meta-theme-color" content="#f6f7fb"/>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png"/>
   <link rel="manifest" href="manifest.json"/>
   <title>Claridad Financiera — Control Mensual &amp; Deudas</title>
 
-  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Outlined (Stitch Design System) -->
+  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Rounded -->
   <link href="https://fonts.googleapis.com" rel="preconnect"/>
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
@@ -22,9 +22,9 @@
 
   <!-- Supabase JS v2 & Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
 
-  <!-- Tailwind CSS with Stitch "Claridad Financiera" Tokens -->
+  <!-- Tailwind CSS with Refined Neo-Fintech Design Tokens -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script id="tailwind-config">
     tailwind.config = {
@@ -37,48 +37,48 @@
             "secondary": "var(--secondary)",
             "surface-container-lowest": "var(--surface-container-lowest)",
             "primary-fixed-dim": "#c3c0ff",
-            "on-secondary-container": "#00714e",
-            "inverse-surface": "#283044",
-            "secondary-container": "#82f5c1",
-            "error-container": "#ffdad6",
-            "on-tertiary-fixed": "#40000c",
-            "tertiary-fixed": "#ffdada",
+            "on-secondary-container": "#047857",
+            "inverse-surface": "#182033",
+            "secondary-container": "#a7f3d0",
+            "error-container": "#ffe4e6",
+            "on-tertiary-fixed": "#4c0519",
+            "tertiary-fixed": "#ffe4e6",
             "surface": "var(--surface)",
-            "inverse-primary": "#c3c0ff",
+            "inverse-primary": "#c7d2fe",
             "background": "var(--background)",
-            "on-error-container": "#93000a",
+            "on-error-container": "#9f1239",
             "on-surface": "var(--on-surface)",
-            "inverse-on-surface": "#eef0ff",
+            "inverse-on-surface": "#f1f5f9",
             "outline-variant": "var(--outline-variant)",
-            "surface-tint": "#4d44e3",
+            "surface-tint": "#4f46e5",
             "on-primary": "#ffffff",
-            "secondary-fixed": "#85f8c4",
-            "surface-dim": "#d2d9f4",
+            "secondary-fixed": "#d1fae5",
+            "surface-dim": "#dce2f5",
             "on-surface-variant": "var(--on-surface-variant)",
             "tertiary": "var(--tertiary)",
-            "on-primary-fixed": "#0f0069",
-            "tertiary-fixed-dim": "#ffb3b6",
+            "on-primary-fixed": "#1e1b4b",
+            "tertiary-fixed-dim": "#fda4af",
             "outline": "var(--outline)",
-            "on-secondary-fixed": "#002114",
-            "on-tertiary-fixed-variant": "#920028",
+            "on-secondary-fixed": "#064e3b",
+            "on-tertiary-fixed-variant": "#be123c",
             "surface-container-low": "var(--surface-container-low)",
-            "primary-fixed": "#e2dfff",
+            "primary-fixed": "#e0e7ff",
             "primary": "var(--primary)",
             "primary-container": "var(--primary-container)",
-            "on-tertiary-container": "#ffd0d2",
-            "on-primary-fixed-variant": "#3323cc",
-            "tertiary-container": "#c20038",
-            "secondary-fixed-dim": "#68dba9",
+            "on-tertiary-container": "#ffe4e6",
+            "on-primary-fixed-variant": "#3730a3",
+            "tertiary-container": "#e11d48",
+            "secondary-fixed-dim": "#6ee7b7",
             "surface-bright": "var(--surface-bright)",
             "on-secondary": "#ffffff",
             "surface-container": "var(--surface-container)",
             "on-tertiary": "#ffffff",
             "on-background": "var(--on-background)",
-            "on-secondary-fixed-variant": "#005137",
-            "surface-variant": "#dae2fd",
+            "on-secondary-fixed-variant": "#065f46",
+            "surface-variant": "#e2e8f0",
             "surface-container-high": "var(--surface-container-high)",
-            "error": "#ba1a1a",
-            "on-primary-container": "#dad7ff"
+            "error": "#dc2626",
+            "on-primary-container": "#e0e7ff"
           },
           borderRadius: {
             "DEFAULT": "0.5rem",
@@ -86,18 +86,8 @@
             "lg": "1rem",
             "xl": "1.25rem",
             "2xl": "1.5rem",
+            "3xl": "1.75rem",
             "full": "9999px"
-          },
-          spacing: {
-            "space-md": "1rem",
-            "margin": "1rem",
-            "space-xs": "0.25rem",
-            "gutter": "1rem",
-            "space-sm": "0.5rem",
-            "space-lg": "1.5rem",
-            "space-xl": "2rem",
-            "margin-tablet": "1.5rem",
-            "margin-desktop": "2rem"
           },
           fontFamily: {
             "sans": ["Plus Jakarta Sans", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
@@ -114,17 +104,17 @@
             "label-sm": ["Plus Jakarta Sans", "sans-serif"]
           },
           fontSize: {
-            "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+            "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "700" }],
             "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
-            "display-currency": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
+            "display-currency": ["40px", { "lineHeight": "46px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
             "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
-            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
-            "display-currency-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
-            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.025em", "fontWeight": "800" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "display-currency-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.025em", "fontWeight": "800" }],
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
             "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
-            "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700" }]
+            "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "700" }]
           }
         }
       }
@@ -132,43 +122,48 @@
   </script>
   <style>
     :root {
-      --surface: #faf8ff;
-      --surface-bright: #faf8ff;
+      --surface: #f6f7fb;
+      --surface-bright: #ffffff;
       --surface-container-lowest: #ffffff;
-      --surface-container-low: #f2f3ff;
-      --surface-container: #eaedff;
-      --surface-container-high: #e2e7ff;
-      --surface-container-highest: #dae2fd;
-      --on-surface: #131b2e;
-      --on-surface-variant: #464555;
-      --outline: #777587;
-      --outline-variant: #c7c4d8;
-      --primary: #3525cd;
+      --surface-container-low: #f1f3f9;
+      --surface-container: #e8ebf5;
+      --surface-container-high: #dde2f0;
+      --surface-container-highest: #cfd6eb;
+      --on-surface: #0f172a;
+      --on-surface-variant: #475569;
+      --outline: #64748b;
+      --outline-variant: #cbd5e1;
+      --primary: #4338ca;
       --primary-container: #4f46e5;
-      --secondary: #006c4a;
-      --tertiary: #950029;
-      --background: #faf8ff;
-      --on-background: #131b2e;
+      --secondary: #059669;
+      --tertiary: #e11d48;
+      --background: #f6f7fb;
+      --on-background: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.82);
+      --glass-border: rgba(203, 213, 225, 0.55);
     }
     html.dark {
       --surface: #0b0f19;
-      --surface-bright: #111827;
-      --surface-container-lowest: #131b2e;
-      --surface-container-low: #19223a;
-      --surface-container: #1f2a47;
-      --surface-container-high: #263354;
-      --surface-container-highest: #2e3d63;
-      --on-surface: #eef0ff;
-      --on-surface-variant: #a6adce;
-      --outline: #777e9e;
-      --outline-variant: #2c3654;
-      --primary: #6366f1;
-      --primary-container: #4f46e5;
+      --surface-bright: #131b2e;
+      --surface-container-lowest: #111827;
+      --surface-container-low: #172035;
+      --surface-container: #1e2942;
+      --surface-container-high: #263454;
+      --surface-container-highest: #314166;
+      --on-surface: #f1f5f9;
+      --on-surface-variant: #94a3b8;
+      --outline: #64748b;
+      --outline-variant: #29354d;
+      --primary: #818cf8;
+      --primary-container: #6366f1;
       --secondary: #10b981;
       --tertiary: #fb7185;
       --background: #0b0f19;
-      --on-background: #eef0ff;
+      --on-background: #f1f5f9;
+      --glass-bg: rgba(15, 23, 42, 0.80);
+      --glass-border: rgba(51, 65, 85, 0.55);
     }
+
     html, body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--background);
@@ -181,6 +176,24 @@
       user-select: none;
       -webkit-user-select: none;
     }
+
+    /* Subtle Ambient Aura Background (Apple/Revolut depth without visual noise) */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(600px circle at 10% -5%, rgba(79, 70, 229, 0.08), transparent 60%),
+        radial-gradient(500px circle at 92% 8%, rgba(16, 185, 129, 0.06), transparent 55%);
+    }
+    html.dark body::before {
+      background:
+        radial-gradient(650px circle at 12% -5%, rgba(99, 102, 241, 0.14), transparent 60%),
+        radial-gradient(520px circle at 90% 10%, rgba(16, 185, 129, 0.09), transparent 55%);
+    }
+
     input, textarea, select {
       user-select: text;
       -webkit-user-select: text;
@@ -190,25 +203,40 @@
         font-size: 16px !important;
       }
     }
+
     .app-header-safe {
       padding-top: env(safe-area-inset-top, 0px);
     }
     .app-tabbar-safe {
-      padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+      padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
     }
     .app-body-safe {
-      padding-bottom: calc(96px + env(safe-area-inset-bottom, 16px));
+      padding-bottom: calc(108px + env(safe-area-inset-bottom, 16px));
     }
+
     .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 550, 'GRAD' 0, 'opsz' 24;
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
       user-select: none;
     }
     .material-symbols-outlined.filled {
       font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
     }
+
     .tabular-nums {
       font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
     }
+
+    /* Privacy Mode Blur (Toggle with eye button in header) */
+    body.privacy-blur .privacy-val {
+      filter: blur(8px);
+      user-select: none;
+      transition: filter 0.2s ease;
+    }
+    .privacy-val {
+      transition: filter 0.2s ease;
+    }
+
     .custom-scroll::-webkit-scrollbar {
       display: none;
     }
@@ -216,35 +244,87 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+
+    @keyframes slideUpSpring {
+      0% { transform: translateY(28px) scale(0.98); opacity: 0; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
     }
     .animate-slide-up {
-      animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: slideUpSpring 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in {
-      animation: fadeIn 0.18s ease-out forwards;
+      animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Elevated Glass & Bento Cards */
+    .glass-bar {
+      background-color: var(--glass-bg);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-color: var(--glass-border);
     }
     .bento-card {
       background-color: var(--surface-container-lowest);
-      border: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
-      box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(79, 70, 229, 0.03);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px -6px rgba(15, 23, 42, 0.05);
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    html.dark .bento-card {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 26px -8px rgba(0, 0, 0, 0.35);
     }
     .bento-card:hover {
       border-color: color-mix(in srgb, var(--primary) 35%, var(--outline-variant));
     }
+
+    /* Flagship Hero Card Mesh Gradient (Apple Card / Revolut Metal feel) */
     .hero-indigo {
-      background: linear-gradient(135deg, #4f46e5 0%, #3525cd 60%, #2618a8 100%);
-      box-shadow: 0 10px 28px -6px rgba(79, 70, 229, 0.38), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+      background:
+        radial-gradient(circle at 88% 12%, rgba(167, 139, 250, 0.42), transparent 45%),
+        radial-gradient(circle at 12% 95%, rgba(16, 185, 129, 0.26), transparent 48%),
+        linear-gradient(135deg, #4f46e5 0%, #3730a3 55%, #1e1b4b 100%);
+      box-shadow: 0 16px 36px -10px rgba(67, 56, 202, 0.45), 0 4px 12px -2px rgba(15, 23, 42, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .hero-emerald {
+      background:
+        radial-gradient(circle at 90% 10%, rgba(110, 231, 183, 0.35), transparent 45%),
+        linear-gradient(135deg, #059669 0%, #047857 58%, #064e3b 100%);
+      box-shadow: 0 14px 32px -10px rgba(5, 150, 105, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .active-scale {
+      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .active-scale:active {
-      transform: scale(0.97);
+      transform: scale(0.96);
+    }
+
+    /* Floating Dock Pill Navigation for Mobile & Desktop */
+    .floating-dock {
+      background-color: var(--glass-bg);
+      backdrop-filter: blur(22px) saturate(190%);
+      -webkit-backdrop-filter: blur(22px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 12px 34px -8px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    html.dark .floating-dock {
+      box-shadow: 0 14px 38px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    /* Skeleton pulse loader */
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--surface-container-low) 25%, var(--surface-container) 50%, var(--surface-container-low) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite linear;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
   </style>
 </head>

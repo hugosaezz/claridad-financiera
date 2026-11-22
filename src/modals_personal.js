@@ -57,22 +57,32 @@
 
       openUniversalModal(`
         <div class="flex flex-col gap-3.5">
+          <div class="w-10 h-1 rounded-full bg-outline-variant/60 mx-auto -mt-1 sm:hidden"></div>
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${existing ? (isExp ? 'Editar Gasto' : 'Editar Ingreso') : (isExp ? 'Registrar Gasto Personal' : 'Registrar Ingreso')}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container active-scale"><span class="material-symbols-outlined">close</span></button>
           </div>
 
           ${!existing ? `
-            <div class="grid grid-cols-2 bg-surface-container p-1 rounded-xl gap-1">
-              <button type="button" onclick="openTxModal('exp')" class="py-1.5 rounded-lg text-xs font-extrabold transition ${isExp ? 'bg-surface-container-lowest text-tertiary shadow-xs' : 'text-on-surface-variant'}">Gasto (−)</button>
-              <button type="button" onclick="openTxModal('inc')" class="py-1.5 rounded-lg text-xs font-extrabold transition ${!isExp ? 'bg-surface-container-lowest text-secondary shadow-xs' : 'text-on-surface-variant'}">Ingreso (+)</button>
+            <div class="grid grid-cols-2 bg-surface-container p-1 rounded-2xl gap-1">
+              <button type="button" onclick="haptic('selection'); openTxModal('exp')" class="py-2 rounded-xl text-xs font-extrabold transition ${isExp ? 'bg-surface-container-lowest text-tertiary shadow-xs' : 'text-on-surface-variant'}">Gasto (−)</button>
+              <button type="button" onclick="haptic('selection'); openTxModal('inc')" class="py-2 rounded-xl text-xs font-extrabold transition ${!isExp ? 'bg-surface-container-lowest text-secondary shadow-xs' : 'text-on-surface-variant'}">Ingreso (+)</button>
             </div>
           ` : ''}
 
-          <!-- Giant Stitch Currency Input -->
-          <div class="relative">
-            <input id="tx-amount" type="number" step="0.01" value="${esc(amountVal)}" placeholder="0,00" class="w-full py-3 px-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 font-display-currency-mobile text-3xl font-extrabold text-center text-on-surface focus:border-primary outline-none tabular-nums"/>
-            <span class="absolute right-4 top-1/2 -translate-y-1/2 font-headline-md text-xl font-extrabold text-outline">€</span>
+          <!-- Giant Neo-Fintech Currency Input + Quick Amount Chips -->
+          <div class="flex flex-col gap-2">
+            <div class="relative">
+              <input id="tx-amount" type="number" step="0.01" inputmode="decimal" value="${esc(amountVal)}" placeholder="0,00" class="w-full py-3.5 px-4 rounded-2xl bg-surface-container-low border border-outline-variant/45 font-display-currency text-3xl sm:text-4xl font-extrabold text-center text-on-surface focus:border-primary outline-none tabular-nums"/>
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 font-headline-md text-xl font-extrabold text-outline">€</span>
+            </div>
+            ${!existing ? `
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                ${(isExp ? [5, 10, 20, 50] : [50, 100, 250, 500]).map(v => `
+                  <button type="button" onclick="haptic('selection'); const inp=$('#tx-amount'); if(inp){ inp.value=((parseAmount(inp.value)||0)+${v}).toFixed(2); }" class="px-3 py-1 rounded-full bg-surface-container-low hover:bg-primary/12 text-xs font-extrabold text-primary border border-outline-variant/35 active-scale">+${v} €</button>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
 
           ${isExp ? `
@@ -249,11 +259,19 @@
       }
 
       renderAllViews();
+      haptic('success');
       showToast(isExp ? "Gasto guardado en Base de Datos ✓" : "Ingreso guardado en Base de Datos ✓");
     }
 
     async function deleteTx(kind, id) {
-      if (!confirm("¿Eliminar este movimiento de tu cuenta?")) return;
+      haptic('warning');
+      const snapshot = kind === 'exp'
+        ? (S.expenses || []).find(e => e.id === id)
+        : (S.incomes || []).find(i => i.id === id);
+      if (!snapshot) return;
+      const backupCopy = JSON.parse(JSON.stringify(snapshot));
+      delete backupCopy.db_id;
+
       closeUniversalModal();
       if (kind === "exp") {
         await dbDeletePersonalExpense(id);
@@ -261,7 +279,22 @@
         await dbDeletePersonalIncome(id);
       }
       renderAllViews();
-      showToast("Movimiento eliminado de la base de datos ✓");
+      showToast(
+        kind === "exp" ? `Gasto eliminado (${fmt(backupCopy.amount)})` : `Ingreso eliminado (${fmt(backupCopy.amount)})`,
+        "Deshacer",
+        async () => {
+          haptic('success');
+          if (kind === "exp") {
+            S.expenses.push(backupCopy);
+            await dbUpsertPersonalExpense(backupCopy);
+          } else {
+            S.incomes.push(backupCopy);
+            await dbUpsertPersonalIncome(backupCopy);
+          }
+          renderAllViews();
+          showToast("Movimiento restaurado ✓");
+        }
+      );
     }
 
     // Voice Recognition (Web Speech API)
@@ -1188,6 +1221,7 @@
     async function triggerQuickPresetExpense(presetId) {
       const qp = (S.quickPresets || []).find(x => x.id === presetId);
       if (!qp) return;
+      haptic('success');
       const newExp = {
         id: uid(),
         amount: Math.round(Number(qp.amount || 0) * 100) / 100,
@@ -1203,7 +1237,16 @@
       viewMk = monthKey(todayStr());
       renderAllViews();
       await dbUpsertPersonalExpense(newExp);
-      showToast(`⚡ Sumado en BD: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
+      showToast(
+        `⚡ Sumado: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)})`,
+        "Deshacer",
+        async () => {
+          haptic('light');
+          await dbDeletePersonalExpense(newExp.id);
+          renderAllViews();
+          showToast("Gasto rápido deshecho ✓");
+        }
+      );
     }
 
     function openEditQuickPresetsModal() {
@@ -1458,6 +1501,7 @@
     document.addEventListener("DOMContentLoaded", () => {
       loadLocalStateForCurrentUser();
       initTheme();
+      applyPrivacyModeUI();
       viewMk = monthKey(todayStr());
 
       // Prevent pinch-to-zoom and double-tap zoom on iOS Safari & WKWebView

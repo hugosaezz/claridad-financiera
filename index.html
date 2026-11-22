@@ -7,14 +7,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Claridad"/>
-  <meta name="theme-color" content="#faf8ff"/>
+  <meta name="theme-color" id="meta-theme-color" content="#f6f7fb"/>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png"/>
   <link rel="manifest" href="manifest.json"/>
   <title>Claridad Financiera — Control Mensual &amp; Deudas</title>
 
-  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Outlined (Stitch Design System) -->
+  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Rounded -->
   <link href="https://fonts.googleapis.com" rel="preconnect"/>
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
@@ -22,9 +22,9 @@
 
   <!-- Supabase JS v2 & Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
 
-  <!-- Tailwind CSS with Stitch "Claridad Financiera" Tokens -->
+  <!-- Tailwind CSS with Refined Neo-Fintech Design Tokens -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script id="tailwind-config">
     tailwind.config = {
@@ -37,48 +37,48 @@
             "secondary": "var(--secondary)",
             "surface-container-lowest": "var(--surface-container-lowest)",
             "primary-fixed-dim": "#c3c0ff",
-            "on-secondary-container": "#00714e",
-            "inverse-surface": "#283044",
-            "secondary-container": "#82f5c1",
-            "error-container": "#ffdad6",
-            "on-tertiary-fixed": "#40000c",
-            "tertiary-fixed": "#ffdada",
+            "on-secondary-container": "#047857",
+            "inverse-surface": "#182033",
+            "secondary-container": "#a7f3d0",
+            "error-container": "#ffe4e6",
+            "on-tertiary-fixed": "#4c0519",
+            "tertiary-fixed": "#ffe4e6",
             "surface": "var(--surface)",
-            "inverse-primary": "#c3c0ff",
+            "inverse-primary": "#c7d2fe",
             "background": "var(--background)",
-            "on-error-container": "#93000a",
+            "on-error-container": "#9f1239",
             "on-surface": "var(--on-surface)",
-            "inverse-on-surface": "#eef0ff",
+            "inverse-on-surface": "#f1f5f9",
             "outline-variant": "var(--outline-variant)",
-            "surface-tint": "#4d44e3",
+            "surface-tint": "#4f46e5",
             "on-primary": "#ffffff",
-            "secondary-fixed": "#85f8c4",
-            "surface-dim": "#d2d9f4",
+            "secondary-fixed": "#d1fae5",
+            "surface-dim": "#dce2f5",
             "on-surface-variant": "var(--on-surface-variant)",
             "tertiary": "var(--tertiary)",
-            "on-primary-fixed": "#0f0069",
-            "tertiary-fixed-dim": "#ffb3b6",
+            "on-primary-fixed": "#1e1b4b",
+            "tertiary-fixed-dim": "#fda4af",
             "outline": "var(--outline)",
-            "on-secondary-fixed": "#002114",
-            "on-tertiary-fixed-variant": "#920028",
+            "on-secondary-fixed": "#064e3b",
+            "on-tertiary-fixed-variant": "#be123c",
             "surface-container-low": "var(--surface-container-low)",
-            "primary-fixed": "#e2dfff",
+            "primary-fixed": "#e0e7ff",
             "primary": "var(--primary)",
             "primary-container": "var(--primary-container)",
-            "on-tertiary-container": "#ffd0d2",
-            "on-primary-fixed-variant": "#3323cc",
-            "tertiary-container": "#c20038",
-            "secondary-fixed-dim": "#68dba9",
+            "on-tertiary-container": "#ffe4e6",
+            "on-primary-fixed-variant": "#3730a3",
+            "tertiary-container": "#e11d48",
+            "secondary-fixed-dim": "#6ee7b7",
             "surface-bright": "var(--surface-bright)",
             "on-secondary": "#ffffff",
             "surface-container": "var(--surface-container)",
             "on-tertiary": "#ffffff",
             "on-background": "var(--on-background)",
-            "on-secondary-fixed-variant": "#005137",
-            "surface-variant": "#dae2fd",
+            "on-secondary-fixed-variant": "#065f46",
+            "surface-variant": "#e2e8f0",
             "surface-container-high": "var(--surface-container-high)",
-            "error": "#ba1a1a",
-            "on-primary-container": "#dad7ff"
+            "error": "#dc2626",
+            "on-primary-container": "#e0e7ff"
           },
           borderRadius: {
             "DEFAULT": "0.5rem",
@@ -86,18 +86,8 @@
             "lg": "1rem",
             "xl": "1.25rem",
             "2xl": "1.5rem",
+            "3xl": "1.75rem",
             "full": "9999px"
-          },
-          spacing: {
-            "space-md": "1rem",
-            "margin": "1rem",
-            "space-xs": "0.25rem",
-            "gutter": "1rem",
-            "space-sm": "0.5rem",
-            "space-lg": "1.5rem",
-            "space-xl": "2rem",
-            "margin-tablet": "1.5rem",
-            "margin-desktop": "2rem"
           },
           fontFamily: {
             "sans": ["Plus Jakarta Sans", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
@@ -114,17 +104,17 @@
             "label-sm": ["Plus Jakarta Sans", "sans-serif"]
           },
           fontSize: {
-            "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+            "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "700" }],
             "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
-            "display-currency": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
+            "display-currency": ["40px", { "lineHeight": "46px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
             "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
-            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
-            "display-currency-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
-            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.025em", "fontWeight": "800" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "display-currency-mobile": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.025em", "fontWeight": "800" }],
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
             "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
-            "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700" }]
+            "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "700" }]
           }
         }
       }
@@ -132,43 +122,48 @@
   </script>
   <style>
     :root {
-      --surface: #faf8ff;
-      --surface-bright: #faf8ff;
+      --surface: #f6f7fb;
+      --surface-bright: #ffffff;
       --surface-container-lowest: #ffffff;
-      --surface-container-low: #f2f3ff;
-      --surface-container: #eaedff;
-      --surface-container-high: #e2e7ff;
-      --surface-container-highest: #dae2fd;
-      --on-surface: #131b2e;
-      --on-surface-variant: #464555;
-      --outline: #777587;
-      --outline-variant: #c7c4d8;
-      --primary: #3525cd;
+      --surface-container-low: #f1f3f9;
+      --surface-container: #e8ebf5;
+      --surface-container-high: #dde2f0;
+      --surface-container-highest: #cfd6eb;
+      --on-surface: #0f172a;
+      --on-surface-variant: #475569;
+      --outline: #64748b;
+      --outline-variant: #cbd5e1;
+      --primary: #4338ca;
       --primary-container: #4f46e5;
-      --secondary: #006c4a;
-      --tertiary: #950029;
-      --background: #faf8ff;
-      --on-background: #131b2e;
+      --secondary: #059669;
+      --tertiary: #e11d48;
+      --background: #f6f7fb;
+      --on-background: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.82);
+      --glass-border: rgba(203, 213, 225, 0.55);
     }
     html.dark {
       --surface: #0b0f19;
-      --surface-bright: #111827;
-      --surface-container-lowest: #131b2e;
-      --surface-container-low: #19223a;
-      --surface-container: #1f2a47;
-      --surface-container-high: #263354;
-      --surface-container-highest: #2e3d63;
-      --on-surface: #eef0ff;
-      --on-surface-variant: #a6adce;
-      --outline: #777e9e;
-      --outline-variant: #2c3654;
-      --primary: #6366f1;
-      --primary-container: #4f46e5;
+      --surface-bright: #131b2e;
+      --surface-container-lowest: #111827;
+      --surface-container-low: #172035;
+      --surface-container: #1e2942;
+      --surface-container-high: #263454;
+      --surface-container-highest: #314166;
+      --on-surface: #f1f5f9;
+      --on-surface-variant: #94a3b8;
+      --outline: #64748b;
+      --outline-variant: #29354d;
+      --primary: #818cf8;
+      --primary-container: #6366f1;
       --secondary: #10b981;
       --tertiary: #fb7185;
       --background: #0b0f19;
-      --on-background: #eef0ff;
+      --on-background: #f1f5f9;
+      --glass-bg: rgba(15, 23, 42, 0.80);
+      --glass-border: rgba(51, 65, 85, 0.55);
     }
+
     html, body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--background);
@@ -181,6 +176,24 @@
       user-select: none;
       -webkit-user-select: none;
     }
+
+    /* Subtle Ambient Aura Background (Apple/Revolut depth without visual noise) */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(600px circle at 10% -5%, rgba(79, 70, 229, 0.08), transparent 60%),
+        radial-gradient(500px circle at 92% 8%, rgba(16, 185, 129, 0.06), transparent 55%);
+    }
+    html.dark body::before {
+      background:
+        radial-gradient(650px circle at 12% -5%, rgba(99, 102, 241, 0.14), transparent 60%),
+        radial-gradient(520px circle at 90% 10%, rgba(16, 185, 129, 0.09), transparent 55%);
+    }
+
     input, textarea, select {
       user-select: text;
       -webkit-user-select: text;
@@ -190,25 +203,40 @@
         font-size: 16px !important;
       }
     }
+
     .app-header-safe {
       padding-top: env(safe-area-inset-top, 0px);
     }
     .app-tabbar-safe {
-      padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+      padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
     }
     .app-body-safe {
-      padding-bottom: calc(96px + env(safe-area-inset-bottom, 16px));
+      padding-bottom: calc(108px + env(safe-area-inset-bottom, 16px));
     }
+
     .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 550, 'GRAD' 0, 'opsz' 24;
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
       user-select: none;
     }
     .material-symbols-outlined.filled {
       font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
     }
+
     .tabular-nums {
       font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
     }
+
+    /* Privacy Mode Blur (Toggle with eye button in header) */
+    body.privacy-blur .privacy-val {
+      filter: blur(8px);
+      user-select: none;
+      transition: filter 0.2s ease;
+    }
+    .privacy-val {
+      transition: filter 0.2s ease;
+    }
+
     .custom-scroll::-webkit-scrollbar {
       display: none;
     }
@@ -216,106 +244,176 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+
+    @keyframes slideUpSpring {
+      0% { transform: translateY(28px) scale(0.98); opacity: 0; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
     }
     .animate-slide-up {
-      animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: slideUpSpring 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in {
-      animation: fadeIn 0.18s ease-out forwards;
+      animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Elevated Glass & Bento Cards */
+    .glass-bar {
+      background-color: var(--glass-bg);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-color: var(--glass-border);
     }
     .bento-card {
       background-color: var(--surface-container-lowest);
-      border: 1px solid color-mix(in srgb, var(--outline-variant) 45%, transparent);
-      box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(79, 70, 229, 0.03);
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      border: 1px solid color-mix(in srgb, var(--outline-variant) 55%, transparent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px -6px rgba(15, 23, 42, 0.05);
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    html.dark .bento-card {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 26px -8px rgba(0, 0, 0, 0.35);
     }
     .bento-card:hover {
       border-color: color-mix(in srgb, var(--primary) 35%, var(--outline-variant));
     }
+
+    /* Flagship Hero Card Mesh Gradient (Apple Card / Revolut Metal feel) */
     .hero-indigo {
-      background: linear-gradient(135deg, #4f46e5 0%, #3525cd 60%, #2618a8 100%);
-      box-shadow: 0 10px 28px -6px rgba(79, 70, 229, 0.38), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+      background:
+        radial-gradient(circle at 88% 12%, rgba(167, 139, 250, 0.42), transparent 45%),
+        radial-gradient(circle at 12% 95%, rgba(16, 185, 129, 0.26), transparent 48%),
+        linear-gradient(135deg, #4f46e5 0%, #3730a3 55%, #1e1b4b 100%);
+      box-shadow: 0 16px 36px -10px rgba(67, 56, 202, 0.45), 0 4px 12px -2px rgba(15, 23, 42, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .hero-emerald {
+      background:
+        radial-gradient(circle at 90% 10%, rgba(110, 231, 183, 0.35), transparent 45%),
+        linear-gradient(135deg, #059669 0%, #047857 58%, #064e3b 100%);
+      box-shadow: 0 14px 32px -10px rgba(5, 150, 105, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .active-scale {
+      transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .active-scale:active {
-      transform: scale(0.97);
+      transform: scale(0.96);
+    }
+
+    /* Floating Dock Pill Navigation for Mobile & Desktop */
+    .floating-dock {
+      background-color: var(--glass-bg);
+      backdrop-filter: blur(22px) saturate(190%);
+      -webkit-backdrop-filter: blur(22px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 12px 34px -8px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    html.dark .floating-dock {
+      box-shadow: 0 14px 38px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    /* Skeleton pulse loader */
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, var(--surface-container-low) 25%, var(--surface-container) 50%, var(--surface-container-low) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite linear;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
   </style>
 </head>
 
 <body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md app-body-safe selection:bg-primary/20">
 
-  <!-- TOP APP BAR (Extends seamlessly behind iPhone status bar / clock / Dynamic Island via app-header-safe) -->
-  <header class="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-outline-variant/40 shadow-xs transition-all duration-150 app-header-safe">
-    <div class="max-w-5xl mx-auto px-4 h-16 flex justify-between items-center gap-2">
-      <!-- Left: Brand Logo, User Profile & Greeting -->
+  <!-- TOP GLASS APP BAR (Extends seamlessly behind iPhone status bar / Dynamic Island) -->
+  <header class="sticky top-0 z-40 glass-bar border-b transition-all duration-200 app-header-safe">
+    <div class="max-w-5xl mx-auto px-4 h-[62px] flex justify-between items-center gap-2">
+      <!-- Left: Brand, Avatar & Account Switcher -->
       <div class="flex items-center gap-2.5 min-w-0">
-        <img src="assets/logo.svg" alt="Claridad Financiera Logo" onclick="switchMainView('inicio')" class="w-10 h-10 rounded-xl shadow-xs cursor-pointer flex-shrink-0 hover:scale-105 transition-transform"/>
-        <button onclick="openProfileOrLogin()" class="relative cursor-pointer group focus:outline-none flex-shrink-0" title="Cambiar de usuario o gestionar cuenta">
+        <button onclick="switchMainView(loggedUserId ? 'inicio' : 'cuentas')" class="w-9 h-9 rounded-xl shadow-xs cursor-pointer flex-shrink-0 overflow-hidden active-scale focus:outline-none">
+          <img src="assets/logo.svg" alt="Claridad Financiera" class="w-full h-full object-cover"/>
+        </button>
+
+        <button onclick="openProfileOrLogin()" class="relative cursor-pointer group focus:outline-none flex-shrink-0 active-scale" title="Cuenta y cambio de usuario">
           <div id="header-avatar" class="w-9 h-9 rounded-full bg-surface-container-high text-primary font-extrabold text-xs flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all">
-            H
+            👤
           </div>
           <span id="cloud-status-dot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-secondary rounded-full ring-2 ring-surface" title="Sincronizado con Supabase"></span>
         </button>
+
         <div class="flex flex-col min-w-0 cursor-pointer" onclick="openProfileOrLogin()">
           <div class="flex items-center gap-1.5">
-            <span id="header-section-title" class="font-headline-sm text-[16px] sm:text-[17px] font-extrabold text-on-surface leading-tight tracking-tight truncate">Control Mensual</span>
-            <span id="header-role-badge" class="hidden text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">Admin</span>
+            <span id="header-section-title" class="font-headline-sm text-[15px] sm:text-[17px] font-extrabold text-on-surface leading-tight tracking-tight truncate">Claridad</span>
+            <span id="header-role-badge" class="hidden text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-primary/12 text-primary">Invitado</span>
           </div>
-          <span id="header-greeting" class="font-label-sm text-[11px] text-on-surface-variant font-semibold truncate">Hola, Hugo 👋 • Cambiar usuario</span>
+          <span id="header-greeting" class="font-label-sm text-[11px] text-on-surface-variant font-medium truncate">Sin sesión • Toca para entrar</span>
         </div>
       </div>
 
-      <!-- Center: Quick Mode Switcher Pill (Control Mensual vs Deudas P2P) -->
-      <div class="hidden sm:flex items-center bg-surface-container p-1 rounded-xl border border-outline-variant/30 gap-1">
-        <button onclick="switchMainView('inicio')" id="top-pill-mensual" class="px-3 py-1.5 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1">
+      <!-- Center: Desktop Mode Switcher Pill -->
+      <div class="hidden md:flex items-center bg-surface-container/80 p-1 rounded-2xl border border-outline-variant/40 gap-1">
+        <button onclick="switchMainView('inicio')" id="top-pill-mensual" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
           Control Mensual
         </button>
-        <button onclick="switchMainView('cuentas')" id="top-pill-deudas" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1">
+        <button onclick="switchMainView('cuentas')" id="top-pill-deudas" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[16px]">swap_horiz</span>
           Deudas &amp; Grupos
         </button>
       </div>
 
-      <!-- Right: iOS .IPA Download, User Switcher, Theme, Notifications & Quick New Action -->
-      <div class="flex items-center gap-1.5 flex-shrink-0">
-        <button onclick="openIOSDownloadModal()" class="flex items-center gap-1 px-2.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold transition active-scale" title="Descargar aplicación en iPhone (.IPA / iOS)">
+      <!-- Right: Privacy Eye, iOS .IPA, Theme, Notifications -->
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <!-- Privacy Blur Toggle -->
+        <button onclick="togglePrivacyMode()" id="btn-privacy-toggle" aria-label="Ocultar o mostrar importes" class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Modo Privacidad (Ocultar importes)">
+          <span id="privacy-icon" class="material-symbols-outlined text-[21px]">visibility</span>
+        </button>
+
+        <!-- iPhone .IPA & Apple Pay Shortcuts -->
+        <button onclick="openIOSDownloadModal()" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold transition active-scale" title="App iPhone .IPA y Atajo Apple Pay">
           <span class="material-symbols-outlined text-[18px]">phone_iphone</span>
           <span class="hidden lg:inline">iPhone .IPA</span>
         </button>
 
-        <button onclick="openProfileOrLogin()" class="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/30 text-xs font-bold text-on-surface transition active-scale" title="Cambiar de usuario o crear cuenta">
-          <span class="material-symbols-outlined text-[17px] text-primary">switch_account</span>
-          <span id="header-user-pill">Hugo</span>
+        <!-- Desktop User Pill -->
+        <button onclick="openProfileOrLogin()" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 text-xs font-bold text-on-surface transition active-scale" title="Cambiar de usuario o iniciar sesión">
+          <span class="material-symbols-outlined text-[16px] text-primary">switch_account</span>
+          <span id="header-user-pill">Iniciar Sesión</span>
         </button>
 
+        <!-- Theme Toggle -->
         <button onclick="toggleTheme()" aria-label="Alternar tema claro/oscuro" class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Modo oscuro / claro">
-          <span id="theme-icon" class="material-symbols-outlined text-[22px]">dark_mode</span>
+          <span id="theme-icon" class="material-symbols-outlined text-[21px]">dark_mode</span>
         </button>
 
-        <button onclick="toggleNotificationsDrawer()" aria-label="Notificaciones y alertas" class="relative p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Pagos pendientes y alertas">
-          <span class="material-symbols-outlined text-[23px]">notifications</span>
-          <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-surface">0</span>
+        <!-- Notifications Bell -->
+        <button onclick="toggleNotificationsDrawer()" aria-label="Notificaciones y alertas" class="relative p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Centro de avisos">
+          <span class="material-symbols-outlined text-[22px]">notifications</span>
+          <span id="notif-badge" class="hidden absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-surface">0</span>
         </button>
       </div>
     </div>
   </header>
 
   <!-- NOTIFICATIONS & PENDING APPROVALS DRAWER -->
-  <div id="notifications-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex justify-end">
+  <div id="notifications-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-xs flex justify-end">
     <div class="bg-surface-container-lowest w-full max-w-md h-full shadow-2xl border-l border-outline-variant/30 flex flex-col justify-between p-5 app-header-safe app-tabbar-safe overflow-y-auto animate-fade-in">
       <div class="flex flex-col gap-4 pt-2">
         <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary">notifications_active</span>
-            <h3 class="font-headline-sm text-headline-sm font-bold text-on-surface">Centro de Avisos</h3>
+          <div class="flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-[20px]">notifications_active</span>
+            </span>
+            <div>
+              <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Centro de Avisos</h3>
+              <p class="text-[11px] text-on-surface-variant">Pagos pendientes, vencimientos y devoluciones</p>
+            </div>
           </div>
           <button onclick="toggleNotificationsDrawer()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container">
             <span class="material-symbols-outlined">close</span>
@@ -323,212 +421,210 @@
         </div>
         <div id="notifications-content" class="flex flex-col gap-3"></div>
       </div>
-      <button onclick="toggleNotificationsDrawer()" class="mt-4 w-full py-3 rounded-xl bg-surface-container text-on-surface font-bold text-sm hover:bg-surface-container-high transition">
+      <button onclick="toggleNotificationsDrawer()" class="mt-4 w-full py-3 rounded-xl bg-surface-container text-on-surface font-bold text-sm hover:bg-surface-container-high transition active-scale">
         Cerrar panel
       </button>
     </div>
   </div>
 
-  <!-- QUICK ACTION BOTTOM SHEET MODAL (Triggered by Central '+' Button) -->
+  <!-- QUICK ACTION BOTTOM SHEET MODAL (Triggered by Central '+' Floating Button) -->
   <div id="quick-action-sheet" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 flex flex-col gap-3 animate-slide-up max-h-[90dvh] overflow-y-auto">
+    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 flex flex-col gap-3.5 animate-slide-up max-h-[90dvh] overflow-y-auto">
+      <!-- Native iOS Sheet Handle -->
+      <div class="w-10 h-1 rounded-full bg-outline-variant/60 mx-auto -mt-1 mb-0.5 sm:hidden"></div>
+
       <div class="flex justify-between items-center pb-2 border-b border-outline-variant/25">
         <div>
-          <h3 class="font-headline-sm text-headline-sm text-on-surface font-extrabold">Nueva operación rápida</h3>
-          <p class="font-body-sm text-xs text-on-surface-variant">Control mensual o apartado de deudas</p>
+          <h3 class="font-headline-sm text-base text-on-surface font-extrabold">Nueva operación rápida</h3>
+          <p class="font-body-sm text-xs text-on-surface-variant">Registra al instante en tu base de datos</p>
         </div>
-        <button onclick="closeQuickActionSheet()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container">
+        <button onclick="closeQuickActionSheet()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container active-scale">
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
-      <div class="grid grid-cols-1 gap-2.5">
-        <div class="text-[10px] font-extrabold uppercase tracking-wider text-primary px-1">Control Mensual (Mi Bolsillo)</div>
-
-        <!-- 1. Gasto personal -->
-        <button onclick="closeQuickActionSheet(); openTxModal('exp')" class="flex items-center justify-between p-3.5 rounded-2xl border border-outline-variant/50 bg-surface-container-low hover:bg-surface-container transition-all text-left active-scale">
-          <div class="flex items-center gap-3">
-            <span class="w-11 h-11 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined text-[22px]">receipt_long</span>
-            </span>
-            <div>
-              <p class="font-label-lg text-sm text-on-surface font-extrabold">Gasto personal mensual</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Supermercado, restaurante, factura, voz o #tag</p>
-            </div>
+      <!-- Primary Grid: Control Mensual -->
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-primary px-1">Control Mensual (Mi Bolsillo)</div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <button onclick="haptic('light'); closeQuickActionSheet(); openTxModal('exp')" class="p-3.5 rounded-2xl border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-all text-left flex flex-col gap-2 active-scale">
+          <span class="w-10 h-10 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+          </span>
+          <div>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">Gasto Mensual</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Manual, voz o #tag</p>
           </div>
-          <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
 
-        <!-- 2. Escáner de tickets por Foto / OCR -->
-        <button onclick="closeQuickActionSheet(); openReceiptScannerModal()" class="flex items-center justify-between p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
-          <div class="flex items-center gap-3">
-            <span class="w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center">
-              <span class="material-symbols-outlined text-[22px]">photo_camera</span>
-            </span>
-            <div>
-              <p class="font-label-lg text-sm text-on-surface font-extrabold">Escanear ticket con cámara (OCR)</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Haz foto al recibo y extrae importe y comercio solo</p>
-            </div>
+        <button onclick="haptic('light'); closeQuickActionSheet(); openTxModal('inc')" class="p-3.5 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left flex flex-col gap-2 active-scale">
+          <span class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">trending_up</span>
+          </span>
+          <div>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">Nuevo Ingreso</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Extra, Bizum, nómina</p>
           </div>
-          <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
 
-        <!-- 3. Ingreso personal -->
-        <button onclick="closeQuickActionSheet(); openTxModal('inc')" class="flex items-center justify-between p-3.5 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
-          <div class="flex items-center gap-3">
-            <span class="w-11 h-11 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined text-[22px]">account_balance_wallet</span>
-            </span>
-            <div>
-              <p class="font-label-lg text-sm text-on-surface font-extrabold">Ingreso extra o Nómina</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Freelance, Bizum recibido, ventas o regalo</p>
-            </div>
+        <button onclick="haptic('light'); closeQuickActionSheet(); openReceiptScannerModal()" class="p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-left flex flex-col gap-2 active-scale">
+          <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">photo_camera</span>
+          </span>
+          <div>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">Escanear Ticket</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Cámara / OCR auto</p>
           </div>
-          <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
 
-        <div class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant px-1 pt-1">Apartado Deudas (Me deben / Debo / Grupos)</div>
-
-        <!-- 4. Me deben (P2P) -->
-        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owed')" class="flex items-center justify-between p-3.5 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
-          <div class="flex items-center gap-3">
-            <span class="w-11 h-11 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined text-[22px]">arrow_downward</span>
-            </span>
-            <div>
-              <p class="font-label-lg text-sm text-on-surface font-extrabold">Me deben (Cobro pendiente)</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Préstamo o gasto anticipado a otra persona</p>
-            </div>
+        <button onclick="haptic('light'); closeQuickActionSheet(); openTxModal('exp', null, true)" class="p-3.5 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left flex flex-col gap-2 active-scale">
+          <span class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">mic</span>
+          </span>
+          <div>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">Dictar por Voz</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">«12 euros de menú»</p>
           </div>
-          <span class="material-symbols-outlined text-outline">chevron_right</span>
         </button>
+      </div>
 
-        <!-- 5. Debo (P2P) -->
-        <button onclick="closeQuickActionSheet(); openP2PDebtModal('owe')" class="flex items-center justify-between p-3.5 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left active-scale">
+      <!-- Secondary List: Apartado Deudas -->
+      <div class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant px-1 pt-1">Apartado Deudas &amp; Grupos</div>
+      <div class="grid grid-cols-1 gap-2">
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="haptic('light'); closeQuickActionSheet(); openP2PDebtModal('owed')" class="flex items-center gap-2.5 p-3 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
+            <span class="w-9 h-9 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[19px]">arrow_downward</span>
+            </span>
+            <div class="min-w-0">
+              <p class="font-label-lg text-xs text-on-surface font-extrabold truncate">Me deben</p>
+              <p class="text-[10px] text-on-surface-variant truncate">Cobro P2P</p>
+            </div>
+          </button>
+
+          <button onclick="haptic('light'); closeQuickActionSheet(); openP2PDebtModal('owe')" class="flex items-center gap-2.5 p-3 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left active-scale">
+            <span class="w-9 h-9 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[19px]">arrow_upward</span>
+            </span>
+            <div class="min-w-0">
+              <p class="font-label-lg text-xs text-on-surface font-extrabold truncate">Debo</p>
+              <p class="text-[10px] text-on-surface-variant truncate">Pago P2P</p>
+            </div>
+          </button>
+        </div>
+
+        <button onclick="haptic('light'); closeQuickActionSheet(); openGlobalChargeModal()" class="flex items-center justify-between p-3 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
           <div class="flex items-center gap-3">
-            <span class="w-11 h-11 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
-              <span class="material-symbols-outlined text-[22px]">arrow_upward</span>
+            <span class="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+              <span class="material-symbols-outlined text-[19px]">groups</span>
             </span>
             <div>
-              <p class="font-label-lg text-sm text-on-surface font-extrabold">Debo (Pago pendiente)</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Deuda que tengo que saldar con alguien</p>
+              <p class="font-label-lg text-xs text-on-surface font-extrabold">Repartir cargo en Grupo Cloud</p>
+              <p class="text-[11px] text-on-surface-variant">Partes iguales o importes exactos</p>
             </div>
           </div>
-          <span class="material-symbols-outlined text-outline">chevron_right</span>
-        </button>
-
-        <!-- 6. Cargo en Grupo Cloud (Supabase) -->
-        <button onclick="closeQuickActionSheet(); openGlobalChargeModal()" class="flex items-center justify-between p-3.5 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
-          <div class="flex items-center gap-3">
-            <span class="w-11 h-11 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
-              <span class="material-symbols-outlined text-[22px]">groups</span>
-            </span>
-            <div>
-              <p class="font-label-lg text-sm text-on-surface font-extrabold">Repartir cargo en Grupo Cloud</p>
-              <p class="font-body-sm text-xs text-on-surface-variant">Partes iguales o importes exactos en Supabase</p>
-            </div>
-          </div>
-          <span class="material-symbols-outlined text-outline">chevron_right</span>
+          <span class="material-symbols-outlined text-outline text-[19px]">chevron_right</span>
         </button>
       </div>
     </div>
   </div>
 
   <!-- MAIN CANVAS CONTAINER -->
-  <main class="w-full max-w-5xl mx-auto px-4 pt-4 flex flex-col gap-5">
+  <main class="w-full max-w-5xl mx-auto px-3.5 sm:px-5 pt-4 flex flex-col gap-4 sm:gap-5">
 
     <!-- DATE & PERIOD FILTER BAR (Shown on Monthly Control views: Mensual, Movimientos, Analítica) -->
-    <section id="period-filter-bar" class="flex flex-wrap items-center justify-between gap-2 bento-card px-4 py-2.5 rounded-2xl">
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary">calendar_month</span>
-        <span id="period-label" class="font-headline-sm text-[16px] leading-[22px] font-extrabold text-on-surface capitalize">Noviembre 2026</span>
-        <span id="streak-pill" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300" title="Racha de días sin gastar">
-          🔥 0 días sin gastar
+    <section id="period-filter-bar" class="flex flex-wrap items-center justify-between gap-2 bento-card px-3.5 py-2.5 rounded-2xl">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+          <span class="material-symbols-outlined text-[18px]">calendar_month</span>
+        </span>
+        <span id="period-label" class="font-headline-sm text-[15px] sm:text-[16px] leading-[22px] font-extrabold text-on-surface capitalize truncate">Noviembre 2026</span>
+        <span id="streak-pill" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 flex-shrink-0" title="Racha de días sin gastar">
+          🔥 0 días
         </span>
       </div>
       <div class="flex items-center gap-1.5">
-        <div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30">
-          <button onclick="shiftMonth(-1)" aria-label="Mes anterior" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
-            <span class="material-symbols-outlined text-[19px]">chevron_left</span>
+        <div class="flex items-center gap-0.5 bg-surface-container-low p-1 rounded-xl border border-outline-variant/35">
+          <button onclick="haptic('selection'); shiftMonth(-1)" aria-label="Mes anterior" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors active-scale">
+            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
           </button>
-          <button onclick="resetToCurrentMonth()" id="btn-period-today" class="font-label-md text-xs text-primary px-2.5 py-1 rounded-md font-bold hover:bg-surface-container transition-colors">
+          <button onclick="haptic('selection'); resetToCurrentMonth()" id="btn-period-today" class="font-label-md text-xs text-primary px-2.5 py-1 rounded-lg font-bold hover:bg-surface-container transition-colors">
             Actual
           </button>
-          <button onclick="shiftMonth(1)" aria-label="Mes siguiente" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors">
-            <span class="material-symbols-outlined text-[19px]">chevron_right</span>
+          <button onclick="haptic('selection'); shiftMonth(1)" aria-label="Mes siguiente" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors active-scale">
+            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
           </button>
         </div>
-        <button onclick="cargarDatosSupabase(true)" class="p-2 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all active-scale" title="Sincronizar tu cuenta con Supabase Cloud">
-          <span id="sync-icon" class="material-symbols-outlined text-[19px]">sync</span>
+        <button onclick="haptic('medium'); cargarDatosSupabase(true)" class="p-2 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container border border-outline-variant/35 transition-all active-scale" title="Sincronizar con Supabase Cloud">
+          <span id="sync-icon" class="material-symbols-outlined text-[18px]">sync</span>
         </button>
       </div>
     </section>
 
-    <!-- VIEW 1: CONTROL MENSUAL (Strictly Personal Monthly Finances — No P2P Debts mixed in) -->
-    <div id="view-inicio" class="flex flex-col gap-5 animate-fade-in"></div>
+    <!-- VIEW 1: CONTROL MENSUAL -->
+    <div id="view-inicio" class="flex flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
-    <!-- VIEW 2: MOVIMIENTOS DEL MES (Personal Expenses & Incomes Ledger) -->
-    <div id="view-gastos" class="hidden flex-col gap-5 animate-fade-in"></div>
+    <!-- VIEW 2: MOVIMIENTOS DEL MES -->
+    <div id="view-gastos" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
-    <!-- VIEW 3: DEUDAS & GRUPOS (Dedicated Separate Section: Me deben, Debo, Grupos Cloud, Tricount) -->
-    <div id="view-cuentas" class="hidden flex-col gap-5 animate-fade-in"></div>
+    <!-- VIEW 3: DEUDAS & GRUPOS -->
+    <div id="view-cuentas" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
     <!-- VIEW 4: ANALÍTICA, ASESOR & SIMULADOR -->
-    <div id="view-analitica" class="hidden flex-col gap-5 animate-fade-in"></div>
+    <div id="view-analitica" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
     <!-- VIEW 5: PLANIFICACIÓN, OBJETIVOS, VIAJES & CUENTA -->
-    <div id="view-ajustes" class="hidden flex-col gap-5 animate-fade-in"></div>
+    <div id="view-ajustes" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (Large Thumb-Friendly iPhone Tabs + Central Floating '+' Button) -->
-  <nav class="fixed bottom-0 left-0 w-full z-40 bg-surface-container-lowest/95 backdrop-blur-lg border-t border-outline-variant/40 shadow-2xl app-tabbar-safe">
-    <div class="max-w-lg mx-auto grid grid-cols-5 items-center px-2 pt-2 min-h-[74px]">
+  <!-- FLOATING GLASS DOCK NAVIGATION (Thumb-Friendly iPhone & Web Pill Dock + Central '+' Action) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 pointer-events-none px-3 app-tabbar-safe">
+    <div class="pointer-events-auto max-w-md mx-auto floating-dock rounded-[28px] grid grid-cols-5 items-center px-1.5 py-1.5 min-h-[68px]">
       <!-- Tab 1: Mensual -->
-      <button onclick="switchMainView('inicio')" id="nav-inicio" class="nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale">
-        <span class="nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined filled text-[26px]">account_balance_wallet</span>
+      <button onclick="haptic('selection'); switchMainView('inicio')" id="nav-inicio" class="nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale">
+        <span class="nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined filled text-[24px]">account_balance_wallet</span>
         </span>
-        <span class="text-[12px] leading-tight tracking-tight">Mensual</span>
+        <span class="text-[11px] leading-tight tracking-tight">Mensual</span>
       </button>
 
-      <!-- Tab 2: Deudas (Separated Section) -->
-      <button onclick="switchMainView('cuentas')" id="nav-cuentas" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative">
-        <span class="nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined text-[26px]">swap_horiz</span>
+      <!-- Tab 2: Deudas -->
+      <button onclick="haptic('selection'); switchMainView('cuentas')" id="nav-cuentas" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative">
+        <span class="nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[24px]">swap_horiz</span>
         </span>
-        <span class="text-[12px] leading-tight tracking-tight">Deudas</span>
+        <span class="text-[11px] leading-tight tracking-tight">Deudas</span>
       </button>
 
-      <!-- Center: Large Floating '+' Button for 1-Thumb iPhone Operation -->
+      <!-- Center: Elevated Floating '+' Action Button -->
       <div class="flex flex-col items-center justify-center">
-        <button onclick="openQuickActionSheet()" aria-label="Nueva operación" class="w-14 h-14 -mt-6 rounded-2xl hero-indigo text-white flex items-center justify-center shadow-xl ring-4 ring-surface active-scale transition-transform">
-          <span class="material-symbols-outlined text-[32px]">add</span>
+        <button onclick="haptic('medium'); openQuickActionSheet()" aria-label="Nueva operación" class="w-14 h-14 -mt-7 rounded-[20px] hero-indigo text-white flex items-center justify-center shadow-xl ring-4 ring-surface active-scale transition-transform">
+          <span class="material-symbols-outlined text-[30px]">add</span>
         </button>
-        <span class="text-[11px] font-extrabold text-primary mt-0.5 leading-tight">Añadir</span>
+        <span class="text-[10px] font-extrabold text-primary mt-0.5 leading-tight">Añadir</span>
       </div>
 
       <!-- Tab 4: Analítica -->
-      <button onclick="switchMainView('analitica')" id="nav-analitica" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
-        <span class="nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined text-[26px]">insights</span>
+      <button onclick="haptic('selection'); switchMainView('analitica')" id="nav-analitica" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
+        <span class="nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[24px]">insights</span>
         </span>
-        <span class="text-[12px] leading-tight tracking-tight">Analítica</span>
+        <span class="text-[11px] leading-tight tracking-tight">Analítica</span>
       </button>
 
       <!-- Tab 5: Plan & Más -->
-      <button onclick="switchMainView('ajustes')" id="nav-ajustes" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
-        <span class="nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined text-[26px]">tune</span>
+      <button onclick="haptic('selection'); switchMainView('ajustes')" id="nav-ajustes" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
+        <span class="nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all">
+          <span class="material-symbols-outlined text-[24px]">tune</span>
         </span>
-        <span class="text-[12px] leading-tight tracking-tight">Plan &amp; Más</span>
+        <span class="text-[11px] leading-tight tracking-tight">Plan &amp; Más</span>
       </button>
     </div>
   </nav>
 
-  <!-- UNIVERSAL MODAL CONTAINER -->
-  <div id="universal-modal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div id="universal-modal-box" class="bg-surface-container-lowest w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 max-h-[92dvh] overflow-y-auto animate-slide-up">
+  <!-- UNIVERSAL MODAL CONTAINER (iOS Bottom Sheet on Mobile, Centered Card on Desktop) -->
+  <div id="universal-modal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div id="universal-modal-box" class="bg-surface-container-lowest w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 max-h-[92dvh] overflow-y-auto animate-slide-up">
     </div>
   </div>
 
@@ -623,6 +719,45 @@
     const dstr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     const todayStr = () => dstr(new Date());
     const monthKey = (ds) => String(ds || todayStr()).slice(0, 7);
+
+    // Native iOS Haptic Feedback Bridge (graceful no-op on Web)
+    function haptic(style = 'light') {
+      try {
+        if (typeof window.claridadHaptic === 'function') {
+          window.claridadHaptic(style);
+        } else if (navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(style === 'heavy' ? 20 : style === 'medium' ? 12 : 6);
+        }
+      } catch (e) {}
+    }
+
+    // Privacy Blur Mode (Hide / Show Currency Amounts)
+    let isPrivacyMode = localStorage.getItem('claridad_privacy_mode') === 'true';
+    function applyPrivacyModeUI() {
+      if (document.body) {
+        document.body.classList.toggle('privacy-blur', isPrivacyMode);
+      }
+      const ic = $('#privacy-icon');
+      const btn = $('#btn-privacy-toggle');
+      if (ic) ic.textContent = isPrivacyMode ? 'visibility_off' : 'visibility';
+      if (btn) btn.classList.toggle('text-primary', isPrivacyMode);
+    }
+    function togglePrivacyMode() {
+      haptic('selection');
+      isPrivacyMode = !isPrivacyMode;
+      localStorage.setItem('claridad_privacy_mode', isPrivacyMode ? 'true' : 'false');
+      applyPrivacyModeUI();
+      if (typeof showToast === 'function') {
+        showToast(isPrivacyMode ? '🙈 Modo privacidad activado (importes ocultos)' : '👁️ Importes visibles');
+      }
+    }
+
+    // Month-over-Month helper
+    function prevMonthKey(mk) {
+      const p = String(mk || monthKey(todayStr())).split('-');
+      const dt = new Date(+p[0], +p[1] - 2, 1);
+      return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+    }
 
     function fmt(n) {
       const val = Number(n) || 0;
@@ -1669,19 +1804,21 @@
       if (syncIcon) syncIcon.classList.add('animate-spin');
 
       try {
-        const resGrupos = await supabaseClient.from('grupos').select('*').order('id', { ascending: true });
+        // Fetch core tables in parallel for ultra-fast initial & focus sync
+        const [resGrupos, resUsers, resAllRels] = await Promise.all([
+          supabaseClient.from('grupos').select('*').order('id', { ascending: true }),
+          supabaseClient.from('usuarios').select('*').order('id', { ascending: true }),
+          supabaseClient.from('grupo_usuarios').select('*')
+        ]);
         if (resGrupos.error) throw resGrupos.error;
+        if (resUsers.error) throw resUsers.error;
+
         sbAllGrupos = resGrupos.data || [];
         if (sbAllGrupos.length > 0) window.generalGroupId = sbAllGrupos[0].id;
-
-        const resUsers = await supabaseClient.from('usuarios').select('*').order('id', { ascending: true });
-        if (resUsers.error) throw resUsers.error;
         sbGlobalUsers = resUsers.data || [];
         if (sbGlobalUsers.length > 0 && 'datos_personales' in sbGlobalUsers[0]) {
           hasDatosPersonalesColumn = true;
         }
-
-        const resAllRels = await supabaseClient.from('grupo_usuarios').select('*');
         sbAllGroupRelations = resAllRels.data || [];
 
         // Load or sync the currently logged-in user's personal profile from Supabase
@@ -1892,7 +2029,7 @@
         }
       });
 
-      // Update large bottom navigation tabs (inicio and gastos both map to 'nav-inicio')
+      // Update floating dock tabs (inicio and gastos both map to 'nav-inicio')
       const activeNavKey = !loggedUserId ? 'cuentas' : (viewName === 'gastos') ? 'inicio' : viewName;
       ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
         const navBtn = $('#nav-' + k);
@@ -1902,13 +2039,13 @@
         const isActive = (k === activeNavKey);
         const isGuestLocked = !loggedUserId && k !== 'cuentas';
         navBtn.className = isActive
-          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
-          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-55' : ''}`;
         if (iconSpan) iconSpan.classList.toggle('filled', isActive);
         if (pillSpan) {
           pillSpan.className = isActive
-            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
-            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
+            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
         }
       });
 
@@ -1999,13 +2136,13 @@
         const isActive = (k === activeNavKey);
         const isGuestLocked = !loggedUserId && k !== 'cuentas';
         navBtn.className = isActive
-          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-1 py-1.5 rounded-2xl transition-all active-scale"
-          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-1 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-60' : ''}`;
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
+          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-55' : ''}`;
         if (iconSpan) iconSpan.classList.toggle('filled', isActive);
         if (pillSpan) {
           pillSpan.className = isActive
-            ? "nav-pill px-3.5 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
-            : "nav-pill px-3.5 py-1 rounded-full flex items-center justify-center transition-all";
+            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
         }
       });
 
@@ -2089,7 +2226,7 @@
                 </div>
               </div>
               <div class="text-right flex-shrink-0">
-                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums">+${fmt(x.amount)}</span>
+                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums privacy-val">+${fmt(x.amount)}</span>
                 <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
               </div>
             </div>`;
@@ -2099,7 +2236,7 @@
           <div class="flex flex-col">
             <div class="px-4 py-2 bg-surface-container-low/90 border-y border-outline-variant/25 flex items-center justify-between">
               <span class="font-label-sm text-[10px] font-extrabold tracking-wider text-on-surface-variant uppercase">${esc(fmtRelativeDateHeader(g.date))}</span>
-              <span class="font-label-sm text-[11px] font-extrabold tabular-nums ${g.expSum > g.incSum ? 'text-on-surface-variant' : 'text-secondary'}">${dayHeaderRight}</span>
+              <span class="font-label-sm text-[11px] font-extrabold tabular-nums privacy-val ${g.expSum > g.incSum ? 'text-on-surface-variant' : 'text-secondary'}">${dayHeaderRight}</span>
             </div>
             <div class="divide-y divide-outline-variant/20">
               ${rows}
@@ -2113,7 +2250,7 @@
       if (!el) return;
 
       const userName = currentLoggedUserName();
-      const exps = monthExpenses(viewMk).sort((a, b) => b.date.localeCompare(a.date));
+      const exps = monthExpenses(viewMk).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0));
       const incs = incomeRows(viewMk);
       const totalExp = sumExp(exps);
       const totalInc = monthIncomeTotal(viewMk);
@@ -2130,6 +2267,11 @@
       const fc = forecast(viewMk);
       const cats = byCat(exps);
 
+      // Month-over-Month Trend Comparison
+      const pMk = prevMonthKey(viewMk);
+      const prevExp = sumExp(monthExpenses(pMk));
+      const expDeltaPct = prevExp > 0 ? Math.round(((totalExp - prevExp) / prevExp) * 100) : null;
+
       // Copilot Money-style Daily Pace Calculation
       const [Y, M] = viewMk.split('-').map(Number);
       const isCurMonth = viewMk === monthKey(todayStr());
@@ -2139,53 +2281,74 @@
       const dailySafeAllowance = Math.max(0, safe / daysRemaining);
       const elapsedMonthPct = Math.min(100, Math.round((currentDay / daysInMonth) * 100));
       const expectedSpendByToday = budgetTotal > 0 ? (budgetTotal * (currentDay / daysInMonth)) : 0;
-      const paceDiff = expectedSpendByToday - totalExp; // Positive = under budget pace (good!)
+      const paceDiff = expectedSpendByToday - totalExp;
       const isPaceGood = totalExp <= expectedSpendByToday + 0.01;
 
       const syncTimeText = lastCloudSyncTime
         ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
         : 'En vivo';
 
-      // Top Monthly Control Bar (Clean Segmented Control + Live Supabase Database Status Badge — NO delete button here)
+      // Top Monthly Control Bar
       const monthlyTopNavHtml = `
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center bg-surface-container p-1 rounded-xl gap-1">
-            <button onclick="switchMainView('inicio')" class="px-3.5 py-2 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
+          <div class="flex items-center bg-surface-container/90 p-1 rounded-2xl border border-outline-variant/30 gap-1">
+            <button onclick="haptic('selection'); switchMainView('inicio')" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px]">dashboard</span>
-              Resumen Mensual
+              Resumen
             </button>
-            <button onclick="switchMainView('gastos')" class="px-3.5 py-2 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
+            <button onclick="haptic('selection'); switchMainView('gastos')" class="px-3.5 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
               <span class="material-symbols-outlined text-[16px]">receipt_long</span>
               Movimientos (${exps.length + incs.length})
             </button>
           </div>
-          <div onclick="cargarDatosSupabase(true)" class="cursor-pointer px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant transition active-scale" title="Toca para actualizar desde la Base de Datos de Supabase">
+          <button onclick="haptic('medium'); cargarDatosSupabase(true)" class="px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-surface-container border border-outline-variant/45 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant shadow-xs transition active-scale" title="Actualizar desde Supabase">
             <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
-            <span>☁️ BD ${esc(userName)} • ${esc(syncTimeText)}</span>
-          </div>
+            <span>BD ${esc(userName)} · ${esc(syncTimeText)}</span>
+          </button>
         </div>
       `;
 
-      // 1-Tap Quick Expense Presets Bar
-      const quickPresetsHtml = `
-        <section class="bento-card p-3.5 rounded-2xl flex flex-col gap-2.5">
-          <div class="flex items-center justify-between">
-            <span class="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
-              <span class="material-symbols-outlined text-[16px]">bolt</span>
-              Gasto Rápido en 1 Toque (Guarda en Base de Datos al instante)
+      // Welcome onboarding banner if account is clean at 0 €
+      const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
+      const onboardingBannerHtml = isFreshAccount ? `
+        <div class="bento-card p-4 rounded-3xl border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <span class="w-10 h-10 rounded-2xl hero-indigo text-white flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-[20px]">cloud_done</span>
             </span>
-            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-on-surface-variant hover:text-primary flex items-center gap-0.5">
-              <span class="material-symbols-outlined text-[14px]">edit</span>
-              Personalizar
+            <div>
+              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Bienvenido a tu espacio personal, ${esc(userName)}</h3>
+              <p class="font-body-sm text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+                Tu registro personal en Supabase está limpio a 0,00 €. Configura tu nómina o toca un botón de Gasto Rápido para empezar.
+              </p>
+            </div>
+          </div>
+          <button onclick="switchMainView('ajustes', 'ingresos')" class="px-4 py-2.5 rounded-xl bg-primary text-on-primary font-label-md text-xs font-extrabold hover:bg-primary-container transition active-scale flex-shrink-0">
+            Configurar Nómina
+          </button>
+        </div>
+      ` : '';
+
+      // 1-Tap Quick Expense Presets Strip (Sleek Horizontal Chips)
+      const quickPresetsHtml = `
+        <section class="flex flex-col gap-2">
+          <div class="flex items-center justify-between px-1">
+            <span class="font-label-sm text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px] text-primary">bolt</span>
+              Gasto en 1 Toque
+            </span>
+            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[14px]">tune</span>
+              Editar
             </button>
           </div>
-          <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-0.5">
+          <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
             ${(S.quickPresets || []).map(qp => `
-              <button onclick="triggerQuickPresetExpense('${qp.id}')" class="px-3 py-2 rounded-xl bg-surface-container-low hover:bg-primary/10 border border-outline-variant/40 hover:border-primary/40 flex items-center gap-2 flex-shrink-0 transition active-scale text-left">
-                <span class="text-base">${esc(qp.emoji || '💸')}</span>
+              <button onclick="triggerQuickPresetExpense('${qp.id}')" class="bento-card px-3.5 py-2.5 rounded-2xl flex items-center gap-2.5 flex-shrink-0 hover:border-primary/50 active-scale text-left">
+                <span class="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-base">${esc(qp.emoji || '💸')}</span>
                 <div>
                   <p class="text-xs font-extrabold text-on-surface leading-tight">${esc(qp.label)}</p>
-                  <p class="text-[11px] font-bold text-primary tabular-nums">${fmt(qp.amount)}</p>
+                  <p class="text-[11px] font-extrabold text-primary tabular-nums privacy-val mt-0.5">${fmt(qp.amount)}</p>
                 </div>
               </button>
             `).join('')}
@@ -2193,30 +2356,7 @@
         </section>
       `;
 
-      // Welcome onboarding banner if this user has no personal expenses and no salary set yet
-      const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
-      const onboardingBannerHtml = isFreshAccount ? `
-        <div class="bento-card p-4 rounded-2xl border-l-4 border-l-primary bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-start gap-3">
-            <span class="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined">cloud_done</span>
-            </span>
-            <div>
-              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Registro personal de ${esc(userName)} en Supabase a 0,00 €</h3>
-              <p class="font-body-sm text-xs text-on-surface-variant mt-0.5">
-                Todo lo que apuntes aquí o desde el atajo de Apple Pay se guarda en tu base de datos en tiempo real para verse en cualquier navegador y en tu iPhone.
-              </p>
-            </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 flex-shrink-0">
-            <button onclick="switchMainView('ajustes', 'ingresos')" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold hover:bg-primary-container transition active-scale">
-              Configurar Nómina
-            </button>
-          </div>
-        </div>
-      ` : '';
-
-      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style with micro-progress bars)
+      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style)
       const topCats = cats.slice(0, 6);
       const multiBarSegments = topCats.length > 0 ? topCats.map(d => {
         const c = catById(d.cat);
@@ -2231,11 +2371,11 @@
         const bdgPct = bdg > 0 ? Math.min(100, Math.round((d.total / bdg) * 100)) : pctOfTotal;
         const over = bdg > 0 && d.total > bdg;
         return `
-          <button onclick="openCategoryDetailModal('${c.id}')" class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition flex flex-col justify-between gap-1.5 text-left active-scale border ${over ? 'border-tertiary/50 bg-tertiary/5' : 'border-outline-variant/25'}">
+          <button onclick="haptic('light'); openCategoryDetailModal('${c.id}')" class="p-3 rounded-2xl bg-surface-container-low/80 hover:bg-surface-container transition flex flex-col justify-between gap-2 text-left active-scale border ${over ? 'border-tertiary/50 bg-tertiary/5' : 'border-outline-variant/25'}">
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-1.5 min-w-0">
-                <span class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1a;color:${c.c}">
-                  <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+                <span class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${c.c}1c;color:${c.c}">
+                  <span class="material-symbols-outlined text-[16px]">${c.icon}</span>
                 </span>
                 <span class="font-label-sm text-xs font-extrabold text-on-surface truncate">${esc(c.name)}</span>
               </div>
@@ -2243,205 +2383,250 @@
             </div>
             <div>
               <div class="flex items-baseline justify-between">
-                <span class="font-headline-sm text-[16px] font-extrabold text-on-surface tabular-nums">${fmt0(d.total)}</span>
-                ${bdg > 0 ? `<span class="text-[10px] text-outline tabular-nums">/ ${fmt0(bdg)}</span>` : ''}
+                <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums privacy-val">${fmt0(d.total)}</span>
+                ${bdg > 0 ? `<span class="text-[10px] text-outline tabular-nums privacy-val">/ ${fmt0(bdg)}</span>` : ''}
               </div>
-              <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+              <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-1.5">
                 <div class="h-full rounded-full transition-all duration-500" style="width:${bdgPct}%;background:${over ? '#e11d48' : c.c}"></div>
               </div>
             </div>
           </button>`;
       }).join('');
 
-      // Recent Monthly Transactions grouped by Date (Revolut / Apple Wallet style)
+      // Recent Monthly Transactions grouped by Date (Apple Wallet / Revolut style)
       const recentMixed = [
         ...exps.map(e => ({ ...e, _k: 'exp' })),
         ...incs.map(i => ({ ...i, _k: 'inc' }))
-      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 7);
+      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 8);
 
       const recentRowsHtml = recentMixed.length > 0
         ? renderDateGroupedTransactionsHtml(recentMixed)
         : `
           <div class="p-8 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
-            <span class="material-symbols-outlined text-3xl text-outline">receipt_long</span>
+            <span class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-outline">
+              <span class="material-symbols-outlined text-2xl">receipt_long</span>
+            </span>
             <p class="font-bold text-on-surface">Sin movimientos en ${monthLabel(viewMk)}</p>
-            <p class="text-xs">Usa los botones de Gasto Rápido arriba o el botón central «+» para registrar tu primer movimiento.</p>
+            <p class="text-xs max-w-xs">Usa un botón de Gasto en 1 Toque o pulsa el botón central «+» para registrar tu primer gasto o ingreso.</p>
           </div>`;
 
-      // Upcoming Subscriptions & Goals Summary
-      const upcomingHtml = upRecList.slice(0, 3).map(r => {
+      // Upcoming Subscriptions
+      const upcomingHtml = upRecList.slice(0, 4).map(r => {
         const c = catById(r.cat);
         return `
-          <div class="py-2 flex items-center justify-between text-xs border-b border-outline-variant/20 last:border-0">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[16px]" style="color:${c.c}">${c.icon}</span>
-              <span class="font-bold text-on-surface">${esc(r.name)}</span>
-              <span class="text-outline">${r.day ? `Día ${r.day}` : 'Este mes'}</span>
+          <div class="py-2.5 flex items-center justify-between text-xs border-b border-outline-variant/20 last:border-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1c;color:${c.c}">
+                <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+              </span>
+              <div class="min-w-0">
+                <p class="font-bold text-on-surface truncate">${esc(r.name)}</p>
+                <p class="text-[11px] text-outline">${r.day ? `Día ${r.day} de cada mes` : 'Este mes'}</p>
+              </div>
             </div>
-            <strong class="font-extrabold text-on-surface tabular-nums">−${fmt(r.amount)}</strong>
+            <strong class="font-extrabold text-on-surface tabular-nums privacy-val">−${fmt(r.amount)}</strong>
           </div>`;
       }).join('');
+
+      // Active Goals Mini Preview
+      const goalsMiniHtml = (S.goals || []).length > 0 ? `
+        <div class="bento-card p-4 rounded-3xl flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-secondary text-[18px]">emoji_events</span>
+              <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Metas de Ahorro</h3>
+            </div>
+            <button onclick="switchMainView('ajustes', 'obj')" class="text-xs font-bold text-primary hover:underline">Ver todas</button>
+          </div>
+          <div class="flex flex-col gap-2.5">
+            ${(S.goals || []).slice(0, 2).map(g => {
+              const gPct = Math.min(100, g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0);
+              return `
+                <div onclick="openGoalMoveModal('${g.id}', 1)" class="cursor-pointer p-3 rounded-2xl bg-surface-container-low hover:bg-surface-container transition flex flex-col gap-1.5 active-scale">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-extrabold text-on-surface">${esc(g.name)}</span>
+                    <span class="font-extrabold text-secondary tabular-nums privacy-val">${fmt0(g.saved)} / ${fmt0(g.target)} (${gPct}%)</span>
+                  </div>
+                  <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style="width:${gPct}%"></div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      ` : '';
 
       el.innerHTML = `
         ${monthlyTopNavHtml}
         ${onboardingBannerHtml}
-        ${quickPresetsHtml}
 
-        <!-- SECTION: MONTHLY CONTROL EXECUTIVE BENTO GRID (Copilot / Monarch / Revolut Style) -->
+        <!-- HERO EXECUTIVE CARD + KPI BENTO GRID -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <!-- HERO KPI (2 cols): PUEDES GASTAR ESTE MES + DAILY ALLOWANCE VERDICT -->
-          <div class="col-span-2 hero-indigo text-on-primary p-4 sm:p-5 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden">
+          <!-- FLAGSHIP HERO CARD (2 cols): PUEDES GASTAR ESTE MES + DAILY SAFE VERDICT -->
+          <div class="col-span-2 hero-indigo text-white p-5 rounded-3xl flex flex-col justify-between gap-4 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div class="flex flex-col">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-label-sm text-[10px] text-on-primary-container font-extrabold tracking-wider uppercase">PUEDES GASTAR ESTE MES</span>
-                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white">${fmt0(dailySafeAllowance)}/día libres</span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="font-label-sm text-[10px] text-indigo-100/90 font-extrabold tracking-widest uppercase">DISPONIBLE REAL DEL MES</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white backdrop-blur-xs privacy-val">${fmt0(dailySafeAllowance)}/día</span>
                 </div>
-                <div class="flex items-baseline gap-2 mt-1">
-                  <span class="font-display-currency-mobile text-[30px] sm:text-[34px] leading-9 font-extrabold text-white tabular-nums">${fmt(safe)}</span>
-                  <span class="font-body-sm text-xs text-on-primary-container">disponibles</span>
+                <div class="flex items-baseline gap-2 mt-1.5">
+                  <span class="font-display-currency text-[34px] sm:text-[38px] leading-none font-extrabold text-white tracking-tight tabular-nums privacy-val">${fmt(safe)}</span>
                 </div>
+                <p class="text-[11px] text-indigo-100/80 mt-1 font-medium">
+                  ${daysRemaining} día${daysRemaining === 1 ? '' : 's'} restante${daysRemaining === 1 ? '' : 's'} · Previsión fin de mes: <strong class="text-white tabular-nums privacy-val">${fmtSigned(fc.end)}</strong>
+                </p>
               </div>
-              <div onclick="switchMainView('analitica')" class="cursor-pointer bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-right">
+
+              <button onclick="haptic('light'); switchMainView('analitica')" class="bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-2 rounded-2xl border border-white/20 text-right flex-shrink-0 active-scale">
                 <span class="font-label-sm text-xs text-white font-extrabold flex items-center justify-end gap-1">
-                  <span class="material-symbols-outlined text-[16px]">auto_awesome</span>
-                  Score ${scoreObj.score}/100
+                  <span class="material-symbols-outlined text-[15px]">auto_awesome</span>
+                  ${scoreObj.score}/100
                 </span>
-                <p class="font-body-sm text-[11px] text-on-primary-container">Ahorro: ${savingsRate}%</p>
-              </div>
+                <p class="text-[10px] text-indigo-100/90 font-semibold mt-0.5">Ahorro ${savingsRate}%</p>
+              </button>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 pt-2.5 border-t border-white/15 text-xs relative z-10">
+            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/15 text-xs relative z-10">
               <div>
-                <span class="text-on-primary-container text-[10px] uppercase font-bold block">Balance Mes</span>
-                <strong class="text-white font-extrabold tabular-nums">${fmtSigned(netMonth)}</strong>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Balance Mes</span>
+                <strong class="text-white font-extrabold tabular-nums privacy-val">${fmtSigned(netMonth)}</strong>
               </div>
               <div>
-                <span class="text-on-primary-container text-[10px] uppercase font-bold block">Fijos pend.</span>
-                <strong class="text-amber-200 font-extrabold tabular-nums">−${fmt0(upRecTotal)}</strong>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Fijos pend.</span>
+                <strong class="text-amber-200 font-extrabold tabular-nums privacy-val">−${fmt0(upRecTotal)}</strong>
               </div>
               <div class="text-right">
-                <span class="text-on-primary-container text-[10px] uppercase font-bold block">Reserva Obj.</span>
-                <strong class="text-emerald-200 font-extrabold tabular-nums">${fmt0(reserveGoals)}</strong>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Reserva Obj.</span>
+                <strong class="text-emerald-200 font-extrabold tabular-nums privacy-val">${fmt0(reserveGoals)}</strong>
               </div>
             </div>
           </div>
 
           <!-- KPI 2: INGRESOS DEL MES -->
-          <div onclick="switchMainView('ajustes', 'ingresos')" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale">
+          <div onclick="haptic('light'); switchMainView('ajustes', 'ingresos')" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">INGRESOS DEL MES</span>
-              <span class="w-7 h-7 rounded-full bg-secondary-fixed/60 text-secondary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">trending_up</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">INGRESOS</span>
+              <span class="w-8 h-8 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">trending_up</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[24px] sm:text-[26px] leading-8 font-extrabold text-secondary tracking-tight tabular-nums">+${fmt(totalInc)}</p>
-              <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-secondary px-2 py-0.5 rounded-full bg-secondary/10">
-                <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                ${incs.length} ingreso${incs.length === 1 ? '' : 's'}
+              <p class="font-display-currency-mobile text-[22px] sm:text-[26px] leading-7 font-extrabold text-secondary tracking-tight tabular-nums privacy-val">+${fmt(totalInc)}</p>
+              <span class="inline-flex items-center gap-1 mt-2 text-[11px] font-bold text-secondary px-2 py-0.5 rounded-full bg-secondary/10">
+                ${incs.length} registro${incs.length === 1 ? '' : 's'}
               </span>
             </div>
           </div>
 
-          <!-- KPI 3: GASTADO ESTE MES -->
-          <div onclick="switchMainView('gastos')" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale">
+          <!-- KPI 3: GASTADO ESTE MES + MONTH-OVER-MONTH BADGE -->
+          <div onclick="haptic('light'); switchMainView('gastos')" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">GASTADO ESTE MES</span>
-              <span class="w-7 h-7 rounded-full bg-tertiary-fixed/60 text-tertiary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">GASTADO</span>
+              <span class="w-8 h-8 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">receipt_long</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[24px] sm:text-[26px] leading-8 font-extrabold text-tertiary tracking-tight tabular-nums">−${fmt(totalExp)}</p>
-              <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-on-surface-variant px-2 py-0.5 rounded-full bg-surface-container">
-                Media: ${fmt0(fc.avg)}/día
-              </span>
+              <p class="font-display-currency-mobile text-[22px] sm:text-[26px] leading-7 font-extrabold text-tertiary tracking-tight tabular-nums privacy-val">−${fmt(totalExp)}</p>
+              <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                <span class="text-[11px] font-bold text-on-surface-variant px-2 py-0.5 rounded-full bg-surface-container privacy-val">
+                  ${fmt0(fc.avg)}/día
+                </span>
+                ${expDeltaPct !== null ? `
+                  <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${expDeltaPct <= 0 ? 'bg-secondary/12 text-secondary' : 'bg-tertiary/12 text-tertiary'}">
+                    ${expDeltaPct <= 0 ? '↓' : '↑'}${Math.abs(expDeltaPct)}% vs ant.
+                  </span>
+                ` : ''}
+              </div>
             </div>
           </div>
 
-          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR (GASTO VS RITMO IDEAL DEL MES) -->
-          <div class="col-span-2 lg:col-span-4 bento-card p-4 rounded-2xl flex flex-col gap-2.5">
+          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR -->
+          <div class="col-span-2 lg:col-span-4 bento-card p-4 sm:p-5 rounded-3xl flex flex-col gap-3">
             <div class="flex flex-wrap justify-between items-center gap-2">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-[20px]">speed</span>
-                <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Gasto vs. Presupuesto Mensual</span>
-                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'}">
-                  ${isPaceGood ? `🟢 Ritmo óptimo (${fmt0(Math.abs(paceDiff))} bajo el límite de hoy)` : `🟠 Ritmo alto (+${fmt0(Math.abs(paceDiff))} sobre el día ${currentDay})`}
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <span class="material-symbols-outlined text-[18px]">speed</span>
+                </span>
+                <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Presupuesto</span>
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'} privacy-val">
+                  ${isPaceGood ? `🟢 Óptimo (${fmt0(Math.abs(paceDiff))} bajo ritmo)` : `🟠 Alto (+${fmt0(Math.abs(paceDiff))} sobre día ${currentDay})`}
                 </span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="font-label-md text-xs font-extrabold ${budgetPct >= 100 ? 'text-tertiary bg-tertiary/10' : budgetPct >= 80 ? 'text-amber-700 bg-amber-500/15' : 'text-primary bg-primary/10'} px-2.5 py-0.5 rounded-lg">
-                  ${budgetPct}% gastado en el ${elapsedMonthPct}% del mes
+                <span class="font-label-md text-xs font-extrabold ${budgetPct >= 100 ? 'text-tertiary bg-tertiary/10' : budgetPct >= 80 ? 'text-amber-700 bg-amber-500/15' : 'text-primary bg-primary/10'} px-2.5 py-0.5 rounded-full">
+                  ${budgetPct}% en el ${elapsedMonthPct}% del mes
                 </span>
                 <button onclick="switchMainView('ajustes', 'pres')" class="text-xs font-bold text-primary hover:underline">Límites</button>
               </div>
             </div>
 
             <div class="flex items-baseline justify-between">
-              <p class="font-headline-md text-[22px] text-on-surface font-extrabold tabular-nums">
-                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)} presupuestados</span>
+              <p class="font-headline-md text-[20px] sm:text-[22px] text-on-surface font-extrabold tabular-nums privacy-val">
+                ${fmt(totalExp)} <span class="font-body-md text-sm text-on-surface-variant font-medium">/ ${fmt0(budgetTotal)}</span>
               </p>
-              <p class="font-label-sm text-xs ${budgetRest >= 0 ? 'text-secondary' : 'text-tertiary'} font-extrabold tabular-nums">
-                ${budgetRest >= 0 ? `${fmt0(budgetRest)} libres del presupuesto` : `${fmt0(-budgetRest)} excedido`}
+              <p class="font-label-sm text-xs ${budgetRest >= 0 ? 'text-secondary' : 'text-tertiary'} font-extrabold tabular-nums privacy-val">
+                ${budgetRest >= 0 ? `${fmt0(budgetRest)} libres` : `${fmt0(-budgetRest)} excedido`}
               </p>
             </div>
 
-            <!-- Progress bar with Copilot "HOY (Día X)" vertical marker -->
             <div class="relative w-full pt-1 pb-2">
               <div class="w-full bg-surface-container h-3 rounded-full overflow-hidden">
-                <div class="${budgetPct >= 100 ? 'bg-tertiary' : !isPaceGood ? 'bg-amber-500' : 'bg-primary'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
+                <div class="${budgetPct >= 100 ? 'bg-tertiary' : !isPaceGood ? 'bg-amber-500' : 'bg-gradient-to-r from-primary to-indigo-400'} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, budgetPct)}%;"></div>
               </div>
               ${isCurMonth ? `
-                <div class="absolute top-0 bottom-1 flex flex-col items-center pointer-events-none" style="left: clamp(4%, ${elapsedMonthPct}%, 96%); transform: translateX(-50%);">
+                <div class="absolute top-0 bottom-1 flex flex-col items-center pointer-events-none" style="left: clamp(5%, ${elapsedMonthPct}%, 95%); transform: translateX(-50%);">
                   <div class="w-0.5 h-5 bg-on-surface rounded-full shadow-xs"></div>
-                  <span class="text-[9px] font-extrabold text-on-surface-variant uppercase tracking-tighter mt-0.5 bg-surface-container-lowest px-1 rounded border border-outline-variant/40">Hoy D${currentDay}</span>
+                  <span class="text-[9px] font-extrabold text-on-surface uppercase tracking-tight mt-0.5 bg-surface-container-lowest px-1.5 py-0.2 rounded-full border border-outline-variant/60 shadow-xs">Hoy D${currentDay}</span>
                 </div>
               ` : ''}
             </div>
           </div>
         </section>
 
+        ${quickPresetsHtml}
+
         <!-- QUICK MONTHLY ACTION BAR -->
-        <section class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <button onclick="openTxModal('exp')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+        <section class="grid grid-cols-4 gap-2">
+          <button onclick="haptic('light'); openTxModal('exp')" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
+            <span class="w-9 h-9 rounded-xl bg-primary/12 text-primary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">add_shopping_cart</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Gasto</p>
-              <p class="text-[10px] text-on-surface-variant">Comida, ocio, recibo</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Gasto</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Manual / #tag</p>
             </div>
           </button>
 
-          <button onclick="openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
+          <button onclick="haptic('light'); openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
             <span class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">photo_camera</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">Escanear Ticket</p>
-              <p class="text-[10px] text-on-surface-variant">Foto / OCR automático</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Ticket OCR</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Foto cámara</p>
             </div>
           </button>
 
-          <button onclick="openTxModal('exp', null, true)" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center flex-shrink-0">
+          <button onclick="haptic('light'); openTxModal('exp', null, true)" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
+            <span class="w-9 h-9 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">mic</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">Dictar Gasto</p>
-              <p class="text-[10px] text-on-surface-variant">Reconocimiento voz</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Voz</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Dictar gasto</p>
             </div>
           </button>
 
-          <button onclick="openTxModal('inc')" class="bento-card p-3 rounded-2xl flex items-center gap-2.5 hover:bg-surface-container-low transition active-scale text-left">
-            <span class="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
+          <button onclick="haptic('light'); openTxModal('inc')" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
+            <span class="w-9 h-9 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center flex-shrink-0">
               <span class="material-symbols-outlined text-[19px]">payments</span>
             </span>
-            <div>
-              <p class="font-label-lg text-xs font-extrabold text-on-surface">+ Añadir Ingreso</p>
-              <p class="text-[10px] text-on-surface-variant">Extra, Bizum, venta</p>
+            <div class="min-w-0">
+              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Ingreso</p>
+              <p class="text-[10px] text-on-surface-variant hidden sm:block">Extra / Bizum</p>
             </div>
           </button>
         </section>
@@ -2449,30 +2634,29 @@
         <!-- 2-COLUMN MONTHLY BREAKDOWN & RECENT MOVEMENTS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING SUBSCRIPTIONS -->
+          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING -->
           <section class="lg:col-span-6 flex flex-col gap-4">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between px-1">
               <div>
-                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Desglose por categorías</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)} • Toca una categoría para auditar</p>
+                <h2 class="font-headline-sm text-base font-extrabold text-on-surface">Desglose por categorías</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant capitalize">Distribución de ${monthLabel(viewMk)}</p>
               </div>
-              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Editar límites</button>
+              <button onclick="switchMainView('ajustes', 'pres')" class="font-label-md text-xs text-primary font-bold hover:underline">Límites</button>
             </div>
 
-            <div class="bento-card p-4 rounded-2xl flex flex-col gap-4">
-              <!-- Donut Ring + Stacked Bar Summary Header -->
+            <div class="bento-card p-4 rounded-3xl flex flex-col gap-4">
               <div class="flex items-center gap-4">
                 ${renderCategoryDonutSVG(cats, totalExp)}
                 <div class="flex-1 flex flex-col gap-2 min-w-0">
                   <div class="flex items-baseline justify-between">
                     <span class="text-xs font-extrabold text-on-surface">Total gastado</span>
-                    <span class="font-headline-sm text-base font-extrabold text-on-surface tabular-nums">${fmt(totalExp)}</span>
+                    <span class="font-headline-sm text-base font-extrabold text-on-surface tabular-nums privacy-val">${fmt(totalExp)}</span>
                   </div>
                   <div class="flex h-3 w-full rounded-full overflow-hidden gap-0.5 bg-surface-container">
                     ${multiBarSegments}
                   </div>
                   <p class="text-[11px] text-on-surface-variant">
-                    ${cats.length > 0 ? `${cats.length} categoría(s) activas este mes • Mayor gasto: <strong>${esc(catById(cats[0].cat).name)}</strong>` : 'Sin gastos registrados este mes'}
+                    ${cats.length > 0 ? `${cats.length} categoría(s) · Top: <strong class="text-on-surface">${esc(catById(cats[0].cat).name)}</strong>` : 'Sin gastos registrados este mes'}
                   </p>
                 </div>
               </div>
@@ -2482,38 +2666,40 @@
               </div>
             </div>
 
+            ${goalsMiniHtml}
+
             ${upRecList.length > 0 ? `
-              <div class="bento-card p-4 rounded-2xl flex flex-col gap-2">
+              <div class="bento-card p-4 rounded-3xl flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-amber-600 text-[18px]">schedule</span>
-                    <h3 class="font-label-lg text-sm font-bold text-on-surface">Próximos cargos fijos del mes</h3>
+                    <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Próximos cargos fijos</h3>
                   </div>
-                  <button onclick="switchMainView('ajustes', 'rec')" class="text-xs font-bold text-primary hover:underline">Gestionar (${fmt(upRecTotal)})</button>
+                  <button onclick="switchMainView('ajustes', 'rec')" class="text-xs font-bold text-primary hover:underline privacy-val">Ver (${fmt(upRecTotal)})</button>
                 </div>
-                <div class="divide-y divide-outline-variant/20">
+                <div>
                   ${upcomingHtml}
                 </div>
               </div>
             ` : ''}
           </section>
 
-          <!-- RIGHT (6 cols): DATE-GROUPED RECENT MONTHLY TRANSACTIONS -->
+          <!-- RIGHT (6 cols): DATE-GROUPED RECENT ACTIVITY FEED -->
           <section class="lg:col-span-6 flex flex-col gap-3">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between px-1">
               <div>
-                <h2 class="font-headline-sm text-headline-sm font-extrabold text-on-surface">Actividad reciente</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día • Sincronizada con Supabase</p>
+                <h2 class="font-headline-sm text-base font-extrabold text-on-surface">Actividad reciente</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día · Sincronizada en tiempo real</p>
               </div>
               <button onclick="switchMainView('gastos')" class="font-label-md text-xs text-primary font-bold hover:underline">Ver todos (${exps.length + incs.length})</button>
             </div>
 
-            <div class="bento-card rounded-2xl overflow-hidden">
+            <div class="bento-card rounded-3xl overflow-hidden">
               <div>
                 ${recentRowsHtml}
               </div>
-              <button onclick="switchMainView('gastos')" class="w-full block text-center py-3 bg-surface-container-low text-primary font-label-lg text-xs font-bold hover:bg-surface-container transition-colors border-t border-outline-variant/20 capitalize">
-                Abrir buscador y libro completo de ${monthLabel(viewMk)} →
+              <button onclick="switchMainView('gastos')" class="w-full block text-center py-3.5 bg-surface-container-low text-primary font-label-lg text-xs font-extrabold hover:bg-surface-container transition-colors border-t border-outline-variant/25 capitalize">
+                Explorar libro completo de ${monthLabel(viewMk)} →
               </button>
             </div>
           </section>
@@ -2708,7 +2894,7 @@
             </div>
           </div>
           <div class="text-right flex-shrink-0">
-            <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums">−${fmt(e.amount)}</span>
+            <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums privacy-val">−${fmt(e.amount)}</span>
             <p class="font-label-sm text-[10px] text-on-surface-variant uppercase">${esc(c.name)}</p>
           </div>
         </div>
@@ -2774,71 +2960,69 @@
         </div>
       ` : '';
 
-      // Top Executive Debt KPI Bento Grid (Stitch Design — Separated into Deudas)
+      // Top Executive Debt KPI Bento Grid (Neo-Fintech Rounded-3xl Design)
       const debtKpiHeaderHtml = `
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <!-- KPI 1: TOTAL ME DEBEN -->
-          <div onclick="activeP2PTab='owed'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owed' ? 'ring-2 ring-secondary' : ''}">
+          <div onclick="haptic('selection'); activeP2PTab='owed'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owed' ? 'ring-2 ring-secondary' : ''}">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">TOTAL ME DEBEN</span>
-              <span class="w-7 h-7 rounded-full bg-secondary-fixed/60 text-secondary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">ME DEBEN</span>
+              <span class="w-8 h-8 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">arrow_downward</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[25px] sm:text-[28px] leading-8 font-extrabold text-secondary tracking-tight tabular-nums">+${fmt(p2p.totalMeDeben)}</p>
+              <p class="font-display-currency-mobile text-[24px] sm:text-[28px] leading-8 font-extrabold text-secondary tracking-tight tabular-nums privacy-val">+${fmt(p2p.totalMeDeben)}</p>
               <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-secondary px-2 py-0.5 rounded-full bg-secondary/10">
-                <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                ${p2p.countMeDeben} cobro${p2p.countMeDeben === 1 ? '' : 's'} (${p2p.cloudOwedCount} grupo • ${p2p.localOwedCount} P2P)
+                ${p2p.countMeDeben} cobro${p2p.countMeDeben === 1 ? '' : 's'}
               </span>
             </div>
           </div>
 
           <!-- KPI 2: TOTAL QUE DEBO -->
-          <div onclick="activeP2PTab='owe'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owe' ? 'ring-2 ring-tertiary' : ''}">
+          <div onclick="haptic('selection'); activeP2PTab='owe'; renderCuentasView()" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale ${activeP2PTab === 'owe' ? 'ring-2 ring-tertiary' : ''}">
             <div class="flex items-center justify-between mb-2">
-              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">TOTAL QUE DEBO</span>
-              <span class="w-7 h-7 rounded-full bg-tertiary-fixed/60 text-tertiary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+              <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">DEBO</span>
+              <span class="w-8 h-8 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center">
+                <span class="material-symbols-outlined text-[18px]">arrow_upward</span>
               </span>
             </div>
             <div>
-              <p class="font-display-currency-mobile text-[25px] sm:text-[28px] leading-8 font-extrabold text-tertiary tracking-tight tabular-nums">−${fmt(p2p.totalQueDebo)}</p>
+              <p class="font-display-currency-mobile text-[24px] sm:text-[28px] leading-8 font-extrabold text-tertiary tracking-tight tabular-nums privacy-val">−${fmt(p2p.totalQueDebo)}</p>
               <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-bold text-tertiary px-2 py-0.5 rounded-full bg-tertiary/10">
-                <span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
-                ${p2p.countQueDebo} pago${p2p.countQueDebo === 1 ? '' : 's'} (${p2p.cloudOweCount} grupo • ${p2p.localOweCount} P2P)
+                ${p2p.countQueDebo} pago${p2p.countQueDebo === 1 ? '' : 's'}
               </span>
             </div>
           </div>
 
           <!-- KPI 3: BALANCE NETO P2P (2 cols) -->
-          <div class="col-span-2 hero-indigo text-on-primary p-4 sm:p-5 rounded-2xl flex flex-col justify-between gap-3 relative overflow-hidden">
+          <div class="col-span-2 ${p2p.balanceNeto >= 0 ? 'hero-emerald' : 'hero-indigo'} text-white p-5 rounded-3xl flex flex-col justify-between gap-3.5 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
               <div class="flex flex-col">
-                <span class="font-label-sm text-[10px] text-on-primary-container font-bold tracking-wider uppercase">BALANCE NETO DE DEUDAS (${esc(userName.toUpperCase())})</span>
-                <div class="flex items-baseline gap-2 mt-0.5">
-                  <span class="font-display-currency-mobile text-[30px] leading-9 font-extrabold text-white tabular-nums">${fmtSigned(p2p.balanceNeto)}</span>
-                  <span class="font-body-sm text-xs text-on-primary-container">${p2p.balanceNeto >= 0 ? 'a tu favor' : 'por saldar'}</span>
+                <span class="font-label-sm text-[10px] text-white/80 font-extrabold tracking-widest uppercase">BALANCE NETO DE DEUDAS (${esc(userName.toUpperCase())})</span>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span class="font-display-currency-mobile text-[32px] leading-9 font-extrabold text-white tabular-nums privacy-val">${fmtSigned(p2p.balanceNeto)}</span>
+                  <span class="font-body-sm text-xs text-white/80">${p2p.balanceNeto >= 0 ? 'a tu favor' : 'por saldar'}</span>
                 </div>
               </div>
-              <div class="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/20 text-right">
+              <div class="bg-white/15 backdrop-blur-xs px-3 py-1.5 rounded-2xl border border-white/20 text-right">
                 <span class="font-label-sm text-xs text-white font-extrabold flex items-center justify-end gap-1">
-                  <span class="material-symbols-outlined text-[16px]">${p2p.balanceNeto >= 0 ? 'verified' : 'schedule'}</span>
+                  <span class="material-symbols-outlined text-[15px]">${p2p.balanceNeto >= 0 ? 'verified' : 'schedule'}</span>
                   ${p2p.balanceNeto >= 0 ? 'Saneado' : 'Pendiente'}
                 </span>
-                <p class="font-body-sm text-[11px] text-on-primary-container">${p2p.balanceNeto >= 0 ? 'Cobros cubren deudas' : 'Tienes pagos por saldar'}</p>
+                <p class="font-body-sm text-[10px] text-white/85">${p2p.balanceNeto >= 0 ? 'Cobros cubren deudas' : 'Pagos por saldar'}</p>
               </div>
             </div>
-            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-white/15 relative z-10">
-              <button onclick="openP2PDebtModal('owed')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
+            <div class="flex flex-wrap items-center gap-2 pt-2.5 border-t border-white/15 relative z-10">
+              <button onclick="haptic('light'); openP2PDebtModal('owed')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
                 <span class="material-symbols-outlined text-[15px]">arrow_downward</span>
                 + Me deben
               </button>
-              <button onclick="openP2PDebtModal('owe')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
+              <button onclick="haptic('light'); openP2PDebtModal('owe')" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
                 <span class="material-symbols-outlined text-[15px]">arrow_upward</span>
                 + Debo
               </button>
-              <button onclick="openSplitBillModal()" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
+              <button onclick="haptic('light'); openSplitBillModal()" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-label-md text-xs font-bold transition flex items-center gap-1 active-scale">
                 <span class="material-symbols-outlined text-[15px]">call_split</span>
                 Dividir ticket
               </button>
@@ -4268,32 +4452,48 @@
       $('#quick-action-sheet')?.classList.add('hidden');
     }
 
-    function showToast(msg) {
+    function showToast(msg, actionLabel = null, actionFn = null) {
       let t = $('#claridad-toast');
       if (!t) {
         t = document.createElement('div');
         t.id = 'claridad-toast';
-        t.className = 'fixed left-1/2 -translate-x-1/2 bottom-20 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-2xl font-label-md text-xs font-bold shadow-2xl border border-white/10 transition-all duration-200 opacity-0 pointer-events-none';
+        t.className = 'fixed left-1/2 -translate-x-1/2 bottom-24 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-2xl font-label-md text-xs font-bold shadow-2xl border border-white/10 transition-all duration-200 opacity-0 flex items-center gap-3 max-w-[92vw]';
         document.body.appendChild(t);
       }
-      t.textContent = msg;
+      t.innerHTML = `<span class="truncate">${esc(msg)}</span>` + (actionLabel ? `<button id="toast-action-btn" class="px-2.5 py-1 rounded-lg bg-primary text-white text-[11px] font-extrabold flex-shrink-0 active-scale">${esc(actionLabel)}</button>` : '');
+      t.style.pointerEvents = actionLabel ? 'auto' : 'none';
+      if (actionLabel && typeof actionFn === 'function') {
+        const btn = t.querySelector('#toast-action-btn');
+        if (btn) btn.onclick = () => {
+          clearTimeout(t._timer);
+          t.classList.remove('opacity-100');
+          t.classList.add('opacity-0');
+          t.style.pointerEvents = 'none';
+          actionFn();
+        };
+      }
       t.classList.remove('opacity-0');
       t.classList.add('opacity-100');
       clearTimeout(t._timer);
       t._timer = setTimeout(() => {
         t.classList.remove('opacity-100');
         t.classList.add('opacity-0');
-      }, 2800);
+        t.style.pointerEvents = 'none';
+      }, actionLabel ? 5200 : 2800);
     }
 
     function toggleTheme() {
+      haptic('selection');
       const html = document.documentElement;
       const isDark = html.classList.toggle('dark');
       html.classList.toggle('light', !isDark);
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      if (S && S.settings) {
+      const metaTheme = $('#meta-theme-color');
+      if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0b0f19' : '#f6f7fb');
+      if (typeof window.claridadSetNativeTheme === 'function') window.claridadSetNativeTheme(isDark);
+      if (S && S.settings && loggedUserId) {
         S.settings.dark = isDark;
-        saveLocalState();
+        saveLocalState(true);
       }
       const ic = $('#theme-icon');
       if (ic) ic.textContent = isDark ? 'light_mode' : 'dark_mode';
@@ -4306,6 +4506,9 @@
       const html = document.documentElement;
       html.classList.toggle('dark', isDark);
       html.classList.toggle('light', !isDark);
+      const metaTheme = $('#meta-theme-color');
+      if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0b0f19' : '#f6f7fb');
+      if (typeof window.claridadSetNativeTheme === 'function') window.claridadSetNativeTheme(isDark);
       const ic = $('#theme-icon');
       if (ic) ic.textContent = isDark ? 'light_mode' : 'dark_mode';
     }
@@ -5279,6 +5482,7 @@ ALTER TABLE public.movimientos
         showToast("¡Nadie debe dinero en este grupo!");
         return;
       }
+      haptic('light');
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const gName = currGroup ? currGroup.nombre : "Cuentas Hugo";
       const totalDeuda = deudores.reduce((acc, u) => acc + parseFloat(u.deuda), 0);
@@ -5291,9 +5495,23 @@ ALTER TABLE public.movimientos
     }
 
     function sendIndividualWhatsAppClaim(personName, amount, concept = "") {
+      haptic('light');
       const motivo = concept ? ` por *${concept}*` : '';
       const msg = `¡Hola ${personName}! 👋 Te recuerdo que tienes pendiente *${fmt(amount)}*${motivo}. Cuando puedas mándame un Bizum y lo dejamos saldado. ¡Gracias! 💸`;
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function shareTextNatively(title, text) {
+      haptic('light');
+      if (typeof window.claridadNativeShare === 'function' && window.claridadNativeShare(title, text, '')) {
+        return;
+      }
+      if (navigator && typeof navigator.share === 'function') {
+        navigator.share({ title, text }).catch(() => {});
+        return;
+      }
+      navigator.clipboard?.writeText(text);
+      showToast('Texto copiado al portapapeles ✓');
     }
 
     function openBizumClaimModal(personName, amount, concept = "Cuentas pendientes") {
@@ -5338,9 +5556,9 @@ ALTER TABLE public.movimientos
             </div>
           </div>
 
-          <button onclick="navigator.clipboard?.writeText('${esc(fullText)}'); showToast('Mensaje completo copiado ✓')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5">
-            <span class="material-symbols-outlined text-[17px]">content_copy</span>
-            Copiar recordatorio completo al portapapeles
+          <button onclick="shareTextNatively('Recordatorio Bizum', '${esc(fullText)}')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5 active-scale">
+            <span class="material-symbols-outlined text-[17px]">ios_share</span>
+            Compartir / Copiar recordatorio
           </button>
 
           <button onclick="closeUniversalModal(); sendIndividualWhatsAppClaim('${esc(personName)}', ${amount}, '${esc(concept)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition flex items-center justify-center gap-2 active-scale">
@@ -5502,22 +5720,32 @@ ALTER TABLE public.movimientos
 
       openUniversalModal(`
         <div class="flex flex-col gap-3.5">
+          <div class="w-10 h-1 rounded-full bg-outline-variant/60 mx-auto -mt-1 sm:hidden"></div>
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${existing ? (isExp ? 'Editar Gasto' : 'Editar Ingreso') : (isExp ? 'Registrar Gasto Personal' : 'Registrar Ingreso')}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container active-scale"><span class="material-symbols-outlined">close</span></button>
           </div>
 
           ${!existing ? `
-            <div class="grid grid-cols-2 bg-surface-container p-1 rounded-xl gap-1">
-              <button type="button" onclick="openTxModal('exp')" class="py-1.5 rounded-lg text-xs font-extrabold transition ${isExp ? 'bg-surface-container-lowest text-tertiary shadow-xs' : 'text-on-surface-variant'}">Gasto (−)</button>
-              <button type="button" onclick="openTxModal('inc')" class="py-1.5 rounded-lg text-xs font-extrabold transition ${!isExp ? 'bg-surface-container-lowest text-secondary shadow-xs' : 'text-on-surface-variant'}">Ingreso (+)</button>
+            <div class="grid grid-cols-2 bg-surface-container p-1 rounded-2xl gap-1">
+              <button type="button" onclick="haptic('selection'); openTxModal('exp')" class="py-2 rounded-xl text-xs font-extrabold transition ${isExp ? 'bg-surface-container-lowest text-tertiary shadow-xs' : 'text-on-surface-variant'}">Gasto (−)</button>
+              <button type="button" onclick="haptic('selection'); openTxModal('inc')" class="py-2 rounded-xl text-xs font-extrabold transition ${!isExp ? 'bg-surface-container-lowest text-secondary shadow-xs' : 'text-on-surface-variant'}">Ingreso (+)</button>
             </div>
           ` : ''}
 
-          <!-- Giant Stitch Currency Input -->
-          <div class="relative">
-            <input id="tx-amount" type="number" step="0.01" value="${esc(amountVal)}" placeholder="0,00" class="w-full py-3 px-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 font-display-currency-mobile text-3xl font-extrabold text-center text-on-surface focus:border-primary outline-none tabular-nums"/>
-            <span class="absolute right-4 top-1/2 -translate-y-1/2 font-headline-md text-xl font-extrabold text-outline">€</span>
+          <!-- Giant Neo-Fintech Currency Input + Quick Amount Chips -->
+          <div class="flex flex-col gap-2">
+            <div class="relative">
+              <input id="tx-amount" type="number" step="0.01" inputmode="decimal" value="${esc(amountVal)}" placeholder="0,00" class="w-full py-3.5 px-4 rounded-2xl bg-surface-container-low border border-outline-variant/45 font-display-currency text-3xl sm:text-4xl font-extrabold text-center text-on-surface focus:border-primary outline-none tabular-nums"/>
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 font-headline-md text-xl font-extrabold text-outline">€</span>
+            </div>
+            ${!existing ? `
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                ${(isExp ? [5, 10, 20, 50] : [50, 100, 250, 500]).map(v => `
+                  <button type="button" onclick="haptic('selection'); const inp=$('#tx-amount'); if(inp){ inp.value=((parseAmount(inp.value)||0)+${v}).toFixed(2); }" class="px-3 py-1 rounded-full bg-surface-container-low hover:bg-primary/12 text-xs font-extrabold text-primary border border-outline-variant/35 active-scale">+${v} €</button>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
 
           ${isExp ? `
@@ -5694,11 +5922,19 @@ ALTER TABLE public.movimientos
       }
 
       renderAllViews();
+      haptic('success');
       showToast(isExp ? "Gasto guardado en Base de Datos ✓" : "Ingreso guardado en Base de Datos ✓");
     }
 
     async function deleteTx(kind, id) {
-      if (!confirm("¿Eliminar este movimiento de tu cuenta?")) return;
+      haptic('warning');
+      const snapshot = kind === 'exp'
+        ? (S.expenses || []).find(e => e.id === id)
+        : (S.incomes || []).find(i => i.id === id);
+      if (!snapshot) return;
+      const backupCopy = JSON.parse(JSON.stringify(snapshot));
+      delete backupCopy.db_id;
+
       closeUniversalModal();
       if (kind === "exp") {
         await dbDeletePersonalExpense(id);
@@ -5706,7 +5942,22 @@ ALTER TABLE public.movimientos
         await dbDeletePersonalIncome(id);
       }
       renderAllViews();
-      showToast("Movimiento eliminado de la base de datos ✓");
+      showToast(
+        kind === "exp" ? `Gasto eliminado (${fmt(backupCopy.amount)})` : `Ingreso eliminado (${fmt(backupCopy.amount)})`,
+        "Deshacer",
+        async () => {
+          haptic('success');
+          if (kind === "exp") {
+            S.expenses.push(backupCopy);
+            await dbUpsertPersonalExpense(backupCopy);
+          } else {
+            S.incomes.push(backupCopy);
+            await dbUpsertPersonalIncome(backupCopy);
+          }
+          renderAllViews();
+          showToast("Movimiento restaurado ✓");
+        }
+      );
     }
 
     // Voice Recognition (Web Speech API)
@@ -6633,6 +6884,7 @@ ALTER TABLE public.movimientos
     async function triggerQuickPresetExpense(presetId) {
       const qp = (S.quickPresets || []).find(x => x.id === presetId);
       if (!qp) return;
+      haptic('success');
       const newExp = {
         id: uid(),
         amount: Math.round(Number(qp.amount || 0) * 100) / 100,
@@ -6648,7 +6900,16 @@ ALTER TABLE public.movimientos
       viewMk = monthKey(todayStr());
       renderAllViews();
       await dbUpsertPersonalExpense(newExp);
-      showToast(`⚡ Sumado en BD: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)}) ✓`);
+      showToast(
+        `⚡ Sumado: ${qp.emoji || ''} ${qp.label} (${fmt(qp.amount)})`,
+        "Deshacer",
+        async () => {
+          haptic('light');
+          await dbDeletePersonalExpense(newExp.id);
+          renderAllViews();
+          showToast("Gasto rápido deshecho ✓");
+        }
+      );
     }
 
     function openEditQuickPresetsModal() {
@@ -6903,6 +7164,7 @@ ALTER TABLE public.movimientos
     document.addEventListener("DOMContentLoaded", () => {
       loadLocalStateForCurrentUser();
       initTheme();
+      applyPrivacyModeUI();
       viewMk = monthKey(todayStr());
 
       // Prevent pinch-to-zoom and double-tap zoom on iOS Safari & WKWebView
