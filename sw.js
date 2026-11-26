@@ -1,4 +1,4 @@
-const CACHE_NAME = 'claridad-financiera-v4';
+const CACHE_NAME = 'claridad-financiera-v13';
 const ASSETS = [
   './',
   './index.html',

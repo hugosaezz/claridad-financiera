@@ -32,7 +32,7 @@
         const sel = txModalState.cat === c.id;
         return `
           <button type="button" onclick="selectTxCategory('${c.id}')" data-tx-cat="${c.id}" class="p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition ${sel ? 'border-primary bg-primary/10 text-primary font-extrabold' : 'border-outline-variant/40 bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">
-            <span class="material-symbols-outlined text-[20px]" style="color:${c.c}">${c.icon}</span>
+            <span style="color:${c.c}">${ico(c.icon, 'text-[20px]')}</span>
             <span class="text-[11px] truncate w-full">${esc(c.name)}</span>
           </button>`;
       }).join('');
@@ -41,7 +41,7 @@
         const sel = txModalState.incCat === ic.id;
         return `
           <button type="button" onclick="selectTxIncCat('${ic.id}')" data-tx-inccat="${ic.id}" class="px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-1 transition ${sel ? 'border-secondary bg-secondary text-on-secondary' : 'border-outline-variant/40 bg-surface-container-low text-on-surface'}">
-            <span class="material-symbols-outlined text-[15px]">${ic.icon}</span>
+            ${ico(ic.icon, 'text-[14px]')}
             ${esc(ic.name)}
           </button>`;
       }).join('');
@@ -50,7 +50,7 @@
         const sel = txModalState.method === m.id;
         return `
           <button type="button" onclick="selectTxMethod('${m.id}')" data-tx-method="${m.id}" class="px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1 transition ${sel ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant/40 bg-surface-container-low text-on-surface-variant'}">
-            <span class="material-symbols-outlined text-[14px]">${m.icon}</span>
+            ${ico(m.icon, 'text-[14px]')}
             ${esc(m.name)}
           </button>`;
       }).join('');
@@ -60,7 +60,7 @@
           <div class="w-10 h-1 rounded-full bg-outline-variant/60 mx-auto -mt-1 sm:hidden"></div>
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${existing ? (isExp ? 'Editar Gasto' : 'Editar Ingreso') : (isExp ? 'Registrar Gasto Personal' : 'Registrar Ingreso')}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container active-scale"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container active-scale">${ico('close', 'text-[19px]')}</button>
           </div>
 
           ${!existing ? `
@@ -87,7 +87,7 @@
 
           ${isExp ? `
             <button type="button" id="btn-modal-voice" onclick="toggleVoiceRecognition()" class="w-full py-2 px-3 rounded-xl border border-dashed border-outline-variant text-xs font-bold text-on-surface-variant hover:border-primary hover:text-primary flex items-center justify-center gap-1.5 transition">
-              <span class="material-symbols-outlined text-[17px]">mic</span>
+              ${ico('mic', 'text-[17px]')}
               <span id="voice-status-text">Dictar por voz · Ej: «14,50 euros de menú»</span>
             </button>
 
@@ -115,6 +115,21 @@
           <div>
             <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Concepto / Nota ${isExp ? '(puedes incluir #etiquetas)' : ''}</label>
             <input id="tx-note" type="text" value="${esc(noteVal)}" oninput="autoCategorizeOnType(this.value)" placeholder="${isExp ? 'Ej. Mercadona Supermercado #compra' : 'Nota opcional'}" class="w-full px-3.5 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Cuenta</label>
+              <select id="tx-account" class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface">
+                ${(S.accounts || defaultAccountsList()).filter(a => !a.archived).map(a => `<option value="${a.id}" ${(existing?.account_id || 'acc_main') === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1">Divisa</label>
+              <select id="tx-currency" class="w-full px-3 py-2 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface">
+                ${CURRENCIES.map(c => `<option value="${c.code}" ${(existing?.currency || S?.settings?.currency || 'EUR') === c.code ? 'selected' : ''}>${esc(c.code)} (${esc(c.symbol)})</option>`).join('')}
+              </select>
+            </div>
           </div>
 
           <div class="grid grid-cols-2 gap-2.5">
@@ -197,33 +212,40 @@
     }
 
     async function saveTxModal() {
-      const amount = parseAmount($('#tx-amount')?.value);
-      if (!(amount > 0)) {
+      const amountCents = Money.toCents($('#tx-amount')?.value);
+      if (!(amountCents > 0)) {
         $('#tx-amount')?.focus();
         return;
       }
       const date = $('#tx-date')?.value || todayStr();
       const note = ($('#tx-note')?.value || '').trim();
+      const account_id = $('#tx-account')?.value || 'acc_main';
+      const currency = $('#tx-currency')?.value || (S?.settings?.currency || 'EUR');
       const isExp = (txModalState.type === "exp");
 
       closeUniversalModal();
 
       if (isExp) {
-        const payload = {
-          amount: Math.round(amount * 100) / 100,
+        const payload = enrichTransactionMoney({
+          amount_cents: amountCents,
+          amount: Money.fromCents(amountCents),
+          currency,
+          account_id,
           cat: txModalState.cat,
           method: txModalState.method,
           note,
           date,
           tripId: $('#tx-trip')?.value || "",
           refund: !!$('#tx-refund')?.checked,
+          source: txModalState.source || 'manual',
           ts: Date.now()
-        };
+        }, 'exp');
         let savedExp = null;
         if (txModalState.editId) {
           const target = S.expenses.find(e => e.id === txModalState.editId);
           if (target) {
             Object.assign(target, payload);
+            target.sync_version = (target.sync_version || 1) + 1;
             savedExp = target;
           }
         } else {
@@ -235,18 +257,22 @@
         if (savedExp) await dbUpsertPersonalExpense(savedExp);
       } else {
         const source = ($('#tx-source')?.value || '').trim() || incById(txModalState.incCat).name;
-        const payload = {
-          amount: Math.round(amount * 100) / 100,
+        const payload = enrichTransactionMoney({
+          amount_cents: amountCents,
+          amount: Money.fromCents(amountCents),
+          currency,
+          account_id,
           cat: txModalState.incCat,
           source,
           note,
           date
-        };
+        }, 'inc');
         let savedInc = null;
         if (txModalState.editId) {
           const target = S.incomes.find(i => i.id === txModalState.editId);
           if (target) {
             Object.assign(target, payload);
+            target.sync_version = (target.sync_version || 1) + 1;
             savedInc = target;
           }
         } else {
@@ -260,7 +286,7 @@
 
       renderAllViews();
       haptic('success');
-      showToast(isExp ? "Gasto guardado en Base de Datos ✓" : "Ingreso guardado en Base de Datos ✓");
+      showToast(isExp ? "Gasto guardado ✓" : "Ingreso guardado ✓");
     }
 
     async function deleteTx(kind, id) {
@@ -272,28 +298,29 @@
       const backupCopy = JSON.parse(JSON.stringify(snapshot));
       delete backupCopy.db_id;
 
+      // Soft-delete into 30-day recoverable trash
+      const trashEntry = { trashId: uid(), kind, item: backupCopy, deletedAt: Date.now() };
+      if (!Array.isArray(S.trash)) S.trash = [];
+      S.trash.unshift(trashEntry);
+
       closeUniversalModal();
       if (kind === "exp") {
-        await dbDeletePersonalExpense(id);
+        S.expenses = (S.expenses || []).filter(e => e.id !== id);
+        if (loggedUserId) await dbDeletePersonalExpense(id);
       } else {
-        await dbDeletePersonalIncome(id);
+        S.incomes = (S.incomes || []).filter(i => i.id !== id);
+        if (loggedUserId) await dbDeletePersonalIncome(id);
       }
+      saveLocalState(true);
       renderAllViews();
       showToast(
         kind === "exp" ? `Gasto eliminado (${fmt(backupCopy.amount)})` : `Ingreso eliminado (${fmt(backupCopy.amount)})`,
         "Deshacer",
         async () => {
           haptic('success');
-          if (kind === "exp") {
-            S.expenses.push(backupCopy);
-            await dbUpsertPersonalExpense(backupCopy);
-          } else {
-            S.incomes.push(backupCopy);
-            await dbUpsertPersonalIncome(backupCopy);
-          }
-          renderAllViews();
-          showToast("Movimiento restaurado ✓");
-        }
+          await restoreFromTrash(trashEntry.trashId);
+        },
+        5000
       );
     }
 
@@ -358,14 +385,14 @@
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <div class="flex items-center gap-3">
               <span class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background:${c.c}1a;color:${c.c}">
-                <span class="material-symbols-outlined text-2xl">${c.icon}</span>
+                ${ico(c.icon, 'text-[22px]')}
               </span>
               <div>
                 <h3 class="font-headline-sm text-lg font-extrabold text-on-surface">${esc(c.name)}</h3>
                 <p class="text-xs text-on-surface-variant capitalize">${monthLabel(viewMk)} • ${list.length} movimiento(s)</p>
               </div>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <div class="p-4 rounded-2xl bg-surface-container-low flex flex-col gap-2">
@@ -394,8 +421,12 @@
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
-            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${isOwed ? 'Registrar «Me deben» (Cobro P2P)' : 'Registrar «Debo» (Pago pendiente P2P)'}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${isOwed ? 'Registrar «Me deben»' : 'Registrar «Debo»'}</h3>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
+          </div>
+          <div class="grid grid-cols-2 bg-surface-container p-1 rounded-2xl gap-1">
+            <button type="button" onclick="haptic('selection'); openP2PDebtModal('owed')" class="py-2 rounded-xl text-xs font-extrabold transition ${isOwed ? 'bg-surface-container-lowest text-secondary shadow-xs' : 'text-on-surface-variant'}">Me deben (+)</button>
+            <button type="button" onclick="haptic('selection'); openP2PDebtModal('owe')" class="py-2 rounded-xl text-xs font-extrabold transition ${!isOwed ? 'bg-surface-container-lowest text-tertiary shadow-xs' : 'text-on-surface-variant'}">Debo (−)</button>
           </div>
           <div>
             <label class="text-xs font-bold text-on-surface-variant block mb-1">Persona / Contacto</label>
@@ -470,7 +501,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${prefillFull ? (isOwed ? 'Marcar Cobrado' : 'Saldar Deuda') : 'Registrar Abono Parcial'} • ${esc(d.person)}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div class="flex items-center justify-between text-xs">
             <span class="text-on-surface-variant">Saldo pendiente: <strong>${fmt(d.amount)}</strong></span>
@@ -561,7 +592,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Historial con ${esc(d.person)}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div class="p-3.5 rounded-xl bg-surface-container-low flex items-center justify-between">
             <span class="text-xs font-bold text-on-surface-variant">${d.type === 'owed' ? 'Te debe actualmente' : 'Debes actualmente'}</span>
@@ -588,7 +619,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Dividir Ticket entre Amigos</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -665,7 +696,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Crear Bote / Viaje Multi-Pagador</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div>
             <label class="text-xs font-bold text-on-surface-variant block mb-1">Nombre del viaje o evento</label>
@@ -704,7 +735,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${esc(g.name)}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <div class="p-3.5 rounded-2xl bg-surface-container-low flex flex-col gap-2">
@@ -741,7 +772,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <strong class="tabular-nums">${fmt(it.amount)}</strong>
-                  <button onclick="deleteLocalGroupExpense('${g.id}', '${it.id}')" class="text-outline hover:text-error"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+                  <button onclick="deleteLocalGroupExpense('${g.id}', '${it.id}')" class="text-outline hover:text-error">${ico('delete', 'text-[16px]')}</button>
                 </div>
               </div>
             `).join('')}
@@ -820,7 +851,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Nueva Suscripción o Gasto Fijo</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <input id="rec-name" type="text" placeholder="Nombre (Netflix, Gimnasio, Alquiler...)" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
           <div class="grid grid-cols-2 gap-3">
@@ -865,7 +896,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Nuevo Objetivo de Ahorro</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <input id="goal-name" type="text" placeholder="Ej. Fondo de emergencia, Viaje, Coche..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
           <div class="grid grid-cols-2 gap-3">
@@ -896,7 +927,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${dir > 0 ? 'Aportar a' : 'Retirar de'} ${esc(g.name)}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <p class="text-xs text-on-surface-variant">Ahorrado actual: <strong>${fmt(g.saved)}</strong> de ${fmt(g.target)}</p>
           <input id="goal-move-amt" type="number" step="5" placeholder="50.00" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xl font-extrabold text-center text-on-surface"/>
@@ -908,15 +939,17 @@
     }
 
     function executeGoalMove(goalId, dir) {
-      const g = (S.goals || []).find(x => x.id === goalId);
       const amt = parseAmount($('#goal-move-amt')?.value);
-      if (!g || !(amt > 0)) return;
-      g.saved = Math.max(0, Math.round((g.saved + dir * amt) * 100) / 100);
-      if (g.saved >= g.target && typeof confetti === 'function') {
-        confetti({ particleCount: 130, spread: 70, origin: { y: 0.6 } });
-      }
-      saveLocalState(true);
+      if (!(amt > 0)) return;
       closeUniversalModal();
+      if (typeof applyGoalContribution === 'function') {
+        applyGoalContribution(goalId, dir * Money.toCents(amt));
+        return;
+      }
+      const g = (S.goals || []).find(x => x.id === goalId);
+      if (!g) return;
+      g.saved = Math.max(0, Math.round((g.saved + dir * amt) * 100) / 100);
+      saveLocalState(true);
       renderAllViews();
       showToast("Objetivo actualizado ✓");
     }
@@ -933,7 +966,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Nuevo Viaje</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <input id="trip-name" type="text" placeholder="Ej. Roma 5 días" class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
           <div class="grid grid-cols-2 gap-3">
@@ -987,21 +1020,33 @@
       renderAllViews();
     }
 
+    let newCatDraft = { icon: 'category', color: '#4f46e5' };
     function openNewCategoryModal() {
+      newCatDraft = { icon: ICONPICK[0], color: COLORPICK[0] };
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Crear Categoría Personalizada</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <input id="custom-cat-name" type="text" placeholder="Ej. Mascota, Pádel, Universidad..." class="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-sm font-bold text-on-surface"/>
-          <div class="grid grid-cols-2 gap-3">
-            <select id="custom-cat-icon" class="px-3 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface">
-              ${ICONPICK.map(ic => `<option value="${ic}">${ic}</option>`).join('')}
-            </select>
-            <select id="custom-cat-color" class="px-3 py-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-bold text-on-surface">
-              ${COLORPICK.map(col => `<option value="${col}">${col}</option>`).join('')}
-            </select>
+          <div>
+            <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1.5">Icono</label>
+            <div class="grid grid-cols-8 gap-1.5">
+              ${ICONPICK.map(ic => `
+                <button type="button" data-pick-ico="${ic}" onclick="newCatDraft.icon='${ic}'; $$('[data-pick-ico]').forEach(b=>{ const a=b.dataset.pickIco==='${ic}'; b.className='w-9 h-9 rounded-xl flex items-center justify-center transition '+(a?'bg-primary text-on-primary shadow-xs':'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'); })" class="w-9 h-9 rounded-xl flex items-center justify-center transition ${ic === newCatDraft.icon ? 'bg-primary text-on-primary shadow-xs' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'}">
+                  ${ico(ic, 'text-[18px]')}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] font-extrabold uppercase text-on-surface-variant block mb-1.5">Color</label>
+            <div class="flex flex-wrap gap-2">
+              ${COLORPICK.map(col => `
+                <button type="button" data-pick-col="${col}" onclick="newCatDraft.color='${col}'; $$('[data-pick-col]').forEach(b=>b.classList.toggle('ring-2', b.dataset.pickCol==='${col}'))" style="background:${col}" class="w-7 h-7 rounded-full ring-offset-2 ring-primary transition ${col === newCatDraft.color ? 'ring-2' : ''}" aria-label="Color"></button>
+              `).join('')}
+            </div>
           </div>
           <button onclick="saveNewCustomCategory()" class="w-full py-3 rounded-xl bg-primary text-on-primary font-label-lg text-sm font-bold">Crear Categoría</button>
         </div>
@@ -1010,8 +1055,8 @@
 
     function saveNewCustomCategory() {
       const name = ($('#custom-cat-name')?.value || '').trim();
-      const icon = $('#custom-cat-icon')?.value || 'category';
-      const c = $('#custom-cat-color')?.value || '#4f46e5';
+      const icon = newCatDraft.icon || 'category';
+      const c = newCatDraft.color || '#4f46e5';
       if (!name) return;
       S.customCats.push({ id: 'c_' + uid(), name, icon, c });
       saveLocalState(true);
@@ -1184,7 +1229,22 @@
     }
 
     function exportBackupJSON() {
-      downloadBlob("claridad-financiera-backup.json", JSON.stringify(S, null, 2), "application/json");
+      if (S && S.settings) {
+        S.settings.lastBackupAt = Date.now();
+        logAuditEvent('export_json', 'backup', `${(S.expenses || []).length} gastos`);
+        saveLocalState(!!loggedUserId);
+      }
+      const documentedBundle = {
+        app: 'Claridad Financiera',
+        schema_version: 2,
+        exported_at: new Date().toISOString(),
+        currency_base: S?.settings?.currency || 'EUR',
+        fx_rates_date: FX_RATES_UPDATED_DATE,
+        data: S
+      };
+      downloadBlob(`claridad-financiera-backup-${todayStr()}.json`, JSON.stringify(documentedBundle, null, 2), "application/json");
+      renderAllViews();
+      showToast("Copia JSON completa descargada ✓");
     }
 
     function importBackupJSON(inputEl) {
@@ -1193,14 +1253,16 @@
       const reader = new FileReader();
       reader.onload = async () => {
         try {
-          const data = JSON.parse(reader.result);
+          const raw = JSON.parse(reader.result);
+          const data = (raw && raw.data && Array.isArray(raw.data.expenses)) ? raw.data : raw;
           if (!data || !Array.isArray(data.expenses)) throw new Error("Formato inválido");
           await dbClearAllPersonalMonthlyData(loggedUserId);
           S = normalizeStateObject(data);
+          logAuditEvent('import_json', 'backup', `${S.expenses.length} gastos restaurados`);
           saveLocalState(false);
-          await syncUserPersonalDataToCloud();
+          if (loggedUserId) await syncUserPersonalDataToCloud();
           renderAllViews();
-          showToast("Copia de seguridad restaurada en Base de Datos ✓");
+          showToast("Copia de seguridad restaurada ✓");
         } catch (err) {
           alert("El archivo seleccionado no es una copia válida.");
         }
@@ -1260,7 +1322,7 @@
             </div>
           </div>
           <button onclick="deleteQuickPreset('${qp.id}')" class="p-1 text-outline hover:text-error">
-            <span class="material-symbols-outlined text-[18px]">delete</span>
+            ${ico('delete', 'text-[18px]')}
           </button>
         </div>
       `).join('');
@@ -1272,7 +1334,7 @@
               <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Personalizar Gastos Rápidos (1 Toque)</h3>
               <p class="text-xs text-on-surface-variant">Tus compras frecuentes para sumar sin escribir</p>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2.5">
@@ -1326,25 +1388,25 @@
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <div class="flex items-center gap-2.5">
               <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center">
-                <span class="material-symbols-outlined">photo_camera</span>
+                ${ico('photo_camera', 'text-[20px]')}
               </span>
               <div>
                 <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Escáner de Tickets (Cámara / OCR)</h3>
                 <p class="text-xs text-on-surface-variant">Haz una foto al ticket para extraer importe y comercio</p>
               </div>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <label class="w-full p-5 rounded-2xl border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-center cursor-pointer flex flex-col items-center gap-2 transition active-scale">
-            <span class="material-symbols-outlined text-4xl text-primary">add_a_photo</span>
+            <span class="text-primary">${ico('add_a_photo', 'text-[34px]')}</span>
             <span class="font-label-lg text-sm font-extrabold text-primary">Hacer foto al ticket o elegir de la galería</span>
             <span class="text-[11px] text-on-surface-variant">Compatible con tickets de supermercado, restaurantes y gasolineras</span>
             <input type="file" accept="image/*" capture="environment" onchange="processReceiptImageForOCR(this)" class="hidden"/>
           </label>
 
           <div id="ocr-status-box" class="hidden p-3 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface flex items-center gap-2">
-            <span class="material-symbols-outlined animate-spin text-primary text-[18px]">sync</span>
+            ${ico('sync', 'animate-spin text-primary text-[18px]')}
             <span id="ocr-status-text">Analizando imagen del ticket...</span>
           </div>
 
@@ -1499,10 +1561,33 @@
     // 19. INITIALIZATION ON DOM CONTENT LOADED
     // ============================================================================
     document.addEventListener("DOMContentLoaded", () => {
+      hydrateAppIcons(document);
       loadLocalStateForCurrentUser();
+      ClaridadDB.open().then(async (db) => {
+        if (!db) return;
+        const key = userStorageKey(loggedUserId);
+        // Hydrate from IndexedDB if localStorage was empty/cleared
+        if ((S.expenses || []).length === 0 && (S.incomes || []).length === 0) {
+          const snap = await ClaridadDB.loadStateSnapshot(key);
+          if (snap && ((snap.expenses && snap.expenses.length > 0) || (snap.incomes && snap.incomes.length > 0))) {
+            S = normalizeStateObject(snap);
+            localStorage.setItem(key, JSON.stringify(S));
+            renderAllViews();
+          }
+        } else {
+          ClaridadDB.persistStateSnapshot(key, S);
+        }
+      });
       initTheme();
       applyPrivacyModeUI();
+      if (typeof applyAccessibilityPreferences === 'function') applyAccessibilityPreferences();
+      initSecurityLifecycle();
+      if (typeof initKeyboardShortcutsWCAG === 'function') initKeyboardShortcutsWCAG();
       viewMk = monthKey(todayStr());
+
+      window.addEventListener('online', () => {
+        if (loggedUserId) flushOfflineSyncQueue();
+      });
 
       // Prevent pinch-to-zoom and double-tap zoom on iOS Safari & WKWebView
       document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
@@ -1517,7 +1602,7 @@
         lastTouchEnd = now;
       }, { passive: false });
 
-      // Backdrop click handlers
+      // Backdrop & keyboard Escape handlers
       $('#quick-action-sheet')?.addEventListener('click', (e) => {
         if (e.target.id === 'quick-action-sheet') closeQuickActionSheet();
       });
@@ -1532,22 +1617,38 @@
           closeQuickActionSheet();
           closeUniversalModal();
           $('#notifications-drawer')?.classList.add('hidden');
+          if (bulkSelectMode) exitBulkSelectMode();
         }
       });
 
-      // Live synchronization whenever the browser window or iPhone app regains focus
+      // Touch gestures (FAB long-press voice, Home month swipe, Row swipe edit/delete, Long-press multi-select, PTR)
+      initGesturesAndInteractions();
+
+      // Deep Links router
+      window.addEventListener('hashchange', () => navigateFromHash());
+
+      // Live synchronization whenever window regains focus (only if cloud account is active)
       window.addEventListener('focus', () => {
-        if (!isHydratingFromCloud) cargarDatosSupabase(false);
+        if (loggedUserId && !isHydratingFromCloud) cargarDatosSupabase(false);
       });
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && !isHydratingFromCloud) {
+        if (loggedUserId && document.visibilityState === 'visible' && !isHydratingFromCloud) {
           cargarDatosSupabase(false);
         }
       });
 
       importFromURLShortcut();
-      renderAllViews();
-      cargarDatosSupabase().finally(() => {
+      if (typeof handleBankOAuthCallback === 'function') handleBankOAuthCallback();
+      if (typeof handleIncomingShareTarget === 'function') handleIncomingShareTarget();
+      if (!navigateFromHash()) {
+        renderAllViews();
+      }
+      if (shouldShowOnboarding()) {
+        openOnboardingFlow(0);
+      }
+
+      // Sync cloud catalog in background (doesn't disrupt local mode UI)
+      cargarDatosSupabase(false).finally(() => {
         applyPendingApplePayShortcutIfAny();
       });
 

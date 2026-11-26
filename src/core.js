@@ -21,9 +21,50 @@
       localStorage.setItem('claridad_auth_v4', 'strict');
     }
 
+    const APP_BUILD_INFO = {
+      version: '2.8.0-fase8',
+      phase: 'Fase 8 — Cifrado E2E AES-256-GCM, WCAG 2.2 AA, Rendimiento 10k+ & Pulido Final',
+      platform: window.__CLARIDAD_IOS_NATIVE__ ? 'iOS Native Wrapper (WKWebView)' : 'Web / PWA',
+      updated: '2026-11-26'
+    };
+
+    const CURRENCIES = [
+      { code: 'EUR', symbol: '€',   name: 'Euro',                 locale: 'es-ES' },
+      { code: 'USD', symbol: '$',   name: 'Dólar estadounidense', locale: 'en-US' },
+      { code: 'GBP', symbol: '£',   name: 'Libra esterlina',      locale: 'en-GB' },
+      { code: 'MXN', symbol: '$',   name: 'Peso mexicano',        locale: 'es-MX' },
+      { code: 'COP', symbol: '$',   name: 'Peso colombiano',      locale: 'es-CO' },
+      { code: 'ARS', symbol: '$',   name: 'Peso argentino',       locale: 'es-AR' },
+      { code: 'CLP', symbol: '$',   name: 'Peso chileno',         locale: 'es-CL' },
+      { code: 'PEN', symbol: 'S/',  name: 'Sol peruano',          locale: 'es-PE' },
+      { code: 'BRL', symbol: 'R$',  name: 'Real brasileño',       locale: 'pt-BR' },
+      { code: 'CHF', symbol: 'CHF', name: 'Franco suizo',         locale: 'de-CH' },
+      { code: 'CAD', symbol: 'C$',  name: 'Dólar canadiense',     locale: 'en-CA' },
+      { code: 'AUD', symbol: 'A$',  name: 'Dólar australiano',    locale: 'en-AU' },
+      { code: 'JPY', symbol: '¥',   name: 'Yen japonés',          locale: 'ja-JP' },
+      { code: 'CNY', symbol: '¥',   name: 'Yuan chino',           locale: 'zh-CN' },
+      { code: 'SEK', symbol: 'kr',  name: 'Corona sueca',         locale: 'sv-SE' },
+      { code: 'NOK', symbol: 'kr',  name: 'Corona noruega',       locale: 'nb-NO' },
+      { code: 'DKK', symbol: 'kr',  name: 'Corona danesa',        locale: 'da-DK' },
+      { code: 'PLN', symbol: 'zł',  name: 'Zloty polaco',         locale: 'pl-PL' },
+      { code: 'CZK', symbol: 'Kč',  name: 'Corona checa',         locale: 'cs-CZ' },
+      { code: 'HUF', symbol: 'Ft',  name: 'Forinto húngaro',      locale: 'hu-HU' },
+      { code: 'RON', symbol: 'lei', name: 'Leu rumano',           locale: 'ro-RO' },
+      { code: 'TRY', symbol: '₺',   name: 'Lira turca',           locale: 'tr-TR' },
+      { code: 'INR', symbol: '₹',   name: 'Rupia india',          locale: 'en-IN' },
+      { code: 'KRW', symbol: '₩',   name: 'Won surcoreano',       locale: 'ko-KR' },
+      { code: 'SGD', symbol: 'S$',  name: 'Dólar de Singapur',    locale: 'en-SG' },
+      { code: 'HKD', symbol: 'HK$', name: 'Dólar de Hong Kong',   locale: 'en-HK' },
+      { code: 'NZD', symbol: 'NZ$', name: 'Dólar neozelandés',    locale: 'en-NZ' },
+      { code: 'ZAR', symbol: 'R',   name: 'Rand sudafricano',     locale: 'en-ZA' },
+      { code: 'UYU', symbol: '$U',  name: 'Peso uruguayo',        locale: 'es-UY' },
+      { code: 'CRC', symbol: '₡',   name: 'Colón costarricense',  locale: 'es-CR' }
+    ];
+
     let currentGroupId = localStorage.getItem('last_group_id') || null;
     let loggedUserId = localStorage.getItem('logged_user_id') ? Number(localStorage.getItem('logged_user_id')) : null;
     let isAdmin = (loggedUserId !== null) && (localStorage.getItem('is_admin') === 'true');
+    let storageMode = loggedUserId ? 'cloud' : (localStorage.getItem('claridad_storage_mode') || 'local');
     let sbConnected = false;
     let hasDatosPersonalesColumn = false;
     let cloudSyncTimer = null;
@@ -36,14 +77,18 @@
     // 2. PERSONAL FINANCE STATE & CATEGORIES (Per-User Isolated State)
     // ============================================================================
     const LEGACY_LSKEY = "bolsillo_v1";
-    const userStorageKey = (uidNum) => `claridad_user_${uidNum || 'guest'}`;
+    const userStorageKey = (uidNum) => `claridad_user_${uidNum || 'local'}`;
 
     let S = null;
     let viewMk = null;
-    let activeMainView = loggedUserId ? "inicio" : "cuentas"; // Guest defaults to Deudas ('cuentas') -> General
-    let activeP2PTab = loggedUserId ? "owed" : "cloud";       // Guest sees ONLY Grupo General ('cloud')
+    let activeMainView = "inicio";
+    let activeP2PTab = "balance"; // Social tabs: 'balance' | 'grupos' | 'historial'
+    let activeBalanceFilter = "all"; // 'all' | 'owed' | 'owe'
     let activeAjustesSub = null;
-    let movFilter = { q: "", type: "all", cat: "", tag: "", method: "" };
+    let movFilter = { q: "", type: "all", cat: "", tag: "", method: "", account: "", minAmt: "", maxAmt: "", dateFrom: "", dateTo: "" };
+    let statsUniversalQuery = "";
+    let bulkSelectMode = false;
+    let bulkSelectedIds = new Set();
 
     const CATS = [
       { id: "hogar",      name: "Vivienda & Hogar", c: "#4f46e5", icon: "home",            bg: "bg-indigo-500/15", text: "text-indigo-600 dark:text-indigo-400" },
@@ -88,7 +133,22 @@
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
     const dstr = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     const todayStr = () => dstr(new Date());
-    const monthKey = (ds) => String(ds || todayStr()).slice(0, 7);
+    function getMonthStartDay() {
+      const d = Number(S?.settings?.monthStartDay || 1);
+      return (d >= 1 && d <= 28) ? d : 1;
+    }
+    function monthKey(ds) {
+      const raw = String(ds || todayStr());
+      const startDay = getMonthStartDay();
+      if (startDay <= 1) return raw.slice(0, 7);
+      const parts = raw.split('-').map(Number);
+      if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return raw.slice(0, 7);
+      const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+      if (parts[2] >= startDay) {
+        dt.setMonth(dt.getMonth() + 1);
+      }
+      return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+    }
 
     // Native iOS Haptic Feedback Bridge (graceful no-op on Web)
     function haptic(style = 'light') {
@@ -101,7 +161,7 @@
       } catch (e) {}
     }
 
-    // Privacy Blur Mode (Hide / Show Currency Amounts)
+    // Privacy Mode (Hide / Show Currency Amounts as ••••)
     let isPrivacyMode = localStorage.getItem('claridad_privacy_mode') === 'true';
     function applyPrivacyModeUI() {
       if (document.body) {
@@ -109,8 +169,15 @@
       }
       const ic = $('#privacy-icon');
       const btn = $('#btn-privacy-toggle');
-      if (ic) ic.textContent = isPrivacyMode ? 'visibility_off' : 'visibility';
-      if (btn) btn.classList.toggle('text-primary', isPrivacyMode);
+      const inlineIc = $('#hero-privacy-icon');
+      const iconName = isPrivacyMode ? 'visibility_off' : 'visibility';
+      if (ic) ic.innerHTML = ico(iconName, 'text-[20px]');
+      if (inlineIc) inlineIc.innerHTML = ico(iconName, 'text-[17px]');
+      if (btn) {
+        btn.classList.toggle('text-primary', isPrivacyMode);
+        btn.classList.toggle('bg-primary/10', isPrivacyMode);
+        btn.setAttribute('aria-pressed', isPrivacyMode ? 'true' : 'false');
+      }
     }
     function togglePrivacyMode() {
       haptic('selection');
@@ -129,13 +196,24 @@
       return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
     }
 
+    function currentCurrencyObj() {
+      const code = S?.settings?.currency || 'EUR';
+      return CURRENCIES.find(c => c.code === code) || CURRENCIES[0];
+    }
+    function currencySymbol() {
+      return currentCurrencyObj().symbol;
+    }
     function fmt(n) {
       const val = Number(n) || 0;
-      return val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+      const cur = currentCurrencyObj();
+      const formatted = val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return cur.code === 'EUR' ? `${formatted} €` : `${formatted} ${cur.symbol}`;
     }
     function fmt0(n) {
       const val = Number(n) || 0;
-      return Math.round(val).toLocaleString('es-ES') + ' €';
+      const cur = currentCurrencyObj();
+      const formatted = Math.round(val).toLocaleString('es-ES');
+      return cur.code === 'EUR' ? `${formatted} €` : `${formatted} ${cur.symbol}`;
     }
     function fmtSigned(n) {
       const val = Number(n) || 0;
@@ -160,7 +238,7 @@
     }
     function parseAmount(str) {
       if (str === null || str === undefined) return 0;
-      let s = String(str).toLowerCase().replace(/€|euros?/g, '').trim().replace(',', '.');
+      let s = String(str).toLowerCase().replace(/€|euros?|\$|£/g, '').trim().replace(',', '.');
       const m = s.match(/(\d+(?:\.\d+)?)/);
       return m ? parseFloat(m[1]) : 0;
     }
@@ -170,7 +248,7 @@
       return String(name || 'U').slice(0, 2).toUpperCase();
     }
     function currentLoggedUserName() {
-      if (!loggedUserId) return "Invitado";
+      if (!loggedUserId) return (S?.settings?.displayName || '').trim() || "Modo local";
       const u = sbGlobalUsers.find(x => Number(x.id) === Number(loggedUserId));
       return u ? u.nombre : (loggedUserId === 2 ? "Hugo" : `Usuario #${loggedUserId}`);
     }
@@ -201,12 +279,20 @@
     // 4. PERSONAL FINANCE CALCULATIONS (Control Mensual Engine)
     // ============================================================================
     function sumExp(list) {
-      return (list || []).reduce((a, e) => a + (Number(e.amount) || 0), 0);
+      const cents = (list || []).reduce((a, e) => {
+        if (typeof e.amount_base_cents === 'number') return a + e.amount_base_cents;
+        if (typeof e.amount_cents === 'number') return a + e.amount_cents;
+        return a + Math.round((Number(e.amount) || 0) * 100);
+      }, 0);
+      return cents / 100;
     }
     function byCat(list) {
       const m = {};
-      (list || []).forEach(e => { m[e.cat] = (m[e.cat] || 0) + (Number(e.amount) || 0); });
-      return Object.entries(m).map(([cat, total]) => ({ cat, total })).sort((a, b) => b.total - a.total);
+      (list || []).forEach(e => {
+        const c = (typeof e.amount_base_cents === 'number') ? e.amount_base_cents : (typeof e.amount_cents === 'number' ? e.amount_cents : Math.round((Number(e.amount) || 0) * 100));
+        m[e.cat] = (m[e.cat] || 0) + c;
+      });
+      return Object.entries(m).map(([cat, cents]) => ({ cat, total: cents / 100, total_cents: cents })).sort((a, b) => b.total_cents - a.total_cents);
     }
     function monthExpenses(mk) {
       return (S.expenses || []).filter(e => monthKey(e.date) === mk);
@@ -256,15 +342,141 @@
     function safeToSpend(mk) {
       return monthIncomeTotal(mk) - sumExp(monthExpenses(mk)) - upcomingRecurringTotal(mk) - goalsReserve();
     }
-    function currentStreak() {
-      let d = new Date(), n = 0, guard = 0;
-      const hasExp = ds => (S.expenses || []).some(e => e.date === ds);
-      while (!hasExp(dstr(d)) && guard < 365) {
-        n++;
-        d = new Date(d.getTime() - 864e5);
-        guard++;
+    // ============================================================================
+    // 4B. HEALTHY CONTROL STREAK ENGINE (Anti-anxiety: no-spend = positive,
+    //     1 grace day/week, 2 automatic freezes/month, zero guilt messaging)
+    // ============================================================================
+    function computeControlStreak() {
+      if (!S) return { days: 0, best: 0, freezesRemaining: 2, freezesUsedThisMonth: 0, todayActive: false, todayFrozen: false, graceUsedThisWeek: false, statusText: 'Nueva racha empieza hoy 💪' };
+      const st = S.streak || { best: 0, checkins: [], freezes: [] };
+      const checkins = new Set(Array.isArray(st.checkins) ? st.checkins : []);
+      const freezes = new Set(Array.isArray(st.freezes) ? st.freezes : []);
+      const expDates = new Set((S.expenses || []).map(e => e.date).filter(Boolean));
+      const incDates = new Set((S.incomes || []).map(i => i.date).filter(Boolean));
+
+      const today = todayStr();
+      const curMonthPrefix = today.slice(0, 7);
+      const freezesUsedThisMonth = Array.from(freezes).filter(d => String(d).startsWith(curMonthPrefix)).length;
+      const freezesRemaining = Math.max(0, 2 - freezesUsedThisMonth);
+
+      // Days with any activity (expense, income, check-in) or freeze count.
+      // Plus: days with NO expenses ALSO count as positive once the user has started tracking
+      // (createdAt / first activity / check-in) — zero punishment for no-spend days!
+      const allKnownDates = [
+        ...expDates,
+        ...incDates,
+        ...checkins,
+        ...freezes
+      ].filter(Boolean).sort();
+      const firstTrackDate = st.startedAt || allKnownDates[0] || null;
+      const todayActive = expDates.has(today) || incDates.has(today) || checkins.has(today);
+      const todayFrozen = freezes.has(today);
+
+      if (!firstTrackDate) {
+        return {
+          days: 0,
+          best: st.best || 0,
+          freezesRemaining,
+          freezesUsedThisMonth,
+          todayActive: false,
+          todayFrozen: false,
+          graceUsedThisWeek: false,
+          statusText: 'Nueva racha empieza hoy 💪'
+        };
       }
-      return n;
+
+      // Walk backwards up to 365 days from today until firstTrackDate
+      let days = 0;
+      let graceUsedInWeek = {};
+      let autoFreezeLeft = freezesRemaining;
+      const now = new Date();
+      let d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      for (let guard = 0; guard < 365; guard++) {
+        const ds = dstr(d);
+        if (ds < firstTrackDate) break;
+        const weekKey = `${d.getFullYear()}-W${Math.floor((d.getDate() - 1) / 7)}-${d.getMonth()}`;
+        const hasActivity = expDates.has(ds) || incDates.has(ds) || checkins.has(ds) || freezes.has(ds);
+        // No-spend days count as positive days in control!
+        const isNoSpendDay = !expDates.has(ds);
+
+        if (hasActivity || isNoSpendDay) {
+          days++;
+        } else if (!graceUsedInWeek[weekKey]) {
+          graceUsedInWeek[weekKey] = true;
+          days++;
+        } else if (autoFreezeLeft > 0) {
+          autoFreezeLeft--;
+          days++;
+        } else {
+          break;
+        }
+        d.setDate(d.getDate() - 1);
+      }
+
+      const best = Math.max(st.best || 0, days);
+      const statusText = days > 0
+        ? (todayFrozen ? 'Racha protegida hoy con congelador ❄️' : 'Tu control financiero está al día')
+        : 'Nueva racha empieza hoy 💪';
+
+      return {
+        days,
+        best,
+        freezesRemaining,
+        freezesUsedThisMonth,
+        todayActive,
+        todayFrozen,
+        graceUsedThisWeek: Object.keys(graceUsedInWeek).length > 0,
+        statusText
+      };
+    }
+
+    function currentStreak() {
+      return computeControlStreak().days;
+    }
+
+    function toggleTodayNoSpendCheckin() {
+      if (!S) return;
+      if (!S.streak || typeof S.streak !== 'object') S.streak = { best: 0, checkins: [], freezes: [] };
+      if (!Array.isArray(S.streak.checkins)) S.streak.checkins = [];
+      const today = todayStr();
+      if (!S.streak.startedAt) S.streak.startedAt = today;
+      const idx = S.streak.checkins.indexOf(today);
+      if (idx >= 0) {
+        S.streak.checkins.splice(idx, 1);
+        showToast('Check-in de hoy desmarcado');
+      } else {
+        S.streak.checkins.push(today);
+        showToast('🔥 ¡Día registrado al día! Sin gastar también suma');
+      }
+      saveLocalState(true);
+      renderAllViews();
+      if (typeof openStreakModal === 'function') openStreakModal();
+    }
+
+    function toggleTodayStreakFreeze() {
+      if (!S) return;
+      if (!S.streak || typeof S.streak !== 'object') S.streak = { best: 0, checkins: [], freezes: [] };
+      if (!Array.isArray(S.streak.freezes)) S.streak.freezes = [];
+      const today = todayStr();
+      const curMonthPrefix = today.slice(0, 7);
+      const idx = S.streak.freezes.indexOf(today);
+      if (idx >= 0) {
+        S.streak.freezes.splice(idx, 1);
+        showToast('Congelador de hoy desactivado');
+      } else {
+        const usedThisMonth = S.streak.freezes.filter(d => String(d).startsWith(curMonthPrefix)).length;
+        if (usedThisMonth >= 2) {
+          showToast('Ya usaste tus 2 congeladores de este mes ❄️');
+          return;
+        }
+        if (!S.streak.startedAt) S.streak.startedAt = today;
+        S.streak.freezes.push(today);
+        showToast('❄️ Congelador activado para hoy. Disfruta tranquilo');
+      }
+      saveLocalState(true);
+      renderAllViews();
+      if (typeof openStreakModal === 'function') openStreakModal();
     }
     function ensureCarried() {
       const cur = monthKey(todayStr());
@@ -444,8 +656,13 @@
 
     function blankState(defaultSalary = 0) {
       return {
+        schemaVersion: 2,
+        accounts: typeof defaultAccountsList === 'function' ? defaultAccountsList() : [],
         expenses: [],
         incomes: [],
+        trash: [],
+        syncQueue: [],
+        auditLog: [],
         budgets: { hogar: 450, comida: 300, ocio: 180, transporte: 150, compras: 150, susc: 50, salud: 80, otros: 80 },
         rollover: { comida: true, ocio: true },
         carried: {},
@@ -455,27 +672,71 @@
         groups: [],
         trips: [],
         goals: [],
+        challenges: [],
+        receipts: [],
+        voiceHistory: [],
+        voiceSynonyms: {},
+        bankConnections: [],
+        pendingInbox: [],
+        dismissedDetectors: [],
+        notifState: { readKeys: [], dismissedKeys: [], lastPushByKey: {} },
         quickPresets: JSON.parse(JSON.stringify(DEFAULT_QUICK_PRESETS)),
         rules: [
           { id: uid(), match: "mercadona", cat: "comida" },
           { id: uid(), match: "spotify", cat: "susc" },
           { id: uid(), match: "repsol", cat: "transporte" }
         ],
-        streak: { best: 0 },
+        streak: { best: 0, checkins: [], freezes: [], startedAt: null },
         customCats: [],
-        settings: { salary: defaultSalary, salaryDay: 1, salaryAuto: defaultSalary > 0, dark: false, bizumPhone: "" },
+        settings: {
+          salary: defaultSalary,
+          salaryDay: 1,
+          salaryAuto: defaultSalary > 0,
+          currency: 'EUR',
+          monthStartDay: 1,
+          displayName: '',
+          dark: false,
+          confettiEnabled: true,
+          locale: 'es',
+          highContrast: false,
+          reduceMotion: false,
+          bizumPhone: "",
+          lastBackupAt: null,
+          backupReminderDismissedAt: null,
+          consents: { cloudSync: !!loggedUserId, notifications: true, analytics: false }
+        },
         seeded: true,
         isDemoSeeded: false,
         startMk: monthKey(todayStr()),
+        createdAt: Date.now(),
         updatedAt: Date.now()
       };
     }
 
     function normalizeStateObject(obj) {
       if (!obj || typeof obj !== 'object') obj = blankState(0);
+      obj.schemaVersion = 2;
+      if (!Array.isArray(obj.accounts) || obj.accounts.length === 0) {
+        obj.accounts = typeof defaultAccountsList === 'function' ? defaultAccountsList() : [];
+      }
       if (!Array.isArray(obj.expenses)) obj.expenses = [];
       if (!Array.isArray(obj.incomes)) obj.incomes = [];
+      if (!Array.isArray(obj.trash)) obj.trash = [];
+      if (!Array.isArray(obj.syncQueue)) obj.syncQueue = [];
+      if (!Array.isArray(obj.auditLog)) obj.auditLog = [];
+      if (!Array.isArray(obj.savedViews)) obj.savedViews = [];
+      if (!Array.isArray(obj.receipts)) obj.receipts = [];
+      if (!Array.isArray(obj.voiceHistory)) obj.voiceHistory = [];
+      if (!obj.voiceSynonyms || typeof obj.voiceSynonyms !== 'object') obj.voiceSynonyms = {};
+      if (!Array.isArray(obj.bankConnections)) obj.bankConnections = [];
+      if (!Array.isArray(obj.pendingInbox)) obj.pendingInbox = [];
+      if (!Array.isArray(obj.dismissedDetectors)) obj.dismissedDetectors = [];
+      if (!obj.notifState || typeof obj.notifState !== 'object') obj.notifState = { readKeys: [], dismissedKeys: [], lastPushByKey: {} };
+      if (!Array.isArray(obj.notifState.readKeys)) obj.notifState.readKeys = [];
+      if (!Array.isArray(obj.notifState.dismissedKeys)) obj.notifState.dismissedKeys = [];
+      if (!obj.notifState.lastPushByKey || typeof obj.notifState.lastPushByKey !== 'object') obj.notifState.lastPushByKey = {};
       if (!Array.isArray(obj.goals)) obj.goals = [];
+      if (!Array.isArray(obj.challenges)) obj.challenges = [];
       if (!Array.isArray(obj.groups)) obj.groups = [];
       if (!Array.isArray(obj.rules)) obj.rules = [];
       if (!Array.isArray(obj.customCats)) obj.customCats = [];
@@ -488,14 +749,29 @@
       if (!obj.budgets) obj.budgets = { hogar: 450, comida: 300, ocio: 180, transporte: 150, compras: 150, otros: 80 };
       if (!obj.rollover) obj.rollover = {};
       if (!obj.carried) obj.carried = {};
-      if (!obj.streak || typeof obj.streak !== "object") obj.streak = { best: 0 };
+      if (!obj.streak || typeof obj.streak !== "object") obj.streak = { best: 0, checkins: [], freezes: [], startedAt: null };
+      if (!Array.isArray(obj.streak.checkins)) obj.streak.checkins = [];
+      if (!Array.isArray(obj.streak.freezes)) obj.streak.freezes = [];
       if (!obj.settings || typeof obj.settings !== "object") obj.settings = { salary: 0, salaryDay: 1, salaryAuto: false, dark: false };
       if (typeof obj.settings.salary !== "number") obj.settings.salary = 0;
       if (typeof obj.settings.salaryDay !== "number") obj.settings.salaryDay = 1;
       if (typeof obj.settings.salaryAuto !== "boolean") obj.settings.salaryAuto = obj.settings.salary > 0;
+      if (!obj.settings.currency) obj.settings.currency = 'EUR';
+      if (!obj.settings.consents || typeof obj.settings.consents !== 'object') {
+        obj.settings.consents = { cloudSync: !!loggedUserId, notifications: true, analytics: false };
+      }
+      if (typeof obj.settings.monthStartDay !== "number" || obj.settings.monthStartDay < 1 || obj.settings.monthStartDay > 28) {
+        obj.settings.monthStartDay = 1;
+      }
+      if (!obj.createdAt) obj.createdAt = Date.now();
+      const thirtyDaysAgo = Date.now() - (30 * 86400 * 1000);
+      obj.trash = obj.trash.filter(t => t && (t.deletedAt || 0) >= thirtyDaysAgo);
       obj.debts.forEach(d => {
         if (!Array.isArray(d.log)) d.log = [];
         if (typeof d.settled !== "boolean") d.settled = false;
+        if (typeof Money !== 'undefined' && typeof d.amount_cents !== 'number') {
+          d.amount_cents = Money.toCents(d.amount || 0);
+        }
       });
       obj.recurring.forEach(r => {
         if (typeof r.autoCharge !== "boolean") r.autoCharge = true;
@@ -503,8 +779,58 @@
       obj.expenses.forEach(e => {
         if (!e.method) e.method = "tarjeta";
         if (typeof e.refund !== "boolean") e.refund = false;
+        if (typeof enrichTransactionMoney === 'function') enrichTransactionMoney(e, 'exp');
+      });
+      obj.incomes.forEach(i => {
+        if (typeof enrichTransactionMoney === 'function') enrichTransactionMoney(i, 'inc');
       });
       return obj;
+    }
+
+    function needsLocalBackupReminder() {
+      if (loggedUserId) return false;
+      if (!S) return false;
+      const totalItems = (S.expenses || []).length + (S.incomes || []).length + (S.debts || []).length;
+      if (totalItems === 0) return false;
+      const now = Date.now();
+      const thirtyDays = 30 * 86400 * 1000;
+      const lastRef = S.settings?.lastBackupAt || S.createdAt || now;
+      const dismissedAt = S.settings?.backupReminderDismissedAt || 0;
+      if (dismissedAt && (now - dismissedAt) < (7 * 86400 * 1000)) return false;
+      return (now - lastRef) >= thirtyDays;
+    }
+
+    function dismissLocalBackupReminder() {
+      if (!S?.settings) return;
+      S.settings.backupReminderDismissedAt = Date.now();
+      saveLocalState(false);
+      renderAllViews();
+    }
+
+    async function restoreFromTrash(trashId) {
+      if (!S || !Array.isArray(S.trash)) return;
+      const idx = S.trash.findIndex(t => t.trashId === trashId);
+      if (idx < 0) return;
+      const entry = S.trash.splice(idx, 1)[0];
+      if (entry.kind === 'exp') {
+        S.expenses.push(entry.item);
+        if (loggedUserId) await dbUpsertPersonalExpense(entry.item);
+      } else if (entry.kind === 'inc') {
+        S.incomes.push(entry.item);
+        if (loggedUserId) await dbUpsertPersonalIncome(entry.item);
+      }
+      saveLocalState(true);
+      renderAllViews();
+      showToast('♻️ Movimiento restaurado ✓');
+    }
+
+    function emptyTrash() {
+      if (!S || !Array.isArray(S.trash) || S.trash.length === 0) return;
+      if (!confirm(`¿Vaciar permanentemente ${S.trash.length} elemento(s) de la papelera?`)) return;
+      S.trash = [];
+      saveLocalState(true);
+      renderAllViews();
+      showToast('Papelera vaciada');
     }
 
     // Automatically log recurring subscriptions on their billing day if autoCharge is enabled
@@ -552,9 +878,14 @@
         S.updatedAt = Date.now();
       }
       const key = userStorageKey(loggedUserId);
-      localStorage.setItem(key, JSON.stringify(S));
-      if (Number(loggedUserId) === 2) {
-        localStorage.setItem(LEGACY_LSKEY, JSON.stringify(S));
+      try {
+        localStorage.setItem(key, JSON.stringify(S));
+        if (Number(loggedUserId) === 2) {
+          localStorage.setItem(LEGACY_LSKEY, JSON.stringify(S));
+        }
+      } catch (e) {}
+      if (typeof ClaridadDB !== 'undefined' && ClaridadDB.persistStateSnapshot) {
+        ClaridadDB.persistStateSnapshot(key, S);
       }
       if (syncCloudConfig && loggedUserId && !isHydratingFromCloud) {
         clearTimeout(cloudSyncTimer);
@@ -576,11 +907,18 @@
       let loaded = null;
       try {
         loaded = JSON.parse(localStorage.getItem(key));
+        // Seamless migration from legacy 'claridad_user_guest' to 'claridad_user_local'
+        if (!loaded && !loggedUserId) {
+          const oldGuest = localStorage.getItem('claridad_user_guest');
+          if (oldGuest) {
+            loaded = JSON.parse(oldGuest);
+            localStorage.setItem(key, oldGuest);
+          }
+        }
       } catch (e) {
         loaded = null;
       }
 
-      // Start every user with a clean 0,00 € account unless they already saved real data
       if (!loaded) {
         loaded = blankState(0);
       }
@@ -731,14 +1069,20 @@
     }
 
     // Insert or update a single personal expense row in Supabase `movimientos`
-    async function dbUpsertPersonalExpense(exp) {
-      if (!supabaseClient || !loggedUserId || !exp) return null;
+    async function dbUpsertPersonalExpense(exp, fromQueue = false) {
+      if (!exp) return null;
+      if (typeof enrichTransactionMoney === 'function') enrichTransactionMoney(exp, 'exp');
       saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return exp;
       try {
         const meta = JSON.stringify({
           uid: exp.id,
           date: exp.date || todayStr(),
           method: exp.method || 'tarjeta',
+          account_id: exp.account_id || 'acc_main',
+          currency: exp.currency || (S?.settings?.currency || 'EUR'),
+          amount_cents: exp.amount_cents,
+          source: exp.source || 'manual',
           tripId: exp.tripId || '',
           refund: !!exp.refund,
           autoRecurringId: exp.autoRecurringId || '',
@@ -747,7 +1091,7 @@
         const rowPayload = {
           usuario_id: Number(loggedUserId),
           tipo: 'gasto_personal',
-          monto: Math.round(Number(exp.amount || 0) * 100) / 100,
+          monto: Money.fromCents(exp.amount_cents),
           concepto: String(exp.note || '').trim(),
           categoria: exp.cat || 'comida',
           estado: meta,
@@ -755,9 +1099,11 @@
         };
 
         if (exp.db_id) {
-          await supabaseClient.from('movimientos').update(rowPayload).eq('id', exp.db_id);
+          const { error } = await supabaseClient.from('movimientos').update(rowPayload).eq('id', exp.db_id);
+          if (error) throw error;
         } else {
-          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          const { data, error } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (error) throw error;
           if (data && data.length > 0) {
             exp.db_id = data[0].id;
             saveLocalState(false);
@@ -765,12 +1111,17 @@
         }
         lastCloudSyncTime = new Date();
       } catch (e) {
-        console.warn("dbUpsertPersonalExpense error:", e);
+        console.warn("dbUpsertPersonalExpense queued offline:", e);
+        if (!fromQueue && typeof enqueueOfflineSyncOp === 'function') {
+          enqueueOfflineSyncOp('upsert', 'expense', exp.id, exp);
+        } else if (fromQueue) {
+          throw e;
+        }
       }
       return exp;
     }
 
-    async function dbDeletePersonalExpense(expId) {
+    async function dbDeletePersonalExpense(expId, fromQueue = false) {
       if (!S) return;
       const target = (S.expenses || []).find(e => e.id === expId);
       S.expenses = (S.expenses || []).filter(e => e.id !== expId);
@@ -778,38 +1129,50 @@
       if (!supabaseClient || !loggedUserId) return;
       try {
         if (target && target.db_id) {
-          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+          const { error } = await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+          if (error) throw error;
         } else {
-          const { data: rows } = await supabaseClient
+          const { data: rows, error } = await supabaseClient
             .from('movimientos')
             .select('id, estado')
             .eq('usuario_id', loggedUserId)
             .eq('tipo', 'gasto_personal')
             .is('grupo_id', null);
+          if (error) throw error;
           const match = (rows || []).find(r => safeParseMeta(r.estado).uid === expId);
           if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
         }
         lastCloudSyncTime = new Date();
       } catch (e) {
-        console.warn("dbDeletePersonalExpense error:", e);
+        console.warn("dbDeletePersonalExpense queued offline:", e);
+        if (!fromQueue && typeof enqueueOfflineSyncOp === 'function') {
+          enqueueOfflineSyncOp('delete', 'expense', expId, { id: expId });
+        } else if (fromQueue) {
+          throw e;
+        }
       }
     }
 
     // Insert or update a single personal income row in Supabase `movimientos`
-    async function dbUpsertPersonalIncome(inc) {
-      if (!supabaseClient || !loggedUserId || !inc) return null;
+    async function dbUpsertPersonalIncome(inc, fromQueue = false) {
+      if (!inc) return null;
+      if (typeof enrichTransactionMoney === 'function') enrichTransactionMoney(inc, 'inc');
       saveLocalState(false);
+      if (!supabaseClient || !loggedUserId) return inc;
       try {
         const meta = JSON.stringify({
           uid: inc.id,
           date: inc.date || todayStr(),
+          account_id: inc.account_id || 'acc_main',
+          currency: inc.currency || (S?.settings?.currency || 'EUR'),
+          amount_cents: inc.amount_cents,
           note: inc.note || '',
           source: inc.source || ''
         });
         const rowPayload = {
           usuario_id: Number(loggedUserId),
           tipo: 'ingreso_personal',
-          monto: Math.round(Number(inc.amount || 0) * 100) / 100,
+          monto: Money.fromCents(inc.amount_cents),
           concepto: String(inc.source || 'Ingreso').trim(),
           categoria: inc.cat || 'extra',
           estado: meta,
@@ -817,9 +1180,11 @@
         };
 
         if (inc.db_id) {
-          await supabaseClient.from('movimientos').update(rowPayload).eq('id', inc.db_id);
+          const { error } = await supabaseClient.from('movimientos').update(rowPayload).eq('id', inc.db_id);
+          if (error) throw error;
         } else {
-          const { data } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          const { data, error } = await supabaseClient.from('movimientos').insert([rowPayload]).select('id');
+          if (error) throw error;
           if (data && data.length > 0) {
             inc.db_id = data[0].id;
             saveLocalState(false);
@@ -827,12 +1192,17 @@
         }
         lastCloudSyncTime = new Date();
       } catch (e) {
-        console.warn("dbUpsertPersonalIncome error:", e);
+        console.warn("dbUpsertPersonalIncome queued offline:", e);
+        if (!fromQueue && typeof enqueueOfflineSyncOp === 'function') {
+          enqueueOfflineSyncOp('upsert', 'income', inc.id, inc);
+        } else if (fromQueue) {
+          throw e;
+        }
       }
       return inc;
     }
 
-    async function dbDeletePersonalIncome(incId) {
+    async function dbDeletePersonalIncome(incId, fromQueue = false) {
       if (!S) return;
       const target = (S.incomes || []).find(i => i.id === incId);
       S.incomes = (S.incomes || []).filter(i => i.id !== incId);
@@ -840,20 +1210,27 @@
       if (!supabaseClient || !loggedUserId) return;
       try {
         if (target && target.db_id) {
-          await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+          const { error } = await supabaseClient.from('movimientos').delete().eq('id', target.db_id);
+          if (error) throw error;
         } else {
-          const { data: rows } = await supabaseClient
+          const { data: rows, error } = await supabaseClient
             .from('movimientos')
             .select('id, estado')
             .eq('usuario_id', loggedUserId)
             .eq('tipo', 'ingreso_personal')
             .is('grupo_id', null);
+          if (error) throw error;
           const match = (rows || []).find(r => safeParseMeta(r.estado).uid === incId);
           if (match) await supabaseClient.from('movimientos').delete().eq('id', match.id);
         }
         lastCloudSyncTime = new Date();
       } catch (e) {
-        console.warn("dbDeletePersonalIncome error:", e);
+        console.warn("dbDeletePersonalIncome queued offline:", e);
+        if (!fromQueue && typeof enqueueOfflineSyncOp === 'function') {
+          enqueueOfflineSyncOp('delete', 'income', incId, { id: incId });
+        } else if (fromQueue) {
+          throw e;
+        }
       }
     }
 
@@ -1259,64 +1636,62 @@
     function updateCloudHeaderUI() {
       const userName = currentLoggedUserName();
       const avatarEl = $('#header-avatar');
-      const greetEl = $('#header-greeting');
-      const badgeEl = $('#header-role-badge');
+      const nameEl = $('#header-user-name');
+      const pillEl = $('#header-mode-pill');
+      const subEl = $('#header-section-subtitle');
       const dotEl = $('#cloud-status-dot');
-      const userPill = $('#header-user-pill');
-      const secTitle = $('#header-section-title');
 
-      if (avatarEl) avatarEl.textContent = !loggedUserId ? "👤" : isAdmin ? "👑" : initials(userName);
-      if (greetEl) greetEl.textContent = loggedUserId ? `Cuenta de ${userName} 👋 • Toca para cambiar o salir` : `Sin sesión iniciada • Toca para Iniciar Sesión`;
-      if (userPill) userPill.textContent = loggedUserId ? userName : "Iniciar Sesión";
+      if (loggedUserId) {
+        storageMode = 'cloud';
+        const qCount = (S && Array.isArray(S.syncQueue)) ? S.syncQueue.length : 0;
+        if (avatarEl) avatarEl.innerHTML = isAdmin ? '👑' : esc(initials(userName));
+        if (nameEl) nameEl.textContent = userName;
+        if (pillEl) {
+          if (qCount > 0) {
+            pillEl.textContent = `📴 Offline (${qCount})`;
+            pillEl.className = 'text-[10px] font-extrabold px-1.5 py-0.5 rounded-full flex-shrink-0 bg-amber-500/15 text-amber-700 dark:text-amber-300';
+          } else {
+            pillEl.textContent = sbConnected ? '☁️ Nube' : '📴 Offline';
+            pillEl.className = `text-[10px] font-extrabold px-1.5 py-0.5 rounded-full flex-shrink-0 ${sbConnected ? 'bg-secondary/15 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'}`;
+          }
+        }
+        if (dotEl) {
+          dotEl.className = `absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-surface ${sbConnected && qCount === 0 ? 'bg-secondary' : 'bg-amber-500'}`;
+          dotEl.title = qCount > 0 ? `${qCount} cambio(s) pendientes de sincronizar` : (sbConnected ? 'Sincronizado en la nube' : 'Sin conexión (guardado localmente)');
+        }
+      } else {
+        storageMode = 'local';
+        if (avatarEl) avatarEl.innerHTML = ico('hard_drive', 'text-[17px]');
+        if (nameEl) nameEl.textContent = userName;
+        if (pillEl) {
+          pillEl.textContent = '💾 Local';
+          pillEl.className = 'text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant flex-shrink-0';
+        }
+        if (dotEl) {
+          dotEl.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-surface bg-primary';
+          dotEl.title = 'Guardado localmente en este dispositivo';
+        }
+      }
 
       const sectionNames = {
-        inicio: "Control Mensual",
-        gastos: "Movimientos del Mes",
-        cuentas: loggedUserId ? "Deudas y Grupos" : "Grupo General (Spotify)",
-        analitica: "Analítica y Asesor",
-        ajustes: "Planificación y Cuenta"
+        inicio: 'Inicio',
+        gastos: 'Todos los movimientos',
+        cuentas: 'Social · Deudas y Grupos',
+        analitica: 'Stats y Analítica',
+        ajustes: 'Yo y Ajustes'
       };
-      if (secTitle) secTitle.textContent = sectionNames[activeMainView] || "Claridad Financiera";
+      if (subEl) subEl.textContent = sectionNames[activeMainView] || 'Claridad Financiera';
 
-      // Update top mode switcher pills (hide Control Mensual pill if guest)
-      const pillMensual = $('#top-pill-mensual');
-      const pillDeudas = $('#top-pill-deudas');
-      if (pillMensual && pillDeudas) {
-        if (!loggedUserId) {
-          pillMensual.classList.add('hidden');
-        } else {
-          pillMensual.classList.remove('hidden');
-        }
-        const isDeudas = activeMainView === 'cuentas';
-        pillMensual.className = (!loggedUserId ? "hidden " : "") + (!isDeudas
-          ? "px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1"
-          : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1");
-        pillDeudas.className = isDeudas
-          ? "px-3 py-1 rounded-lg text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1"
-          : "px-3 py-1 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1";
+      // Notification badge count driven by Smart Notifications Engine (unread only)
+      let totalNotifs = 0;
+      if (typeof evaluateNotificationsEngine === 'function' && S) {
+        totalNotifs = evaluateNotificationsEngine().unread.length;
+      } else {
+        const pendingPayments = sbMovimientos.filter(m => m.tipo === 'pago' && m.estado === 'pendiente');
+        const overdueP2P = (S?.debts || []).filter(d => !d.settled && d.type === 'owed' && d.due && d.due < todayStr());
+        const refunds = (S?.expenses || []).filter(e => e.refund);
+        totalNotifs = (isAdmin ? pendingPayments.length : 0) + overdueP2P.length + refunds.length;
       }
-
-      if (badgeEl) {
-        if (isAdmin) {
-          badgeEl.textContent = "Super Admin";
-          badgeEl.classList.remove('hidden');
-        } else if (loggedUserId) {
-          badgeEl.textContent = "Cuenta Personal";
-          badgeEl.classList.remove('hidden');
-        } else {
-          badgeEl.textContent = "Invitado";
-          badgeEl.classList.remove('hidden');
-        }
-      }
-      if (dotEl) {
-        dotEl.className = `absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface ${sbConnected ? 'bg-secondary' : 'bg-amber-500'}`;
-      }
-
-      // Notification badge count
-      const pendingPayments = sbMovimientos.filter(m => m.tipo === 'pago' && m.estado === 'pendiente');
-      const overdueP2P = (S.debts || []).filter(d => !d.settled && d.type === 'owed' && d.due && d.due < todayStr());
-      const refunds = (S.expenses || []).filter(e => e.refund);
-      const totalNotifs = (isAdmin ? pendingPayments.length : 0) + overdueP2P.length + refunds.length;
 
       const notifBadge = $('#notif-badge');
       if (notifBadge) {

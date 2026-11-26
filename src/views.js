@@ -2,73 +2,34 @@
     // 8. NAVIGATION, PERIOD & VIEW RENDERER ORCHESTRATION
     // ============================================================================
     function switchMainView(viewName, subTab = null) {
-      // Guest guard: unauthenticated visitors can ONLY view Deudas -> Grupo General
-      if (!loggedUserId && viewName !== 'cuentas') {
-        activeMainView = 'cuentas';
-        activeP2PTab = 'cloud';
-        renderAllViews();
-        showToast("🔒 Inicia sesión con tu usuario y PIN para acceder a tu Control Mensual");
-        openProfileOrLogin();
-        return;
-      }
-      if (!loggedUserId) {
-        viewName = 'cuentas';
-        activeP2PTab = 'cloud';
+      if (bulkSelectMode) {
+        bulkSelectMode = false;
+        bulkSelectedIds.clear();
+        updateBulkSelectBarUI();
       }
       activeMainView = viewName;
-      ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
-        const container = $('#view-' + v);
-        if (container) {
-          if (v === viewName) {
-            container.classList.remove('hidden');
-            container.classList.add('flex');
-          } else {
-            container.classList.add('hidden');
-            container.classList.remove('flex');
-          }
-        }
-      });
 
-      // Update floating dock tabs (inicio and gastos both map to 'nav-inicio')
-      const activeNavKey = !loggedUserId ? 'cuentas' : (viewName === 'gastos') ? 'inicio' : viewName;
-      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
-        const navBtn = $('#nav-' + k);
-        if (!navBtn) return;
-        const iconSpan = navBtn.querySelector('.material-symbols-outlined');
-        const pillSpan = navBtn.querySelector('.nav-pill');
-        const isActive = (k === activeNavKey);
-        const isGuestLocked = !loggedUserId && k !== 'cuentas';
-        navBtn.className = isActive
-          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
-          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-55' : ''}`;
-        if (iconSpan) iconSpan.classList.toggle('filled', isActive);
-        if (pillSpan) {
-          pillSpan.className = isActive
-            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
-            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
-        }
-      });
-
-      // Hide monthly period filter bar when inside Deudas ('cuentas') so Deudas is a completely separate workspace
-      const periodBar = $('#period-filter-bar');
-      if (periodBar) {
-        if (viewName === 'cuentas') {
-          periodBar.classList.add('hidden');
-          periodBar.classList.remove('flex');
+      if (viewName === 'cuentas' && subTab) {
+        if (subTab === 'owed' || subTab === 'owe') {
+          activeP2PTab = 'balance';
+          activeBalanceFilter = subTab;
+        } else if (subTab === 'cloud' || subTab === 'split') {
+          activeP2PTab = 'grupos';
         } else {
-          periodBar.classList.remove('hidden');
-          periodBar.classList.add('flex');
+          activeP2PTab = subTab;
         }
       }
+      if (viewName === 'ajustes' && subTab !== null) {
+        activeAjustesSub = subTab;
+      }
 
-      if (viewName === 'cuentas' && subTab) activeP2PTab = subTab;
-      if (viewName === 'ajustes' && subTab !== null) activeAjustesSub = subTab;
       renderAllViews();
+      syncRouteHash();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function shiftMonth(delta) {
-      const p = viewMk.split('-');
+      const p = String(viewMk || monthKey(todayStr())).split('-');
       const dt = new Date(+p[0], +p[1] - 1 + delta, 1);
       viewMk = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
       renderAllViews();
@@ -82,28 +43,53 @@
     function renderPeriodBar() {
       const lbl = $('#period-label');
       if (lbl) lbl.textContent = monthLabel(viewMk);
-      const streak = currentStreak();
-      if (streak > (S.streak.best || 0)) {
-        S.streak.best = streak;
-        saveLocalState(false);
+
+      const switcher = $('#header-month-switcher');
+      if (switcher) {
+        const showMonth = activeMainView === 'inicio' || activeMainView === 'gastos' || activeMainView === 'analitica';
+        switcher.classList.toggle('hidden', !showMonth);
+        switcher.classList.toggle('flex', showMonth);
       }
-      const sp = $('#streak-pill');
-      if (sp) sp.textContent = `🔥 ${streak} día${streak === 1 ? '' : 's'} sin gastar`;
-      const btnToday = $('#btn-period-today');
-      if (btnToday) {
-        const isCurrent = viewMk === monthKey(todayStr());
-        btnToday.textContent = isCurrent ? "Actual" : "Ir a Hoy";
-        btnToday.className = isCurrent
-          ? "font-label-md text-xs text-on-surface-variant px-2 py-0.5 rounded-md font-semibold"
-          : "font-label-md text-xs bg-primary text-on-primary px-2.5 py-0.5 rounded-lg font-bold shadow-xs";
+
+      const stInfo = computeControlStreak();
+      if (stInfo.days > (S?.streak?.best || 0)) {
+        S.streak.best = stInfo.days;
+        saveLocalState(false);
       }
     }
 
+    function updateBottomNavUI() {
+      const activeNavKey = (activeMainView === 'gastos') ? 'inicio' : activeMainView;
+      const mapIcons = {
+        inicio: 'home',
+        cuentas: 'groups',
+        analitica: 'insights',
+        ajustes: 'person'
+      };
+      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
+        const navBtn = $('#nav-' + k);
+        if (!navBtn) return;
+        const isActive = (k === activeNavKey);
+        const pillSpan = navBtn.querySelector('.nav-pill');
+        const icoWrap = navBtn.querySelector('.nav-ico');
+
+        navBtn.className = isActive
+          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
+          : "nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative";
+        navBtn.setAttribute('aria-current', isActive ? 'page' : 'false');
+
+        if (pillSpan) {
+          pillSpan.className = isActive
+            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
+            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
+        }
+        if (icoWrap && mapIcons[k]) {
+          icoWrap.innerHTML = ico(mapIcons[k], 'text-[22px]', isActive);
+        }
+      });
+    }
+
     function renderAllViews() {
-      if (!loggedUserId) {
-        activeMainView = 'cuentas';
-        activeP2PTab = 'cloud';
-      }
       ['inicio', 'gastos', 'cuentas', 'analitica', 'ajustes'].forEach(v => {
         const container = $('#view-' + v);
         if (container) {
@@ -116,39 +102,13 @@
           }
         }
       });
-      const periodBar = $('#period-filter-bar');
-      if (periodBar) {
-        if (activeMainView === 'cuentas') {
-          periodBar.classList.add('hidden');
-          periodBar.classList.remove('flex');
-        } else {
-          periodBar.classList.remove('hidden');
-          periodBar.classList.add('flex');
-        }
-      }
-      // Ensure bottom nav visual state matches activeMainView
-      const activeNavKey = !loggedUserId ? 'cuentas' : (activeMainView === 'gastos') ? 'inicio' : activeMainView;
-      ['inicio', 'cuentas', 'analitica', 'ajustes'].forEach(k => {
-        const navBtn = $('#nav-' + k);
-        if (!navBtn) return;
-        const iconSpan = navBtn.querySelector('.material-symbols-outlined');
-        const pillSpan = navBtn.querySelector('.nav-pill');
-        const isActive = (k === activeNavKey);
-        const isGuestLocked = !loggedUserId && k !== 'cuentas';
-        navBtn.className = isActive
-          ? "nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale"
-          : `nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative ${isGuestLocked ? 'opacity-55' : ''}`;
-        if (iconSpan) iconSpan.classList.toggle('filled', isActive);
-        if (pillSpan) {
-          pillSpan.className = isActive
-            ? "nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all"
-            : "nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all";
-        }
-      });
 
+      updateBottomNavUI();
       ensureCarried();
       renderPeriodBar();
       updateCloudHeaderUI();
+      applyPrivacyModeUI();
+
       if (activeMainView === 'inicio') renderInicioView();
       if (activeMainView === 'cuentas') renderCuentasView();
       if (activeMainView === 'gastos') renderGastosView();
@@ -157,15 +117,15 @@
     }
 
     // ============================================================================
-    // 9. VIEW 1: CONTROL MENSUAL (100% Personal Monthly Finances — Separated from Debts)
+    // 9. VIEW 1: INICIO (UNIFIED FINANCIAL COPILOT DASHBOARD)
     // ============================================================================
     function renderCategoryDonutSVG(cats, totalExp) {
       const R = 36, C = 2 * Math.PI * R;
       if (!(totalExp > 0) || !cats || cats.length === 0) {
         return `
-          <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0">
+          <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0" aria-label="Sin gastos este mes">
             <circle cx="48" cy="48" r="${R}" fill="none" stroke="currentColor" class="text-surface-container-high" stroke-width="11"/>
-            <text x="48" y="46" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor" class="text-on-surface">0 €</text>
+            <text x="48" y="46" text-anchor="middle" font-size="11" font-weight="800" fill="currentColor" class="text-on-surface">${esc(fmt0(0))}</text>
             <text x="48" y="59" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" class="text-outline">MES LIMPIO</text>
           </svg>`;
       }
@@ -180,12 +140,68 @@
       const topCat = catById(cats[0].cat);
       const topPct = Math.round((cats[0].total / totalExp) * 100);
       return `
-        <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0">
+        <svg width="96" height="96" viewBox="0 0 96 96" class="flex-shrink-0" aria-label="Distribución de gastos, mayor categoría ${esc(topCat.name)} con ${topPct}%">
           <circle cx="48" cy="48" r="${R}" fill="none" stroke="currentColor" class="text-surface-container-high" stroke-width="11"/>
           ${circles}
           <text x="48" y="46" text-anchor="middle" font-size="13" font-weight="800" fill="currentColor" class="text-on-surface">${topPct}%</text>
           <text x="48" y="59" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" class="text-on-surface-variant">${esc(topCat.name.slice(0, 9))}</text>
         </svg>`;
+    }
+
+    function renderIncomeRow(x) {
+      const ic = incById(x.cat);
+      const txKey = `inc:${x.id}`;
+      const isSelected = bulkSelectMode && bulkSelectedIds.has(txKey);
+      const clickAttr = bulkSelectMode && !x.auto
+        ? `onclick="toggleBulkSelectItem('${txKey}')"`
+        : (x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`);
+
+      if (x.auto) {
+        return `
+          <div ${clickAttr} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
+                ${ico(ic.icon, 'text-[19px]')}
+              </div>
+              <div class="min-w-0">
+                <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
+                <p class="font-body-sm text-xs text-on-surface-variant">Nómina automática mensual</p>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums privacy-val">+${fmt(x.amount)}</span>
+              <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
+            </div>
+          </div>`;
+      }
+
+      return `
+        <div class="tx-swipe-wrap ${isSelected ? 'is-selected' : ''}" data-tx-kind="inc" data-tx-id="${x.id}" data-tx-key="${txKey}">
+          <div class="tx-swipe-bg">
+            <span class="flex items-center gap-1.5 text-xs font-extrabold text-tertiary bg-tertiary/12 px-2.5 py-1 rounded-xl">${ico('delete', 'text-[15px]')} Borrar</span>
+            <span class="flex items-center gap-1.5 text-xs font-extrabold text-primary bg-primary/12 px-2.5 py-1 rounded-xl">Editar ${ico('edit', 'text-[15px]')}</span>
+          </div>
+          <div ${clickAttr} class="tx-swipe-content p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+              ${bulkSelectMode ? `
+                <span class="w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-primary border-primary text-white' : 'border-outline-variant'}">
+                  ${isSelected ? ico('check', 'text-[14px]') : ''}
+                </span>
+              ` : ''}
+              <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
+                ${ico(ic.icon, 'text-[19px]')}
+              </div>
+              <div class="min-w-0">
+                <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
+                <p class="font-body-sm text-xs text-on-surface-variant">${esc(ic.name)}${x.note ? ' • ' + esc(x.note) : ''}</p>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums privacy-val">+${fmt(x.amount)}</span>
+              <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
+            </div>
+          </div>
+        </div>`;
     }
 
     function renderDateGroupedTransactionsHtml(mixedRows) {
@@ -211,26 +227,7 @@
             ? `+${fmt(g.incSum)}`
             : fmtSigned(netDay);
 
-        const rows = g.items.map(x => {
-          if (x._k === 'exp') return renderExpenseRow(x);
-          const ic = incById(x.cat);
-          return `
-            <div ${x.auto ? `onclick="switchMainView('ajustes','ingresos')"` : `onclick="openTxModal('inc', '${x.id}')"`} class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center flex-shrink-0">
-                  <span class="material-symbols-outlined text-[20px]">${ic.icon}</span>
-                </div>
-                <div class="min-w-0">
-                  <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(x.source || ic.name)}</p>
-                  <p class="font-body-sm text-xs text-on-surface-variant">${x.auto ? 'Nómina automática mensual' : esc(ic.name)}${x.note ? ' • ' + esc(x.note) : ''}</p>
-                </div>
-              </div>
-              <div class="text-right flex-shrink-0">
-                <span class="font-headline-sm text-[15px] font-extrabold text-secondary tabular-nums privacy-val">+${fmt(x.amount)}</span>
-                <p class="font-label-sm text-[10px] text-secondary uppercase">Ingreso</p>
-              </div>
-            </div>`;
-        }).join('');
+        const rows = g.items.map(x => x._k === 'exp' ? renderExpenseRow(x) : renderIncomeRow(x)).join('');
 
         return `
           <div class="flex flex-col">
@@ -249,7 +246,6 @@
       const el = $('#view-inicio');
       if (!el) return;
 
-      const userName = currentLoggedUserName();
       const exps = monthExpenses(viewMk).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0));
       const incs = incomeRows(viewMk);
       const totalExp = sumExp(exps);
@@ -266,84 +262,125 @@
       const scoreObj = finScore(viewMk);
       const fc = forecast(viewMk);
       const cats = byCat(exps);
+      const p2p = computeP2PMetrics();
+      const streakInfo = computeControlStreak();
 
-      // Month-over-Month Trend Comparison
       const pMk = prevMonthKey(viewMk);
       const prevExp = sumExp(monthExpenses(pMk));
       const expDeltaPct = prevExp > 0 ? Math.round(((totalExp - prevExp) / prevExp) * 100) : null;
 
-      // Copilot Money-style Daily Pace Calculation
       const [Y, M] = viewMk.split('-').map(Number);
       const isCurMonth = viewMk === monthKey(todayStr());
       const daysInMonth = new Date(Y, M, 0).getDate();
       const currentDay = isCurMonth ? new Date().getDate() : daysInMonth;
       const daysRemaining = Math.max(1, daysInMonth - currentDay + 1);
-      const dailySafeAllowance = Math.max(0, safe / daysRemaining);
+      const dailySafeAllowance = safe / daysRemaining;
       const elapsedMonthPct = Math.min(100, Math.round((currentDay / daysInMonth) * 100));
       const expectedSpendByToday = budgetTotal > 0 ? (budgetTotal * (currentDay / daysInMonth)) : 0;
       const paceDiff = expectedSpendByToday - totalExp;
       const isPaceGood = totalExp <= expectedSpendByToday + 0.01;
 
-      const syncTimeText = lastCloudSyncTime
-        ? lastCloudSyncTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-        : 'En vivo';
-
-      // Top Monthly Control Bar
-      const monthlyTopNavHtml = `
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center bg-surface-container/90 p-1 rounded-2xl border border-outline-variant/30 gap-1">
-            <button onclick="haptic('selection'); switchMainView('inicio')" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">dashboard</span>
-              Resumen
-            </button>
-            <button onclick="haptic('selection'); switchMainView('gastos')" class="px-3.5 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:text-on-surface transition flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-[16px]">receipt_long</span>
-              Movimientos (${exps.length + incs.length})
-            </button>
-          </div>
-          <button onclick="haptic('medium'); cargarDatosSupabase(true)" class="px-3 py-1.5 rounded-full bg-surface-container-lowest hover:bg-surface-container border border-outline-variant/45 flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant shadow-xs transition active-scale" title="Actualizar desde Supabase">
-            <span class="w-2 h-2 rounded-full ${sbConnected ? 'bg-secondary animate-pulse' : 'bg-amber-500'}"></span>
-            <span>BD ${esc(userName)} · ${esc(syncTimeText)}</span>
-          </button>
-        </div>
-      `;
-
-      // Welcome onboarding banner if account is clean at 0 €
-      const isFreshAccount = (S.expenses || []).length === 0 && !(S.settings.salary > 0);
-      const onboardingBannerHtml = isFreshAccount ? `
-        <div class="bento-card p-4 rounded-3xl border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-start gap-3">
-            <span class="w-10 h-10 rounded-2xl hero-indigo text-white flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[20px]">cloud_done</span>
-            </span>
-            <div>
-              <h3 class="font-headline-sm text-sm font-extrabold text-on-surface">Bienvenido a tu espacio personal, ${esc(userName)}</h3>
-              <p class="font-body-sm text-xs text-on-surface-variant mt-0.5 leading-relaxed">
-                Tu registro personal en Supabase está limpio a 0,00 €. Configura tu nómina o toca un botón de Gasto Rápido para empezar.
-              </p>
+      // Non-intrusive monthly local backup reminder
+      const localBackupBannerHtml = needsLocalBackupReminder() ? `
+        <div class="bento-card p-3.5 rounded-2xl border-l-4 border-l-amber-500 bg-amber-500/5 flex flex-wrap items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 flex items-center justify-center flex-shrink-0">${ico('download', 'text-[18px]')}</span>
+            <div class="min-w-0">
+              <p class="text-xs font-extrabold text-on-surface">Hace más de 30 días que no haces copia local</p>
+              <p class="text-[11px] text-on-surface-variant">Guarda un backup JSON en 1 toque para proteger tus datos.</p>
             </div>
           </div>
-          <button onclick="switchMainView('ajustes', 'ingresos')" class="px-4 py-2.5 rounded-xl bg-primary text-on-primary font-label-md text-xs font-extrabold hover:bg-primary-container transition active-scale flex-shrink-0">
-            Configurar Nómina
-          </button>
+          <div class="flex items-center gap-1.5">
+            <button onclick="exportBackupJSON()" class="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-extrabold active-scale">Hacer copia</button>
+            <button onclick="dismissLocalBackupReminder()" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container" aria-label="Recordar más tarde">${ico('close', 'text-[15px]')}</button>
+          </div>
         </div>
       ` : '';
 
-      // 1-Tap Quick Expense Presets Strip (Sleek Horizontal Chips)
-      const quickPresetsHtml = `
+      // Explainable Predictive Engine + Proactive Coach Insights (max 1 active at a time)
+      const proj = computeEndOfMonthProjection(viewMk);
+      const coachList = generateCoachInsights(viewMk);
+      const activeCoach = coachList[activeCoachInsightIdx % Math.max(1, coachList.length)];
+      const coachTone = activeCoach?.tone || 'primary';
+
+      const coachCardHtml = activeCoach ? `
+        <div class="bento-card p-4 rounded-3xl border-l-4 ${coachTone === 'tertiary' ? 'border-l-tertiary bg-tertiary/5' : coachTone === 'secondary' ? 'border-l-secondary bg-secondary/5' : 'border-l-primary bg-primary/5'} flex flex-col gap-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3 min-w-0">
+              <span class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${coachTone === 'tertiary' ? 'bg-tertiary/15 text-tertiary' : coachTone === 'secondary' ? 'bg-secondary/15 text-secondary' : 'bg-primary/15 text-primary'}">
+                ${ico('auto_awesome', 'text-[20px]')}
+              </span>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${coachTone === 'tertiary' ? 'bg-tertiary/15 text-tertiary' : coachTone === 'secondary' ? 'bg-secondary/15 text-secondary' : 'bg-primary/12 text-primary'}">🤖 Tu Coach · ${esc(activeCoach.badge)}</span>
+                </div>
+                <p class="text-xs sm:text-sm font-extrabold text-on-surface mt-1">${esc(activeCoach.title)}</p>
+                <p class="text-xs text-on-surface-variant mt-0.5 leading-relaxed">${esc(activeCoach.body)}</p>
+              </div>
+            </div>
+            ${coachList.length > 1 ? `
+              <button onclick="haptic('selection'); rotateCoachInsight()" class="px-2 py-1 rounded-lg text-[10px] font-bold text-on-surface-variant hover:bg-surface-container flex-shrink-0" title="Ver otro consejo">
+                ${(activeCoachInsightIdx % coachList.length) + 1}/${coachList.length} →
+              </button>
+            ` : ''}
+          </div>
+          <div class="flex flex-wrap items-center gap-2 pl-0 sm:pl-13">
+            <button onclick="haptic('selection'); ${activeCoach.primaryJs}" class="px-3.5 py-2 rounded-xl ${coachTone === 'tertiary' ? 'bg-tertiary text-white' : 'bg-primary text-on-primary'} text-xs font-extrabold transition active-scale">
+              ${esc(activeCoach.primaryLabel)}
+            </button>
+            ${activeCoach.secondaryLabel ? `
+              <button onclick="haptic('selection'); ${activeCoach.secondaryJs}" class="px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant/45 text-xs font-bold text-on-surface hover:bg-surface-container transition active-scale">
+                ${esc(activeCoach.secondaryLabel)}
+              </button>
+            ` : ''}
+            <button onclick="haptic('selection'); openCoachChatModal()" class="ml-auto px-3 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-primary text-xs font-extrabold transition active-scale inline-flex items-center gap-1">
+              ${ico('chat', 'text-[14px]')} Preguntar
+            </button>
+          </div>
+        </div>
+      ` : '';
+
+      // Social Net Debts Summary Card ("Te deben X€ / Debes Y€ -> Balance ±Z€")
+      const socialSummaryHtml = `
+        <button onclick="haptic('selection'); switchMainView('cuentas', 'balance')" class="bento-card p-4 rounded-3xl flex flex-wrap items-center justify-between gap-3 text-left hover:border-primary/40 active-scale">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="w-10 h-10 rounded-2xl ${p2p.balanceNeto >= 0 ? 'bg-secondary/12 text-secondary' : 'bg-tertiary/12 text-tertiary'} flex items-center justify-center flex-shrink-0">
+              ${ico('groups', 'text-[20px]')}
+            </span>
+            <div class="min-w-0">
+              <p class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">Deudas y Social</p>
+              <p class="text-xs sm:text-sm font-bold text-on-surface mt-0.5 tabular-nums privacy-val">
+                Te deben <span class="text-secondary font-extrabold">${fmt0(p2p.totalMeDeben)}</span>
+                <span class="text-outline mx-1">/</span>
+                Debes <span class="text-tertiary font-extrabold">${fmt0(p2p.totalQueDebo)}</span>
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 ml-auto">
+            <div class="text-right">
+              <span class="text-[10px] font-bold text-on-surface-variant block">Balance neto</span>
+              <span class="text-sm font-extrabold tabular-nums privacy-val ${p2p.balanceNeto >= 0 ? 'text-secondary' : 'text-tertiary'}">${fmtSigned(p2p.balanceNeto)}</span>
+            </div>
+            ${ico('chevron_right', 'text-outline text-[18px]')}
+          </div>
+        </button>
+      `;
+
+      // 1-Tap Quick Expense Presets Strip
+      const quickPresetsHtml = (S.quickPresets && S.quickPresets.length > 0) ? `
         <section class="flex flex-col gap-2">
           <div class="flex items-center justify-between px-1">
             <span class="font-label-sm text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
-              <span class="material-symbols-outlined text-[15px] text-primary">bolt</span>
+              ${ico('bolt', 'text-[14px] text-primary')}
               Gasto en 1 Toque
             </span>
-            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5">
-              <span class="material-symbols-outlined text-[14px]">tune</span>
+            <button onclick="openEditQuickPresetsModal()" class="text-[11px] font-bold text-primary hover:underline flex items-center gap-1">
+              ${ico('tune', 'text-[13px]')}
               Editar
             </button>
           </div>
           <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
-            ${(S.quickPresets || []).map(qp => `
+            ${S.quickPresets.map(qp => `
               <button onclick="triggerQuickPresetExpense('${qp.id}')" class="bento-card px-3.5 py-2.5 rounded-2xl flex items-center gap-2.5 flex-shrink-0 hover:border-primary/50 active-scale text-left">
                 <span class="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-base">${esc(qp.emoji || '💸')}</span>
                 <div>
@@ -354,9 +391,9 @@
             `).join('')}
           </div>
         </section>
-      `;
+      ` : '';
 
-      // Multi-segment stacked bar & category grid (Copilot / Monarch Money style)
+      // Multi-segment stacked bar & category grid
       const topCats = cats.slice(0, 6);
       const multiBarSegments = topCats.length > 0 ? topCats.map(d => {
         const c = catById(d.cat);
@@ -375,7 +412,7 @@
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center gap-1.5 min-w-0">
                 <span class="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${c.c}1c;color:${c.c}">
-                  <span class="material-symbols-outlined text-[16px]">${c.icon}</span>
+                  ${ico(c.icon, 'text-[15px]')}
                 </span>
                 <span class="font-label-sm text-xs font-extrabold text-on-surface truncate">${esc(c.name)}</span>
               </div>
@@ -393,21 +430,28 @@
           </button>`;
       }).join('');
 
-      // Recent Monthly Transactions grouped by Date (Apple Wallet / Revolut style)
+      // Latest 5 Movements on Home (with "Ver todos" for complete filterable ledger)
       const recentMixed = [
         ...exps.map(e => ({ ...e, _k: 'exp' })),
         ...incs.map(i => ({ ...i, _k: 'inc' }))
-      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 8);
+      ].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts || 0) - (a.ts || 0)).slice(0, 5);
 
       const recentRowsHtml = recentMixed.length > 0
         ? renderDateGroupedTransactionsHtml(recentMixed)
         : `
-          <div class="p-8 text-center text-on-surface-variant text-sm flex flex-col items-center gap-2">
-            <span class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-outline">
-              <span class="material-symbols-outlined text-2xl">receipt_long</span>
+          <div class="p-7 text-center text-on-surface-variant text-sm flex flex-col items-center gap-3">
+            <span class="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary">
+              ${ico('receipt_long', 'text-[24px]')}
             </span>
-            <p class="font-bold text-on-surface">Sin movimientos en ${monthLabel(viewMk)}</p>
-            <p class="text-xs max-w-xs">Usa un botón de Gasto en 1 Toque o pulsa el botón central «+» para registrar tu primer gasto o ingreso.</p>
+            <div>
+              <p class="font-extrabold text-on-surface">Aún no hay movimientos en ${monthLabel(viewMk)}</p>
+              <p class="text-xs max-w-xs mx-auto mt-0.5">Añade el primero por voz, foto de ticket o manual en segundos.</p>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+              <button onclick="openTxModal('exp')" class="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-extrabold active-scale">✍️ Gasto</button>
+              <button onclick="openReceiptScannerModal()" class="px-3.5 py-2 rounded-xl bg-surface-container text-on-surface text-xs font-extrabold active-scale">📸 Ticket</button>
+              <button onclick="openTxModal('exp', null, true)" class="px-3.5 py-2 rounded-xl bg-tertiary/12 text-tertiary text-xs font-extrabold active-scale">🎤 Voz</button>
+            </div>
           </div>`;
 
       // Upcoming Subscriptions
@@ -417,7 +461,7 @@
           <div class="py-2.5 flex items-center justify-between text-xs border-b border-outline-variant/20 last:border-0">
             <div class="flex items-center gap-2.5 min-w-0">
               <span class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background:${c.c}1c;color:${c.c}">
-                <span class="material-symbols-outlined text-[15px]">${c.icon}</span>
+                ${ico(c.icon, 'text-[14px]')}
               </span>
               <div class="min-w-0">
                 <p class="font-bold text-on-surface truncate">${esc(r.name)}</p>
@@ -433,22 +477,22 @@
         <div class="bento-card p-4 rounded-3xl flex flex-col gap-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
-              <span class="material-symbols-outlined text-secondary text-[18px]">emoji_events</span>
-              <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Metas de Ahorro</h3>
+              ${ico('emoji_events', 'text-secondary text-[18px]')}
+              <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Metas activas</h3>
             </div>
             <button onclick="switchMainView('ajustes', 'obj')" class="text-xs font-bold text-primary hover:underline">Ver todas</button>
           </div>
           <div class="flex flex-col gap-2.5">
             ${(S.goals || []).slice(0, 2).map(g => {
-              const gPct = Math.min(100, g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0);
+              const gp = typeof computeGoalProjection === 'function' ? computeGoalProjection(g) : { pct: Math.min(100, g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0), etaLabel: '' };
               return `
-                <div onclick="openGoalMoveModal('${g.id}', 1)" class="cursor-pointer p-3 rounded-2xl bg-surface-container-low hover:bg-surface-container transition flex flex-col gap-1.5 active-scale">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="font-extrabold text-on-surface">${esc(g.name)}</span>
-                    <span class="font-extrabold text-secondary tabular-nums privacy-val">${fmt0(g.saved)} / ${fmt0(g.target)} (${gPct}%)</span>
+                <div onclick="${gp.kind === 'reduction' ? "switchMainView('ajustes','obj')" : `openGoalSimulatorModal('${g.id}')`}" class="cursor-pointer p-3 rounded-2xl bg-surface-container-low hover:bg-surface-container transition flex flex-col gap-1.5 active-scale">
+                  <div class="flex items-center justify-between text-xs gap-2">
+                    <span class="font-extrabold text-on-surface truncate">${esc(g.name)}</span>
+                    <span class="font-extrabold text-secondary tabular-nums privacy-val flex-shrink-0">${gp.pct}%${gp.etaLabel ? ` · ${esc(gp.etaLabel)}` : ''}</span>
                   </div>
                   <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style="width:${gPct}%"></div>
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style="width:${gp.pct}%"></div>
                   </div>
                 </div>`;
             }).join('')}
@@ -457,31 +501,48 @@
       ` : '';
 
       el.innerHTML = `
-        ${monthlyTopNavHtml}
-        ${onboardingBannerHtml}
+        ${localBackupBannerHtml}
 
         <!-- HERO EXECUTIVE CARD + KPI BENTO GRID -->
         <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <!-- FLAGSHIP HERO CARD (2 cols): PUEDES GASTAR ESTE MES + DAILY SAFE VERDICT -->
+          <!-- FLAGSHIP HERO CARD (2 cols): SALDO DEL MES + MARGEN DIARIO SEGURO + RACHA + INLINE OJO -->
           <div class="col-span-2 hero-indigo text-white p-5 rounded-3xl flex flex-col justify-between gap-4 relative overflow-hidden">
             <div class="flex items-start justify-between gap-2 relative z-10">
-              <div class="flex flex-col">
+              <div class="flex flex-col min-w-0">
                 <div class="flex flex-wrap items-center gap-1.5">
-                  <span class="font-label-sm text-[10px] text-indigo-100/90 font-extrabold tracking-widest uppercase">DISPONIBLE REAL DEL MES</span>
-                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/15 text-white backdrop-blur-xs privacy-val">${fmt0(dailySafeAllowance)}/día</span>
+                  <span class="font-label-sm text-[10px] text-indigo-100/90 font-extrabold tracking-widest uppercase">MARGEN DISPONIBLE DEL MES</span>
+                  <button onclick="haptic('selection'); openStreakModal()" class="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400/25 hover:bg-amber-400/35 text-amber-100 border border-amber-300/30 transition active-scale" title="Racha de control: días consecutivos al día">
+                    🔥 ${streakInfo.days} ${streakInfo.days === 1 ? 'día' : 'días'}
+                  </button>
                 </div>
-                <div class="flex items-baseline gap-2 mt-1.5">
-                  <span class="font-display-currency text-[34px] sm:text-[38px] leading-none font-extrabold text-white tracking-tight tabular-nums privacy-val">${fmt(safe)}</span>
+                <div class="flex items-center gap-2 mt-1.5">
+                  <span class="font-display-currency text-[32px] sm:text-[38px] leading-none font-extrabold text-white tracking-tight tabular-nums privacy-val">${fmt(Money.fromCents(proj.availableForVariableCents))}</span>
+                  <button onclick="togglePrivacyMode()" aria-label="Ocultar o mostrar saldo" class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition active-scale flex-shrink-0" title="Ocultar o mostrar importes">
+                    <span id="hero-privacy-icon">${ico(isPrivacyMode ? 'visibility_off' : 'visibility', 'text-[17px]')}</span>
+                  </button>
                 </div>
-                <p class="text-[11px] text-indigo-100/80 mt-1 font-medium">
-                  ${daysRemaining} día${daysRemaining === 1 ? '' : 's'} restante${daysRemaining === 1 ? '' : 's'} · Previsión fin de mes: <strong class="text-white tabular-nums privacy-val">${fmtSigned(fc.end)}</strong>
-                </p>
+                <div class="flex flex-wrap items-center gap-2 mt-2">
+                  <span class="inline-flex items-center gap-1.5 text-[11px] font-extrabold px-2.5 py-1 rounded-full ${proj.status === 'red' ? 'bg-rose-400/25 text-rose-100 border border-rose-300/35' : proj.status === 'amber' ? 'bg-amber-400/25 text-amber-100 border border-amber-300/35' : 'bg-emerald-400/25 text-emerald-100 border border-emerald-300/35'}">
+                    ${proj.dailySafeCents >= 0
+                      ? `Hoy puedes gastar <strong class="tabular-nums privacy-val">${fmt0(Money.fromCents(proj.dailySafeCents))}</strong>`
+                      : `Excedido en <strong class="tabular-nums privacy-val">${fmt0(Money.fromCents(Math.abs(proj.availableForVariableCents)))}</strong>`}
+                  </span>
+                  ${proj.dailySafeCents < 0 ? `
+                    <button onclick="haptic('medium'); openRescuePlanWizard('${viewMk}')" class="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-white text-rose-700 active-scale">
+                      Plan de rescate →
+                    </button>
+                  ` : ''}
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5 text-[10px] text-indigo-100/80 mt-1.5">
+                  <span>Fin de mes estimado: <strong class="text-white tabular-nums privacy-val">Entre ${fmtSigned(Money.fromCents(proj.projectedEndLowCents))} y ${fmtSigned(Money.fromCents(proj.projectedEndHighCents))}</strong></span>
+                  <button onclick="haptic('selection'); openProjectionExplainModal('${viewMk}')" class="underline hover:text-white font-bold">¿Cómo se calcula?</button>
+                </div>
               </div>
 
               <button onclick="haptic('light'); switchMainView('analitica')" class="bg-white/15 hover:bg-white/25 transition backdrop-blur-xs px-3 py-2 rounded-2xl border border-white/20 text-right flex-shrink-0 active-scale">
                 <span class="font-label-sm text-xs text-white font-extrabold flex items-center justify-end gap-1">
-                  <span class="material-symbols-outlined text-[15px]">auto_awesome</span>
+                  ${ico('auto_awesome', 'text-[14px]')}
                   ${scoreObj.score}/100
                 </span>
                 <p class="text-[10px] text-indigo-100/90 font-semibold mt-0.5">Ahorro ${savingsRate}%</p>
@@ -498,7 +559,7 @@
                 <strong class="text-amber-200 font-extrabold tabular-nums privacy-val">−${fmt0(upRecTotal)}</strong>
               </div>
               <div class="text-right">
-                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Reserva Obj.</span>
+                <span class="text-indigo-200/80 text-[10px] uppercase font-bold block">Reserva Metas</span>
                 <strong class="text-emerald-200 font-extrabold tabular-nums privacy-val">${fmt0(reserveGoals)}</strong>
               </div>
             </div>
@@ -509,7 +570,7 @@
             <div class="flex items-center justify-between mb-2">
               <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">INGRESOS</span>
               <span class="w-8 h-8 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[18px]">trending_up</span>
+                ${ico('trending_up', 'text-[18px]')}
               </span>
             </div>
             <div>
@@ -520,12 +581,12 @@
             </div>
           </div>
 
-          <!-- KPI 3: GASTADO ESTE MES + MONTH-OVER-MONTH BADGE -->
+          <!-- KPI 3: GASTADO ESTE MES -->
           <div onclick="haptic('light'); switchMainView('gastos')" class="col-span-1 bento-card p-4 rounded-3xl flex flex-col justify-between cursor-pointer active-scale">
             <div class="flex items-center justify-between mb-2">
               <span class="font-label-sm text-[10px] tracking-wider text-on-surface-variant font-extrabold uppercase">GASTADO</span>
               <span class="w-8 h-8 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[18px]">receipt_long</span>
+                ${ico('receipt_long', 'text-[18px]')}
               </span>
             </div>
             <div>
@@ -543,12 +604,12 @@
             </div>
           </div>
 
-          <!-- KPI 4: COPILOT MONEY-STYLE PACING BAR -->
+          <!-- KPI 4: RITMO DE PRESUPUESTO -->
           <div class="col-span-2 lg:col-span-4 bento-card p-4 sm:p-5 rounded-3xl flex flex-col gap-3">
             <div class="flex flex-wrap justify-between items-center gap-2">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                  <span class="material-symbols-outlined text-[18px]">speed</span>
+                  ${ico('speed', 'text-[18px]')}
                 </span>
                 <span class="font-label-lg text-sm font-extrabold text-on-surface">Ritmo de Presupuesto</span>
                 <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${isPaceGood ? 'bg-secondary/12 text-secondary' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'} privacy-val">
@@ -586,55 +647,15 @@
           </div>
         </section>
 
+        ${coachCardHtml}
+        ${typeof renderHomeBankDetectorsCardHtml === 'function' ? renderHomeBankDetectorsCardHtml() : ''}
+        ${socialSummaryHtml}
         ${quickPresetsHtml}
-
-        <!-- QUICK MONTHLY ACTION BAR -->
-        <section class="grid grid-cols-4 gap-2">
-          <button onclick="haptic('light'); openTxModal('exp')" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
-            <span class="w-9 h-9 rounded-xl bg-primary/12 text-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">add_shopping_cart</span>
-            </span>
-            <div class="min-w-0">
-              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Gasto</p>
-              <p class="text-[10px] text-on-surface-variant hidden sm:block">Manual / #tag</p>
-            </div>
-          </button>
-
-          <button onclick="haptic('light'); openReceiptScannerModal()" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
-            <span class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">photo_camera</span>
-            </span>
-            <div class="min-w-0">
-              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Ticket OCR</p>
-              <p class="text-[10px] text-on-surface-variant hidden sm:block">Foto cámara</p>
-            </div>
-          </button>
-
-          <button onclick="haptic('light'); openTxModal('exp', null, true)" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
-            <span class="w-9 h-9 rounded-xl bg-tertiary/12 text-tertiary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">mic</span>
-            </span>
-            <div class="min-w-0">
-              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Voz</p>
-              <p class="text-[10px] text-on-surface-variant hidden sm:block">Dictar gasto</p>
-            </div>
-          </button>
-
-          <button onclick="haptic('light'); openTxModal('inc')" class="bento-card p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 hover:bg-surface-container-low transition active-scale text-center sm:text-left">
-            <span class="w-9 h-9 rounded-xl bg-secondary/12 text-secondary flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">payments</span>
-            </span>
-            <div class="min-w-0">
-              <p class="font-label-lg text-[11px] sm:text-xs font-extrabold text-on-surface truncate">Ingreso</p>
-              <p class="text-[10px] text-on-surface-variant hidden sm:block">Extra / Bizum</p>
-            </div>
-          </button>
-        </section>
 
         <!-- 2-COLUMN MONTHLY BREAKDOWN & RECENT MOVEMENTS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID & UPCOMING -->
+          <!-- LEFT (6 cols): INTERACTIVE DONUT + CATEGORY BENTO GRID + GOALS + UPCOMING -->
           <section class="lg:col-span-6 flex flex-col gap-4">
             <div class="flex items-center justify-between px-1">
               <div>
@@ -672,8 +693,8 @@
               <div class="bento-card p-4 rounded-3xl flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-amber-600 text-[18px]">schedule</span>
-                    <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Próximos cargos fijos</h3>
+                    ${ico('schedule', 'text-amber-600 text-[18px]')}
+                    <h3 class="font-label-lg text-sm font-extrabold text-on-surface">Próximos vencimientos</h3>
                   </div>
                   <button onclick="switchMainView('ajustes', 'rec')" class="text-xs font-bold text-primary hover:underline privacy-val">Ver (${fmt(upRecTotal)})</button>
                 </div>
@@ -684,12 +705,12 @@
             ` : ''}
           </section>
 
-          <!-- RIGHT (6 cols): DATE-GROUPED RECENT ACTIVITY FEED -->
+          <!-- RIGHT (6 cols): LAST 5 MOVEMENTS + SWIPE HINT + EXPLORE ALL -->
           <section class="lg:col-span-6 flex flex-col gap-3">
             <div class="flex items-center justify-between px-1">
               <div>
-                <h2 class="font-headline-sm text-base font-extrabold text-on-surface">Actividad reciente</h2>
-                <p class="font-body-sm text-xs text-on-surface-variant">Agrupada por día · Sincronizada en tiempo real</p>
+                <h2 class="font-headline-sm text-base font-extrabold text-on-surface">Últimos movimientos</h2>
+                <p class="font-body-sm text-xs text-on-surface-variant">Desliza ← editar · → borrar · mantén para seleccionar</p>
               </div>
               <button onclick="switchMainView('gastos')" class="font-label-md text-xs text-primary font-bold hover:underline">Ver todos (${exps.length + incs.length})</button>
             </div>
@@ -698,9 +719,11 @@
               <div>
                 ${recentRowsHtml}
               </div>
-              <button onclick="switchMainView('gastos')" class="w-full block text-center py-3.5 bg-surface-container-low text-primary font-label-lg text-xs font-extrabold hover:bg-surface-container transition-colors border-t border-outline-variant/25 capitalize">
-                Explorar libro completo de ${monthLabel(viewMk)} →
-              </button>
+              ${(exps.length + incs.length) > 0 ? `
+                <button onclick="switchMainView('gastos')" class="w-full block text-center py-3.5 bg-surface-container-low text-primary font-label-lg text-xs font-extrabold hover:bg-surface-container transition-colors border-t border-outline-variant/25 capitalize">
+                  Ver todos los movimientos de ${monthLabel(viewMk)} →
+                </button>
+              ` : ''}
             </div>
           </section>
 
@@ -708,7 +731,7 @@
       `;
     }
 
-    // Helper: Render a Supabase Cloud Member Card in Stitch Style
+    // Helper: Render a Cloud Group Member Card
     function renderCloudMemberCard(user, index) {
       const deuda = parseFloat(user.deuda || 0);
       const isClear = deuda <= 0.005;
@@ -722,8 +745,9 @@
       const lastDate = lastMov && lastMov.created_at ? fmtDay(lastMov.created_at.slice(0, 10)) : 'Al día';
 
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
-      const canManageGroup = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
-      const isMe = Number(user.id) === Number(loggedUserId);
+      const canManageGroup = !!loggedUserId && (isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId)));
+      const isMe = !!loggedUserId && Number(user.id) === Number(loggedUserId);
+      const isReadOnlyGuest = !loggedUserId;
 
       const avatarBg = isClear
         ? "bg-secondary-fixed text-on-secondary-fixed"
@@ -734,25 +758,25 @@
       return `
         <div class="bento-card p-3.5 rounded-2xl flex flex-col gap-3 ${isMe ? 'ring-1 ring-primary/40' : ''}">
           <div class="flex items-start justify-between gap-2">
-            <div onclick="openCloudUserDetailsModal(${user.id}, '${esc(user.nombre)}')" class="flex items-center gap-3 cursor-pointer group min-w-0">
+            <div ${isReadOnlyGuest ? '' : `onclick="openCloudUserDetailsModal(${user.id}, '${esc(user.nombre)}')"`} class="flex items-center gap-3 ${isReadOnlyGuest ? '' : 'cursor-pointer group'} min-w-0">
               <div class="w-10 h-10 rounded-full ${avatarBg} flex items-center justify-center font-extrabold text-sm flex-shrink-0">
                 ${initials(user.nombre)}
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
-                  <h4 class="font-label-lg text-sm font-bold text-on-surface group-hover:text-primary transition-colors truncate">
+                  <h4 class="font-label-lg text-sm font-bold text-on-surface ${isReadOnlyGuest ? '' : 'group-hover:text-primary transition-colors'} truncate">
                     ${esc(user.nombre)} ${isMe ? '<span class="text-[10px] font-extrabold text-primary">(Tú)</span>' : ''}
                   </h4>
-                  ${esMayorMoroso ? `<span class="text-xs px-1.5 py-0.5 rounded-full bg-tertiary/10 text-tertiary font-extrabold" title="Mayor Moroso del grupo">🔥 Top</span>` : ''}
+                  ${esMayorMoroso ? `<span class="text-xs px-1.5 py-0.5 rounded-full bg-tertiary/10 text-tertiary font-extrabold">Mayor saldo</span>` : ''}
                 </div>
                 <p class="font-body-sm text-xs text-on-surface-variant truncate">${esc(lastConcept)}</p>
-                <span class="font-body-sm text-[11px] text-outline">${esc(lastDate)} • Ver desglose en todos los grupos</span>
+                <span class="font-body-sm text-[11px] text-outline">${esc(lastDate)}${isReadOnlyGuest ? ' • Solo lectura' : ' • Ver desglose'}</span>
               </div>
             </div>
 
             <div class="text-right flex-shrink-0">
-              <span class="font-headline-sm text-[17px] font-extrabold tabular-nums ${isClear ? 'text-secondary' : 'text-tertiary'}">
-                ${isClear ? '0,00 €' : fmt(deuda)}
+              <span class="font-headline-sm text-[17px] font-extrabold tabular-nums privacy-val ${isClear ? 'text-secondary' : 'text-tertiary'}">
+                ${isClear ? fmt(0) : fmt(deuda)}
               </span>
               <div class="mt-1">
                 ${hasPending
@@ -765,37 +789,39 @@
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-outline-variant/20">
-            ${canManageGroup ? `
-              <button onclick="openIndivChargeModal(${user.id}, '${esc(user.nombre)}')" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-surface-container-low text-on-surface font-label-md text-xs font-semibold hover:bg-surface-container transition active-scale">
-                <span class="material-symbols-outlined text-[15px]">add_circle</span>
-                + Cargo
-              </button>
-            ` : ''}
+          ${!isReadOnlyGuest ? `
+            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-outline-variant/20">
+              ${canManageGroup ? `
+                <button onclick="openIndivChargeModal(${user.id}, '${esc(user.nombre)}')" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-surface-container-low text-on-surface font-label-md text-xs font-semibold hover:bg-surface-container transition active-scale">
+                  ${ico('add_circle', 'text-[15px]')}
+                  + Cargo
+                </button>
+              ` : ''}
 
-            <button onclick="openCloudPaymentModal(${user.id}, '${esc(user.nombre)}', ${deuda})" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl ${canManageGroup ? 'bg-secondary/10 text-secondary hover:bg-secondary/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} font-label-md text-xs font-bold transition active-scale">
-              <span class="material-symbols-outlined text-[15px]">check_circle</span>
-              ${canManageGroup ? 'Marcar cobrado' : 'He pagado'}
-            </button>
-
-            ${(!isClear && !isMe) ? `
-              <button onclick="openBizumClaimModal('${esc(user.nombre)}', ${deuda}, '${esc(currGroup ? currGroup.nombre : 'Grupo')}')" class="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale" title="Reclamar por Bizum / WhatsApp">
-                <span class="material-symbols-outlined text-[15px]">send</span>
-                <span class="hidden sm:inline">Bizum</span>
+              <button onclick="openCloudPaymentModal(${user.id}, '${esc(user.nombre)}', ${deuda})" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl ${canManageGroup ? 'bg-secondary/10 text-secondary hover:bg-secondary/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} font-label-md text-xs font-bold transition active-scale">
+                ${ico('check_circle', 'text-[15px]')}
+                ${canManageGroup ? 'Marcar cobrado' : 'He pagado'}
               </button>
-            ` : ''}
 
-            ${canManageGroup ? `
-              <button onclick="undoLastCloudAction(${user.id}, '${esc(user.nombre)}')" class="p-1.5 rounded-xl text-on-surface-variant hover:text-amber-600 hover:bg-amber-500/10 transition" title="Deshacer último movimiento">
-                <span class="material-symbols-outlined text-[16px]">undo</span>
-              </button>
-            ` : ''}
-          </div>
+              ${(!isClear && !isMe) ? `
+                <button onclick="openBizumClaimModal('${esc(user.nombre)}', ${deuda}, '${esc(currGroup ? currGroup.nombre : 'Grupo')}')" class="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale" title="Reclamar por Bizum / WhatsApp">
+                  ${ico('send', 'text-[15px]')}
+                  <span class="hidden sm:inline">Bizum</span>
+                </button>
+              ` : ''}
+
+              ${canManageGroup ? `
+                <button onclick="undoLastCloudAction(${user.id}, '${esc(user.nombre)}')" class="p-1.5 rounded-xl text-on-surface-variant hover:text-amber-600 hover:bg-amber-500/10 transition" title="Deshacer último movimiento">
+                  ${ico('undo', 'text-[16px]')}
+                </button>
+              ` : ''}
+            </div>
+          ` : ''}
         </div>
       `;
     }
 
-    // Helper: Render a Personal P2P Debt Card ("Me deben" / "Debo") in Stitch Style
+    // Helper: Render a Personal P2P Debt Card ("Me deben" / "Debo")
     function renderPersonalDebtCard(d) {
       const isOwed = d.type === 'owed';
       const isOverdue = d.due && d.due < todayStr();
@@ -817,7 +843,7 @@
       return `
         <div class="bento-card p-3.5 rounded-2xl flex flex-col gap-3">
           <div class="flex items-start justify-between gap-2">
-            <div onclick="openP2PDebtHistoryModal('${d.id}')" class="flex items-center gap-3 cursor-pointer min-w-0">
+            <div onclick="openPersonSocialTimelineModal('${esc(d.person)}')" class="flex items-center gap-3 cursor-pointer min-w-0">
               <div class="w-10 h-10 rounded-full ${avatarStyle} flex items-center justify-center font-extrabold text-sm flex-shrink-0">
                 ${initials(d.person)}
               </div>
@@ -833,7 +859,7 @@
               </div>
             </div>
             <div class="text-right flex-shrink-0">
-              <span class="font-headline-sm text-[17px] font-extrabold tabular-nums ${isOwed ? 'text-secondary' : 'text-tertiary'}">
+              <span class="font-headline-sm text-[17px] font-extrabold tabular-nums privacy-val ${isOwed ? 'text-secondary' : 'text-tertiary'}">
                 ${isOwed ? '+' : '−'}${fmt(d.amount)}
               </span>
               <div class="mt-1">${badgeHtml}</div>
@@ -842,60 +868,76 @@
 
           <div class="grid grid-cols-3 gap-2 pt-2 border-t border-outline-variant/20">
             <button onclick="openP2PPartialModal('${d.id}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-surface-container-low text-on-surface font-label-md text-xs font-semibold hover:bg-surface-container transition active-scale">
-              <span class="material-symbols-outlined text-[15px]">edit_note</span>
-              Registrar abono
+              ${ico('edit_note', 'text-[15px]')}
+              Abono
             </button>
             ${isOwed ? `
               <button onclick="openBizumClaimModal('${esc(d.person)}', ${d.amount}, '${esc(d.note || 'Préstamo P2P')}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-tertiary/10 text-tertiary font-label-md text-xs font-bold hover:bg-tertiary/20 transition active-scale">
-                <span class="material-symbols-outlined text-[15px]">send</span>
-                Reclamar Bizum
+                ${ico('send', 'text-[14px]')}
+                Reclamar
               </button>
             ` : `
               <button onclick="openP2PDebtHistoryModal('${d.id}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-surface-container-low text-on-surface-variant font-label-md text-xs font-semibold hover:bg-surface-container transition active-scale">
-                <span class="material-symbols-outlined text-[15px]">history</span>
+                ${ico('history', 'text-[15px]')}
                 Historial
               </button>
             `}
             <button onclick="settleFullP2PDebt('${d.id}')" class="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl ${isOwed ? 'bg-secondary/10 text-secondary hover:bg-secondary/20' : 'bg-primary/10 text-primary hover:bg-primary/20'} font-label-md text-xs font-bold transition active-scale">
-              <span class="material-symbols-outlined text-[15px]">check_circle</span>
-              ${isOwed ? 'Marcar cobrado' : 'Saldar deuda'}
+              ${ico('check_circle', 'text-[15px]')}
+              ${isOwed ? 'Cobrado' : 'Saldar'}
             </button>
           </div>
         </div>
       `;
     }
 
-    // Helper: Render a Stitch Expense Row
+    // Helper: Render a Swipeable & Multi-Selectable Expense Row
     function renderExpenseRow(e) {
       const c = catById(e.cat);
       const m = methodById(e.method);
       const tags = tagsOf(e.note);
       const title = cleanNoteText(e.note, c.name);
       const trip = e.tripId ? (S.trips || []).find(t => t.id === e.tripId) : null;
+      const txKey = `exp:${e.id}`;
+      const isSelected = bulkSelectMode && bulkSelectedIds.has(txKey);
+      const clickAttr = bulkSelectMode
+        ? `onclick="toggleBulkSelectItem('${txKey}')"`
+        : `onclick="openTxModal('exp', '${e.id}')"`;
 
       return `
-        <div onclick="openTxModal('exp', '${e.id}')" class="p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${c.c}1a; color:${c.c}">
-              <span class="material-symbols-outlined text-[20px]">${c.icon}</span>
-            </div>
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(title)}</p>
-                ${e.refund ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Devolución</span>` : ''}
-                ${trip ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600">✈️ ${esc(trip.name)}</span>` : ''}
-              </div>
-              <div class="flex items-center gap-1.5 text-on-surface-variant font-body-sm text-xs mt-0.5 flex-wrap">
-                <span>${fmtDay(e.date)}</span>
-                <span>•</span>
-                <span class="inline-flex items-center gap-0.5"><span class="material-symbols-outlined text-[13px]">${m.icon}</span> ${esc(m.name)}</span>
-                ${tags.map(t => `<span class="text-[11px] font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded">${esc(t)}</span>`).join('')}
-              </div>
-            </div>
+        <div class="tx-swipe-wrap ${isSelected ? 'is-selected' : ''}" data-tx-kind="exp" data-tx-id="${e.id}" data-tx-key="${txKey}">
+          <div class="tx-swipe-bg">
+            <span class="flex items-center gap-1.5 text-xs font-extrabold text-tertiary bg-tertiary/12 px-2.5 py-1 rounded-xl">${ico('delete', 'text-[15px]')} Borrar</span>
+            <span class="flex items-center gap-1.5 text-xs font-extrabold text-primary bg-primary/12 px-2.5 py-1 rounded-xl">Editar ${ico('edit', 'text-[15px]')}</span>
           </div>
-          <div class="text-right flex-shrink-0">
-            <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums privacy-val">−${fmt(e.amount)}</span>
-            <p class="font-label-sm text-[10px] text-on-surface-variant uppercase">${esc(c.name)}</p>
+          <div ${clickAttr} class="tx-swipe-content p-3.5 flex items-center justify-between hover:bg-surface-container-low/60 transition cursor-pointer gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+              ${bulkSelectMode ? `
+                <span class="w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-primary border-primary text-white' : 'border-outline-variant'}">
+                  ${isSelected ? ico('check', 'text-[14px]') : ''}
+                </span>
+              ` : ''}
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${c.c}1a; color:${c.c}">
+                ${ico(c.icon, 'text-[19px]')}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <p class="font-label-lg text-sm font-bold text-on-surface truncate">${esc(title)}</p>
+                  ${e.refund ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Devolución</span>` : ''}
+                  ${trip ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-600">✈️ ${esc(trip.name)}</span>` : ''}
+                </div>
+                <div class="flex items-center gap-1.5 text-on-surface-variant font-body-sm text-xs mt-0.5 flex-wrap">
+                  <span>${fmtDay(e.date)}</span>
+                  <span>•</span>
+                  <span class="inline-flex items-center gap-1">${ico(m.icon, 'text-[13px]')} ${esc(m.name)}</span>
+                  ${tags.map(t => `<span class="text-[11px] font-bold text-primary bg-primary/10 px-1.5 py-0.2 rounded">${esc(t)}</span>`).join('')}
+                </div>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <span class="font-headline-sm text-[15px] font-extrabold text-on-surface tabular-nums privacy-val">−${fmt(e.amount)}</span>
+              <p class="font-label-sm text-[10px] text-on-surface-variant uppercase">${esc(c.name)}</p>
+            </div>
           </div>
         </div>
       `;

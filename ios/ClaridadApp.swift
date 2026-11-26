@@ -1,5 +1,8 @@
 import UIKit
 import WebKit
+import LocalAuthentication
+import Vision
+import UserNotifications
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -72,6 +75,72 @@ class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelega
         };
         window.claridadNativeShare = function(title, text, url) {
           try { window.webkit.messageHandlers.claridadNative.postMessage({ type: 'share', title: title || '', text: text || '', url: url || '' }); return true; } catch(e) { return false; }
+        };
+        window.__claridadBioResolvers = {};
+        window.__claridadBioResolve = function(id, ok) {
+          var fn = window.__claridadBioResolvers[id];
+          delete window.__claridadBioResolvers[id];
+          if (typeof fn === 'function') fn(!!ok);
+        };
+        window.claridadBiometricAuth = function(reason) {
+          return new Promise(function(resolve) {
+            var id = 'bio_' + Math.random().toString(36).slice(2, 10);
+            window.__claridadBioResolvers[id] = resolve;
+            try {
+              window.webkit.messageHandlers.claridadNative.postMessage({ type: 'biometric', id: id, reason: reason || 'Desbloquear Claridad Financiera' });
+            } catch(e) {
+              delete window.__claridadBioResolvers[id];
+              resolve(false);
+            }
+          });
+        };
+        window.__claridadOcrResolvers = {};
+        window.__claridadOcrResolve = function(id, text) {
+          var fn = window.__claridadOcrResolvers[id];
+          delete window.__claridadOcrResolvers[id];
+          if (typeof fn === 'function') fn(text || '');
+        };
+        window.claridadNativeOCR = function(dataUrl) {
+          return new Promise(function(resolve) {
+            var id = 'ocr_' + Math.random().toString(36).slice(2, 10);
+            window.__claridadOcrResolvers[id] = resolve;
+            try {
+              window.webkit.messageHandlers.claridadNative.postMessage({ type: 'ocr', id: id, dataUrl: String(dataUrl || '') });
+            } catch(e) {
+              delete window.__claridadOcrResolvers[id];
+              resolve('');
+            }
+          });
+        };
+        window.__claridadNotifResolvers = {};
+        window.__claridadNotifResolve = function(id, ok) {
+          var fn = window.__claridadNotifResolvers[id];
+          delete window.__claridadNotifResolvers[id];
+          if (typeof fn === 'function') fn(!!ok);
+        };
+        window.claridadRequestNotifPermission = function() {
+          return new Promise(function(resolve) {
+            var id = 'np_' + Math.random().toString(36).slice(2, 10);
+            window.__claridadNotifResolvers[id] = resolve;
+            try {
+              window.webkit.messageHandlers.claridadNative.postMessage({ type: 'notif_perm', id: id });
+            } catch(e) {
+              delete window.__claridadNotifResolvers[id];
+              resolve(false);
+            }
+          });
+        };
+        window.claridadScheduleLocalNotif = function(id, title, body, delaySeconds) {
+          try {
+            window.webkit.messageHandlers.claridadNative.postMessage({
+              type: 'notif_local',
+              id: String(id || 'claridad_notif'),
+              title: String(title || 'Claridad Financiera'),
+              body: String(body || ''),
+              delay: Number(delaySeconds || 1)
+            });
+            return true;
+          } catch(e) { return false; }
         };
         """
         controller.addUserScript(WKUserScript(source: nativeInitJS, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -193,6 +262,46 @@ class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelega
             } else if type == "theme" {
                 let dark = body["dark"] as? Bool ?? false
                 self.applyNativeThemeBackground(isDark: dark)
+            } else if type == "biometric" {
+                let reqId = body["id"] as? String ?? ""
+                let reason = body["reason"] as? String ?? "Desbloquear Claridad Financiera"
+                let ctx = LAContext()
+                var authErr: NSError?
+                if ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authErr) {
+                    ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, _ in
+                        DispatchQueue.main.async {
+                            let safeId = reqId.replacingOccurrences(of: "'", with: "")
+                            self.webView.evaluateJavaScript("window.__claridadBioResolve && window.__claridadBioResolve('\(safeId)', \(success ? "true" : "false"));", completionHandler: nil)
+                        }
+                    }
+                } else {
+                    let safeId = reqId.replacingOccurrences(of: "'", with: "")
+                    self.webView.evaluateJavaScript("window.__claridadBioResolve && window.__claridadBioResolve('\(safeId)', false);", completionHandler: nil)
+                }
+            } else if type == "ocr" {
+                let reqId = body["id"] as? String ?? ""
+                let dataUrl = body["dataUrl"] as? String ?? ""
+                self.performNativeVisionOCR(reqId: reqId, dataUrl: dataUrl)
+            } else if type == "notif_perm" {
+                let reqId = body["id"] as? String ?? ""
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                    DispatchQueue.main.async {
+                        let safeId = reqId.replacingOccurrences(of: "'", with: "")
+                        self.webView.evaluateJavaScript("window.__claridadNotifResolve && window.__claridadNotifResolve('\(safeId)', \(granted ? "true" : "false"));", completionHandler: nil)
+                    }
+                }
+            } else if type == "notif_local" {
+                let nId = body["id"] as? String ?? UUID().uuidString
+                let nTitle = body["title"] as? String ?? "Claridad Financiera"
+                let nBody = body["body"] as? String ?? ""
+                let delay = max(1.0, (body["delay"] as? Double) ?? 1.0)
+                let content = UNMutableNotificationContent()
+                content.title = nTitle
+                content.body = nBody
+                content.sound = .default
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+                let req = UNNotificationRequest(identifier: nId, content: content, trigger: trigger)
+                UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
             } else if type == "share" {
                 var items: [Any] = []
                 if let text = body["text"] as? String, !text.isEmpty { items.append(text) }
@@ -202,6 +311,49 @@ class ClaridadViewController: UIViewController, WKUIDelegate, WKNavigationDelega
                     activityVC.popoverPresentationController?.sourceView = self.view
                     self.present(activityVC, animated: true)
                 }
+            }
+        }
+    }
+
+    // Native offline Apple Vision OCR (VNRecognizeTextRequest) for instant item-level ticket scanning
+    private func performNativeVisionOCR(reqId: String, dataUrl: String) {
+        let safeId = reqId.replacingOccurrences(of: "'", with: "")
+        let resolveJS: (String) -> Void = { [weak self] text in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                let jsonData = (try? JSONSerialization.data(withJSONObject: [text], options: [])) ?? Data()
+                let jsonArr = String(data: jsonData, encoding: .utf8) ?? "[\"\"]"
+                self.webView.evaluateJavaScript("window.__claridadOcrResolve && window.__claridadOcrResolve('\(safeId)', (\(jsonArr))[0]);", completionHandler: nil)
+            }
+        }
+
+        let base64Part: String
+        if let commaIdx = dataUrl.firstIndex(of: ",") {
+            base64Part = String(dataUrl[dataUrl.index(after: commaIdx)...])
+        } else {
+            base64Part = dataUrl
+        }
+        guard let imgData = Data(base64Encoded: base64Part, options: .ignoreUnknownCharacters),
+              let uiImage = UIImage(data: imgData),
+              let cgImage = uiImage.cgImage else {
+            resolveJS("")
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let request = VNRecognizeTextRequest { req, _ in
+                let observations = (req.results as? [VNRecognizedTextObservation]) ?? []
+                let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+                resolveJS(lines.joined(separator: "\n"))
+            }
+            request.recognitionLevel = .accurate
+            request.recognitionLanguages = ["es-ES", "en-US"]
+            request.usesLanguageCorrection = true
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                resolveJS("")
             }
         }
     }

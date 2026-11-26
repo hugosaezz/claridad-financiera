@@ -17,6 +17,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Run Automated Test Suite (13 Suites + Icon Audit)
+        run: |
+          python3 build.py
+          python3 tests/run_tests.py
+
       - name: Compile Native iOS ARM64 App & Package .IPA
         run: |
           set -e
@@ -31,6 +36,9 @@ jobs:
             -parse-as-library \
             -target arm64-apple-ios15.0 \
             -sdk "$SDK_PATH" \
+            -framework LocalAuthentication \
+            -framework Vision \
+            -framework UserNotifications \
             -O \
             ios/ClaridadApp.swift \
             -o Payload/ClaridadFinanciera.app/ClaridadFinanciera

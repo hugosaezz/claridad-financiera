@@ -1,12 +1,42 @@
 {
   "name": "Claridad Financiera — Control Mensual & Deudas",
   "short_name": "Claridad",
-  "description": "Control de gastos mensuales y gestión de deudas P2P y grupos en Supabase Cloud.",
+  "description": "Copiloto financiero personal y deudas sociales: privado, gratuito para siempre y sin anuncios.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#faf8ff",
   "theme_color": "#3525cd",
   "orientation": "portrait-primary",
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Añadir gasto",
+      "short_name": "Gasto",
+      "url": "./index.html#/add/gasto",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dictar por voz",
+      "short_name": "Voz",
+      "url": "./index.html#/add/voz",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Escanear ticket",
+      "short_name": "Ticket",
+      "url": "./index.html#/add/ticket",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "assets/icon-192.png",

@@ -13,25 +13,48 @@
       const modal = $('#universal-modal');
       if (modal) modal.classList.add('hidden');
       stopVoiceRecognition();
+      if (typeof stopCompoundVoiceListen === 'function') stopCompoundVoiceListen();
     }
 
     function openQuickActionSheet() {
-      if (!loggedUserId) {
-        showToast("🔒 Inicia sesión para añadir gastos o movimientos");
-        openProfileOrLogin();
-        return;
+      const sheet = $('#quick-action-sheet');
+      if (!sheet) return;
+      const presetsWrap = $('#quick-sheet-presets');
+      if (presetsWrap) {
+        const list = (S && Array.isArray(S.quickPresets)) ? S.quickPresets : [];
+        if (list.length > 0) {
+          presetsWrap.classList.remove('hidden');
+          presetsWrap.classList.add('flex');
+          presetsWrap.innerHTML = `
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Atajos en 1 toque</span>
+            <div class="flex items-center gap-2 overflow-x-auto custom-scroll pb-0.5">
+              ${list.map(qp => `
+                <button onclick="closeQuickActionSheet(); triggerQuickPresetExpense('${qp.id}')" class="px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/35 flex items-center gap-1.5 flex-shrink-0 text-xs font-bold text-on-surface active-scale">
+                  <span>${esc(qp.emoji || '💸')}</span>
+                  <span>${esc(qp.label)}</span>
+                  <span class="text-primary font-extrabold tabular-nums privacy-val">${fmt(qp.amount)}</span>
+                </button>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          presetsWrap.classList.add('hidden');
+          presetsWrap.classList.remove('flex');
+        }
       }
-      $('#quick-action-sheet')?.classList.remove('hidden');
+      sheet.classList.remove('hidden');
     }
     function closeQuickActionSheet() {
       $('#quick-action-sheet')?.classList.add('hidden');
     }
 
-    function showToast(msg, actionLabel = null, actionFn = null) {
+    function showToast(msg, actionLabel = null, actionFn = null, durationMs = null) {
       let t = $('#claridad-toast');
       if (!t) {
         t = document.createElement('div');
         t.id = 'claridad-toast';
+        t.setAttribute('role', 'status');
+        t.setAttribute('aria-live', 'polite');
         t.className = 'fixed left-1/2 -translate-x-1/2 bottom-24 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-2xl font-label-md text-xs font-bold shadow-2xl border border-white/10 transition-all duration-200 opacity-0 flex items-center gap-3 max-w-[92vw]';
         document.body.appendChild(t);
       }
@@ -50,11 +73,12 @@
       t.classList.remove('opacity-0');
       t.classList.add('opacity-100');
       clearTimeout(t._timer);
+      const waitMs = durationMs || (actionLabel ? 5000 : 2800);
       t._timer = setTimeout(() => {
         t.classList.remove('opacity-100');
         t.classList.add('opacity-0');
         t.style.pointerEvents = 'none';
-      }, actionLabel ? 5200 : 2800);
+      }, waitMs);
     }
 
     function toggleTheme() {
@@ -66,12 +90,10 @@
       const metaTheme = $('#meta-theme-color');
       if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0b0f19' : '#f6f7fb');
       if (typeof window.claridadSetNativeTheme === 'function') window.claridadSetNativeTheme(isDark);
-      if (S && S.settings && loggedUserId) {
+      if (S && S.settings) {
         S.settings.dark = isDark;
-        saveLocalState(true);
+        saveLocalState(!!loggedUserId);
       }
-      const ic = $('#theme-icon');
-      if (ic) ic.textContent = isDark ? 'light_mode' : 'dark_mode';
     }
 
     function initTheme() {
@@ -84,8 +106,6 @@
       const metaTheme = $('#meta-theme-color');
       if (metaTheme) metaTheme.setAttribute('content', isDark ? '#0b0f19' : '#f6f7fb');
       if (typeof window.claridadSetNativeTheme === 'function') window.claridadSetNativeTheme(isDark);
-      const ic = $('#theme-icon');
-      if (ic) ic.textContent = isDark ? 'light_mode' : 'dark_mode';
     }
 
     // Notifications Drawer
@@ -97,17 +117,38 @@
     }
 
     function renderNotificationsDrawerContent() {
+      if (typeof renderSmartNotificationsDrawer === 'function') {
+        renderSmartNotificationsDrawer();
+        return;
+      }
       const box = $('#notifications-content');
       if (!box) return;
 
       const pendingPayments = sbMovimientos.filter(m => m.tipo === 'pago' && m.estado === 'pendiente');
       const overdueP2P = (S.debts || []).filter(d => !d.settled && d.type === 'owed' && d.due && d.due < todayStr());
       const refunds = (S.expenses || []).filter(e => e.refund);
+      const expiringWarranties = typeof getExpiringWarranties === 'function' ? getExpiringWarranties(30) : [];
+      const expiringBanks = typeof getExpiringBankConnections === 'function' ? getExpiringBankConnections(7) : [];
+      const criticalDetectors = typeof runSmartFinancialDetectors === 'function'
+        ? runSmartFinancialDetectors().filter(a => a.severity === 'high')
+        : [];
 
       let html = '';
 
+      if (needsLocalBackupReminder()) {
+        html += `<div class="text-[11px] font-extrabold uppercase text-amber-600 tracking-wider">Copia de seguridad local</div>`;
+        html += `
+          <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+            <div>
+              <p class="font-label-lg text-sm font-bold text-on-surface">Hace 30 días que no exportas copia</p>
+              <p class="text-xs text-on-surface-variant">1 toque y tus datos locales quedan a salvo.</p>
+            </div>
+            <button onclick="exportBackupJSON(); renderNotificationsDrawerContent()" class="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-extrabold flex-shrink-0">Exportar</button>
+          </div>`;
+      }
+
       if (isAdmin && pendingPayments.length > 0) {
-        html += `<div class="text-[11px] font-extrabold uppercase text-amber-600 tracking-wider">Pagos pendientes de confirmar (Supabase)</div>`;
+        html += `<div class="text-[11px] font-extrabold uppercase text-amber-600 tracking-wider mt-1">Pagos pendientes de confirmar</div>`;
         pendingPayments.forEach(p => {
           const u = sbGlobalUsers.find(x => Number(x.id) === Number(p.usuario_id));
           const uName = u ? u.nombre : 'Miembro';
@@ -118,7 +159,7 @@
                   <p class="font-label-lg text-sm font-bold text-on-surface">${esc(uName)} notificó un pago</p>
                   <p class="text-xs text-on-surface-variant">${p.created_at ? fmtDay(p.created_at.slice(0, 10)) : 'Hoy'}</p>
                 </div>
-                <span class="font-headline-sm text-base font-extrabold text-secondary">+${fmt(p.monto)}</span>
+                <span class="font-headline-sm text-base font-extrabold text-secondary privacy-val">+${fmt(p.monto)}</span>
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <button onclick="rechazarPagoSupabase(${p.id})" class="py-1.5 rounded-xl bg-surface-container text-on-surface-variant font-bold text-xs hover:bg-tertiary/15 hover:text-tertiary transition">Rechazar</button>
@@ -137,7 +178,7 @@
                 <p class="font-label-lg text-sm font-bold text-on-surface">${esc(d.person)} (${fmt(d.amount)})</p>
                 <p class="text-xs text-on-surface-variant">${esc(d.note)} • Venció ${fmtDay(d.due)}</p>
               </div>
-              <button onclick="sendIndividualWhatsAppClaim('${esc(d.person)}', ${d.amount}, '${esc(d.note)}')" class="px-3 py-1.5 rounded-xl bg-tertiary text-white text-xs font-bold">Reclamar</button>
+              <button onclick="sendIndividualWhatsAppClaim('${esc(d.person)}', ${d.amount}, '${esc(d.note)}')" class="px-3 py-1.5 rounded-xl bg-tertiary text-white text-xs font-bold">Recordar</button>
             </div>`;
         });
       }
@@ -156,12 +197,54 @@
         });
       }
 
+      if (expiringWarranties.length > 0) {
+        html += `<div class="text-[11px] font-extrabold uppercase text-secondary tracking-wider mt-2">Garantías próximas a caducar</div>`;
+        expiringWarranties.forEach(w => {
+          html += `
+            <div class="p-3.5 rounded-2xl bg-secondary/10 border border-secondary/25 flex items-center justify-between gap-2">
+              <div>
+                <p class="font-label-lg text-sm font-bold text-on-surface">🛡️ ${esc(w.store_name)} (${fmt(Money.fromCents(w.total_cents))})</p>
+                <p class="text-xs text-on-surface-variant">Garantía vence el ${esc(w.warranty_until)} (quedan ${w.daysLeft} días)</p>
+              </div>
+              <button onclick="toggleNotificationsDrawer(); openReceiptDetailModal('${w.id}')" class="px-3 py-1.5 rounded-xl bg-secondary text-white text-xs font-bold flex-shrink-0">Ver ticket</button>
+            </div>`;
+        });
+      }
+
+      if (criticalDetectors.length > 0) {
+        html += `<div class="text-[11px] font-extrabold uppercase text-tertiary tracking-wider mt-2">Alertas inteligentes</div>`;
+        criticalDetectors.forEach(a => {
+          html += `
+            <div class="p-3.5 rounded-2xl bg-tertiary/10 border border-tertiary/25 flex items-center justify-between gap-2">
+              <div>
+                <p class="font-label-lg text-sm font-bold text-on-surface">${esc(a.title)}</p>
+                <p class="text-xs text-on-surface-variant">${esc(a.body)}</p>
+              </div>
+              <button onclick="dismissDetectorAlert('${a.id}'); renderNotificationsDrawerContent()" class="px-3 py-1.5 rounded-xl bg-tertiary text-white text-xs font-bold flex-shrink-0">OK</button>
+            </div>`;
+        });
+      }
+
+      if (expiringBanks.length > 0) {
+        html += `<div class="text-[11px] font-extrabold uppercase text-amber-600 tracking-wider mt-2">Renovación PSD2 (90 días)</div>`;
+        expiringBanks.forEach(b => {
+          html += `
+            <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+              <div>
+                <p class="font-label-lg text-sm font-bold text-on-surface">🏦 ${esc(b.bankName)} (${esc(b.ibanMasked || 'PSD2')})</p>
+                <p class="text-xs text-on-surface-variant">${b.daysLeft <= 0 ? 'Consentimiento caducado' : `Caduca en ${b.daysLeft} día(s)`}</p>
+              </div>
+              <button onclick="toggleNotificationsDrawer(); openConnectBankModal()" class="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold flex-shrink-0">Renovar</button>
+            </div>`;
+        });
+      }
+
       if (!html) {
         html = `
           <div class="p-8 text-center flex flex-col items-center gap-2 text-on-surface-variant">
-            <span class="material-symbols-outlined text-4xl text-secondary">notifications_off</span>
-            <p class="font-bold text-sm text-on-surface">Todo al día</p>
-            <p class="text-xs">No hay pagos pendientes de aprobación ni alertas urgentes.</p>
+            <span class="w-12 h-12 rounded-2xl bg-secondary/12 text-secondary flex items-center justify-center">${ico('notifications_off', 'text-[24px]')}</span>
+            <p class="font-extrabold text-sm text-on-surface">Todo tranquilo por aquí 🌤</p>
+            <p class="text-xs">No hay avisos ni pagos pendientes ahora mismo.</p>
           </div>`;
       }
 
@@ -188,7 +271,7 @@
                 <p class="text-xs text-on-surface-variant">Cada usuario tiene su propio registro de Control Mensual y Deudas</p>
               </div>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <!-- Tabs: Iniciar Sesión vs Crear Cuenta Nueva -->
@@ -250,8 +333,8 @@
                 <button onclick="updateMySupabasePin()" class="px-3.5 py-1.5 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-primary hover:text-on-primary transition">Actualizar PIN</button>
               </div>
               <button onclick="logoutCurrentUserSession()" class="mt-1 w-full py-2 rounded-xl bg-tertiary/10 hover:bg-tertiary/20 text-tertiary text-xs font-extrabold transition flex items-center justify-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">logout</span>
-                Cerrar sesión (Volver a modo Invitado)
+                ${ico('logout', 'text-[15px]')}
+                Cerrar sesión (pasar a Modo local)
               </button>
             </div>
           ` : ''}
@@ -288,13 +371,21 @@
         return;
       }
 
-      const valid = isHugo ? (pin === userPass) : (pin === userPass);
+      const hashedPin = await hashSecretSHA256(pin, 'user_' + user.id);
+      const isAlreadyHashed = userPass.startsWith('sha256:') || userPass.startsWith('fnv:');
+      const valid = isAlreadyHashed ? (hashedPin === userPass) : (pin === userPass);
 
       if (!valid) {
         alert(`Contraseña / PIN incorrecto para ${user.nombre}.`);
         return;
       }
 
+      // Transparently upgrade legacy plaintext password to cryptographic hash
+      if (!isAlreadyHashed && supabaseClient) {
+        supabaseClient.from('usuarios').update({ password: hashedPin }).eq('id', user.id).then(() => {});
+      }
+
+      logAuditEvent('auth_login', 'session', user.nombre);
       await switchToUserSession(Number(user.id), isHugo);
       closeUniversalModal();
     }
@@ -302,14 +393,16 @@
     async function logoutCurrentUserSession() {
       loggedUserId = null;
       isAdmin = false;
+      storageMode = 'local';
       localStorage.removeItem('logged_user_id');
       localStorage.removeItem('is_admin');
-      activeMainView = 'cuentas';
-      activeP2PTab = 'cloud';
-      S = blankState(0);
+      localStorage.setItem('claridad_storage_mode', 'local');
+      activeMainView = 'inicio';
+      activeP2PTab = 'balance';
+      loadLocalStateForCurrentUser();
       closeUniversalModal();
-      showToast("Sesión cerrada • Modo Invitado (Grupo General)");
-      await cargarDatosSupabase(false);
+      showToast("Sesión cerrada • Ahora estás en 💾 Modo local");
+      renderAllViews();
     }
 
     async function quickSwitchToUser(uidNum) {
@@ -321,20 +414,26 @@
     }
 
     async function switchToUserSession(uidNum, adminFlag) {
-      // Save current user's state before switching
       if (loggedUserId && S) {
         saveLocalState(true);
       }
       loggedUserId = Number(uidNum);
       isAdmin = !!adminFlag;
+      storageMode = 'cloud';
       localStorage.setItem('logged_user_id', String(loggedUserId));
       localStorage.setItem('is_admin', isAdmin ? 'true' : 'false');
+      localStorage.setItem('claridad_storage_mode', 'cloud');
       activeMainView = 'inicio';
-      activeP2PTab = 'owed';
+      activeP2PTab = 'balance';
 
-      // Load the new user's isolated state from localStorage + Supabase Cloud
       loadLocalStateForCurrentUser();
       await cargarDatosSupabase(true);
+      if (window.__resumeOnboardingAfterAuth) {
+        window.__resumeOnboardingAfterAuth = false;
+        onboardingDraft.mode = 'cloud';
+        onboardingStep = 2;
+        renderOnboardingStep();
+      }
     }
 
     async function registerNewSupabaseAccount() {
@@ -369,6 +468,9 @@
       }
 
       const newUser = created[0];
+      // Upgrade freshly created account password to salted SHA-256 hash using its assigned ID
+      const hashedNewPin = await hashSecretSHA256(pin, 'user_' + newUser.id);
+      await supabaseClient.from('usuarios').update({ password: hashedNewPin }).eq('id', newUser.id);
       const genGroupId = window.generalGroupId || 1;
       if (joinGen && genGroupId) {
         await supabaseClient.from('grupo_usuarios').insert([{
@@ -444,7 +546,7 @@ ALTER TABLE public.movimientos
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Crear Nuevo Grupo en Supabase Cloud</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div>
             <label class="text-xs font-bold text-on-surface-variant block mb-1">Nombre del grupo</label>
@@ -499,7 +601,7 @@ ALTER TABLE public.movimientos
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Añadir Miembro al Grupo Cloud</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div>
             <label class="text-xs font-bold text-on-surface-variant block mb-1">Nombre del amigo (elige existente o crea nuevo)</label>
@@ -546,6 +648,10 @@ ALTER TABLE public.movimientos
     let globalSplitMode = "equal"; // 'equal' | 'exact'
 
     function openGlobalChargeModal(mode = "equal") {
+      if (!loggedUserId) {
+        showToast("🔒 Vista de solo consulta. Inicia sesión para repartir cargos en grupos.");
+        return;
+      }
       globalSplitMode = mode;
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const gName = currGroup ? currGroup.nombre : "Grupo";
@@ -581,7 +687,7 @@ ALTER TABLE public.movimientos
               <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Repartir Gasto en ${esc(gName)}</h3>
               <p class="text-xs text-on-surface-variant">Partes iguales o importe personalizado por amigo</p>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <!-- Mode Switcher: Equal vs Exact -->
@@ -669,6 +775,10 @@ ALTER TABLE public.movimientos
     }
 
     async function submitGlobalCloudCharge() {
+      if (!loggedUserId) {
+        showToast("🔒 Vista de solo consulta. Inicia sesión para añadir cargos.");
+        return;
+      }
       if (!supabaseClient) return;
       const concept = ($('#global-split-concept')?.value || '').trim() || 'Cargo Compartido';
       const categoria = $('#global-split-cat')?.value || 'General';
@@ -742,11 +852,15 @@ ALTER TABLE public.movimientos
 
     // Individual Charge in Supabase Group
     function openIndivChargeModal(userId, userName) {
+      if (!loggedUserId) {
+        showToast("🔒 Vista de solo consulta. Inicia sesión para añadir cargos.");
+        return;
+      }
       openUniversalModal(`
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Añadir Cargo a ${esc(userName)}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div>
             <label class="text-xs font-bold text-on-surface-variant block mb-1">Importe a sumar (€)</label>
@@ -774,6 +888,10 @@ ALTER TABLE public.movimientos
     }
 
     async function submitIndivCloudCharge(userId) {
+      if (!loggedUserId) {
+        showToast("🔒 Vista de solo consulta. Inicia sesión para añadir cargos.");
+        return;
+      }
       const amount = parseAmount($('#indiv-cloud-amount')?.value);
       const concept = ($('#indiv-cloud-concept')?.value || '').trim() || 'Cargo Individual';
       const categoria = $('#indiv-cloud-cat')?.value || 'Individual';
@@ -803,6 +921,10 @@ ALTER TABLE public.movimientos
 
     // Cloud Payment Modal (with optional reflection in Control Mensual)
     function openCloudPaymentModal(userId, userName, currentDeuda) {
+      if (!loggedUserId) {
+        showToast("🔒 Vista de solo consulta. Inicia sesión para marcar o registrar pagos.");
+        return;
+      }
       const currGroup = sbGrupos.find(g => String(g.id) === String(currentGroupId));
       const gName = currGroup ? currGroup.nombre : "Grupo";
       const canApproveDirectly = isAdmin || (currGroup && Number(currGroup.admin_id) === Number(loggedUserId));
@@ -812,7 +934,7 @@ ALTER TABLE public.movimientos
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">${canApproveDirectly && !isMyOwnDebt ? `Confirmar Cobro de ${esc(userName)}` : `Notificar mi Pago (${esc(userName)})`}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           ${!canApproveDirectly ? `
             <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-on-surface">
@@ -840,6 +962,10 @@ ALTER TABLE public.movimientos
     }
 
     async function submitCloudPayment(userId, userName = "Miembro", gName = "Grupo") {
+      if (!loggedUserId) {
+        showToast("🔒 Vista de solo consulta. Inicia sesión para marcar o registrar pagos.");
+        return;
+      }
       const amount = parseAmount($('#cloud-pay-amount')?.value);
       const reflectInMensual = !!$('#cloud-pay-reflect-mensual')?.checked;
       if (!(amount > 0) || !supabaseClient) return;
@@ -904,7 +1030,7 @@ ALTER TABLE public.movimientos
     }
 
     async function aprobarPagoSupabase(movId, userId, monto) {
-      if (!supabaseClient) return;
+      if (!loggedUserId || !supabaseClient) return;
       await supabaseClient.from('movimientos').update({ estado: 'completado' }).eq('id', movId);
       const u = sbUsuariosGrupo.find(x => Number(x.id) === Number(userId));
       if (u) {
@@ -924,7 +1050,7 @@ ALTER TABLE public.movimientos
     }
 
     async function rechazarPagoSupabase(movId) {
-      if (!supabaseClient || !confirm("¿Rechazar y eliminar esta notificación de pago?")) return;
+      if (!loggedUserId || !supabaseClient || !confirm("¿Rechazar y eliminar esta notificación de pago?")) return;
       await supabaseClient.from('movimientos').delete().eq('id', movId);
       showToast("Notificación rechazada");
       await cargarDatosSupabase();
@@ -932,7 +1058,7 @@ ALTER TABLE public.movimientos
     }
 
     async function undoLastCloudAction(userId, userName) {
-      if (!supabaseClient) return;
+      if (!loggedUserId || !supabaseClient) return;
       const lastMov = sbMovimientos.find(m => Number(m.usuario_id) === Number(userId));
       if (!lastMov) {
         alert(`No hay movimientos en este grupo para ${userName}.`);
@@ -958,7 +1084,7 @@ ALTER TABLE public.movimientos
     }
 
     async function resetAllCloudGroupDebts() {
-      if (!supabaseClient) return;
+      if (!loggedUserId || !supabaseClient) return;
       if (!confirm("⚠️ ¿Poner la deuda de TODOS los miembros de este grupo a 0,00 €?")) return;
       for (const u of sbUsuariosGrupo) {
         if (parseFloat(u.deuda) > 0) {
@@ -983,7 +1109,7 @@ ALTER TABLE public.movimientos
     }
 
     async function hardResetCloudHistory() {
-      if (!supabaseClient) return;
+      if (!loggedUserId || !supabaseClient) return;
       const res = prompt('Escribe "BORRAR" para vaciar el historial de este grupo y poner sus deudas a 0€:');
       if (res !== 'BORRAR') return;
       await supabaseClient.from('movimientos').delete().eq('grupo_id', currentGroupId);
@@ -1009,7 +1135,7 @@ ALTER TABLE public.movimientos
         return `
           <div class="p-3 rounded-xl bg-surface-container-low flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-primary text-[18px]">groups</span>
+              ${ico('groups', 'text-primary text-[18px]')}
               <span class="font-bold text-sm text-on-surface">${esc(g ? g.nombre : 'Grupo #' + rel.grupo_id)}</span>
             </div>
             <span class="font-extrabold text-sm tabular-nums ${d > 0 ? 'text-tertiary' : 'text-secondary'}">${fmt(d)}</span>
@@ -1020,7 +1146,7 @@ ALTER TABLE public.movimientos
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Posición en Grupos: ${esc(userName)}</h3>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
           <div class="p-4 rounded-2xl bg-surface-container text-center">
             <span class="text-xs font-bold uppercase text-on-surface-variant">Deuda Total Acumulada en Todos los Grupos</span>
@@ -1099,14 +1225,14 @@ ALTER TABLE public.movimientos
           <div class="flex items-center justify-between pb-2 border-b border-outline-variant/25">
             <div class="flex items-center gap-2.5">
               <span class="w-10 h-10 rounded-xl bg-tertiary/10 text-tertiary flex items-center justify-center">
-                <span class="material-symbols-outlined">send_to_mobile</span>
+                ${ico('send_to_mobile', 'text-[20px]')}
               </span>
               <div>
                 <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Reclamar por Bizum a ${esc(personName)}</h3>
                 <p class="text-xs text-on-surface-variant">Copia rápida de importe y concepto o envío por WhatsApp</p>
               </div>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <div class="grid grid-cols-2 gap-2.5">
@@ -1115,7 +1241,7 @@ ALTER TABLE public.movimientos
                 <span class="text-[10px] font-extrabold uppercase text-on-surface-variant">Importe exacto</span>
                 <p class="font-headline-md text-xl font-extrabold text-secondary tabular-nums">${fmt(amount)}</p>
               </div>
-              <button onclick="navigator.clipboard?.writeText('${cleanAmt}'); showToast('Importe ${cleanAmt} copiado ✓')" class="py-1.5 px-2.5 rounded-xl bg-secondary/15 text-secondary text-xs font-extrabold hover:bg-secondary/25 transition">
+              <button onclick="copySensitiveToClipboard('${cleanAmt}', 'Importe ${cleanAmt}')" class="py-1.5 px-2.5 rounded-xl bg-secondary/15 text-secondary text-xs font-extrabold hover:bg-secondary/25 transition">
                 Copiar importe
               </button>
             </div>
@@ -1125,21 +1251,29 @@ ALTER TABLE public.movimientos
                 <span class="text-[10px] font-extrabold uppercase text-on-surface-variant">Concepto Bizum</span>
                 <p class="font-label-lg text-xs font-bold text-on-surface truncate">${esc(bizumConcept)}</p>
               </div>
-              <button onclick="navigator.clipboard?.writeText('${esc(bizumConcept)}'); showToast('Concepto Bizum copiado ✓')" class="py-1.5 px-2.5 rounded-xl bg-primary/15 text-primary text-xs font-extrabold hover:bg-primary/25 transition">
+              <button onclick="copySensitiveToClipboard('${esc(bizumConcept)}', 'Concepto Bizum')" class="py-1.5 px-2.5 rounded-xl bg-primary/15 text-primary text-xs font-extrabold hover:bg-primary/25 transition">
                 Copiar concepto
               </button>
             </div>
           </div>
 
           <button onclick="shareTextNatively('Recordatorio Bizum', '${esc(fullText)}')" class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold hover:bg-surface-container-high transition flex items-center justify-center gap-1.5 active-scale">
-            <span class="material-symbols-outlined text-[17px]">ios_share</span>
+            ${ico('ios_share', 'text-[17px]')}
             Compartir / Copiar recordatorio
           </button>
 
-          <button onclick="closeUniversalModal(); sendIndividualWhatsAppClaim('${esc(personName)}', ${amount}, '${esc(concept)}')" class="w-full py-3 rounded-xl bg-secondary text-on-secondary font-label-lg text-sm font-bold hover:opacity-95 transition flex items-center justify-center gap-2 active-scale">
-            <span class="material-symbols-outlined text-[19px]">chat</span>
-            Enviar recordatorio por WhatsApp
-          </button>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="closeUniversalModal(); sendConfigurableReminder('${esc(personName)}', ${Money.toCents(amount)}, 'suave')" class="py-2.5 px-3 rounded-xl bg-secondary text-on-secondary font-label-md text-xs font-extrabold hover:opacity-95 transition flex items-center justify-center gap-1.5 active-scale">
+              🙂 WhatsApp suave
+            </button>
+            <button onclick="closeUniversalModal(); sendConfigurableReminder('${esc(personName)}', ${Money.toCents(amount)}, 'humor')" class="py-2.5 px-3 rounded-xl bg-amber-500 text-white font-label-md text-xs font-extrabold hover:opacity-95 transition flex items-center justify-center gap-1.5 active-scale">
+              ☕ Con humor
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <a href="https://paypal.me" target="_blank" rel="noopener" class="py-2 px-3 rounded-xl border border-outline-variant/45 text-center text-[11px] font-bold text-on-surface hover:bg-surface-container transition">Abrir PayPal.me</a>
+            <a href="https://revolut.me" target="_blank" rel="noopener" class="py-2 px-3 rounded-xl border border-outline-variant/45 text-center text-[11px] font-bold text-on-surface hover:bg-surface-container transition">Abrir Revolut.me</a>
+          </div>
         </div>
       `);
     }
@@ -1162,7 +1296,7 @@ ALTER TABLE public.movimientos
                 <p class="text-xs text-on-surface-variant">Claridad Financiera v2.0 • Cuenta de ${esc(userName)} (#${uidNum})</p>
               </div>
             </div>
-            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container"><span class="material-symbols-outlined">close</span></button>
+            <button onclick="closeUniversalModal()" class="p-1 rounded-full text-on-surface-variant hover:bg-surface-container">${ico('close', 'text-[19px]')}</button>
           </div>
 
           <!-- 1. Native .IPA Download -->
@@ -1176,21 +1310,21 @@ ALTER TABLE public.movimientos
             </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <a href="ClaridadFinanciera.ipa" download="ClaridadFinanciera.ipa" class="py-2.5 px-3 rounded-xl bg-primary text-on-primary font-label-md text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm hover:bg-primary-container transition active-scale">
-                <span class="material-symbols-outlined text-[17px]">download</span>
+                ${ico('download', 'text-[17px]')}
                 Descargar .IPA directo
               </a>
               <a href="${ipaReleaseUrl}" target="_blank" rel="noopener" class="py-2.5 px-3 rounded-xl bg-surface-container text-on-surface font-label-md text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-container-high transition active-scale">
-                <span class="material-symbols-outlined text-[17px]">inventory_2</span>
+                ${ico('inventory_2', 'text-[17px]')}
                 GitHub Release (.IPA)
               </a>
             </div>
             <div class="grid grid-cols-2 gap-2 pt-1">
               <a href="altstore://install?url=${encodeURIComponent(ipaDirectUrl)}" class="py-2 px-3 rounded-xl border border-outline-variant/50 text-on-surface font-label-md text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition">
-                <span class="material-symbols-outlined text-[15px] text-primary">open_in_new</span>
+                ${ico('open_in_new', 'text-[14px] text-primary')}
                 Abrir en AltStore
               </a>
               <a href="sidestore://install?url=${encodeURIComponent(ipaDirectUrl)}" class="py-2 px-3 rounded-xl border border-outline-variant/50 text-on-surface font-label-md text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition">
-                <span class="material-symbols-outlined text-[15px] text-secondary">open_in_new</span>
+                ${ico('open_in_new', 'text-[14px] text-secondary')}
                 Abrir en SideStore
               </a>
             </div>
@@ -1200,7 +1334,7 @@ ALTER TABLE public.movimientos
           <div class="p-4 rounded-2xl bg-secondary/5 border border-secondary/25 flex flex-col gap-2.5">
             <div class="flex items-center justify-between">
               <span class="text-xs font-extrabold uppercase text-secondary flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">contactless</span>
+                ${ico('contactless', 'text-[16px]')}
                 2. Atajo Automático de Apple Pay (App .IPA y Web)
               </span>
               <button onclick="simulateApplePayShortcutPayment()" class="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-secondary text-on-secondary hover:opacity-90 transition">

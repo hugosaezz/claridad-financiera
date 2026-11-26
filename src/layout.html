@@ -1,91 +1,79 @@
 <body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md app-body-safe selection:bg-primary/20">
+  <a href="#app-main-canvas" class="skip-link">Saltar al contenido principal</a>
+  <div id="a11y-live-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 
-  <!-- TOP GLASS APP BAR (Extends seamlessly behind iPhone status bar / Dynamic Island) -->
+  <!-- WEB PULL-TO-REFRESH INDICATOR -->
+  <div id="ptr-indicator" class="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-transform duration-200 -translate-y-full">
+    <div class="mt-3 px-3.5 py-1.5 rounded-full glass-bar border shadow-md flex items-center gap-2 text-xs font-extrabold text-primary">
+      <span id="ptr-icon" data-ico="sync" data-ico-cls="text-[15px]"></span>
+      <span id="ptr-text">Desliza para actualizar</span>
+    </div>
+  </div>
+
+  <!-- PERSISTENT GLOBAL GLASS HEADER (Single Clean Navigation Paradigm) -->
   <header class="sticky top-0 z-40 glass-bar border-b transition-all duration-200 app-header-safe">
-    <div class="max-w-5xl mx-auto px-4 h-[62px] flex justify-between items-center gap-2">
-      <!-- Left: Brand, Avatar & Account Switcher -->
-      <div class="flex items-center gap-2.5 min-w-0">
-        <button onclick="switchMainView(loggedUserId ? 'inicio' : 'cuentas')" class="w-9 h-9 rounded-xl shadow-xs cursor-pointer flex-shrink-0 overflow-hidden active-scale focus:outline-none">
-          <img src="assets/logo.svg" alt="Claridad Financiera" class="w-full h-full object-cover"/>
-        </button>
-
-        <button onclick="openProfileOrLogin()" class="relative cursor-pointer group focus:outline-none flex-shrink-0 active-scale" title="Cuenta y cambio de usuario">
-          <div id="header-avatar" class="w-9 h-9 rounded-full bg-surface-container-high text-primary font-extrabold text-xs flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all">
-            👤
+    <div class="max-w-5xl mx-auto px-3.5 sm:px-5 h-[62px] flex justify-between items-center gap-2">
+      <!-- Left: Clear Session/Local Status (Never ambiguous "Invitado sin sesión") -->
+      <button onclick="haptic('selection'); switchMainView('ajustes')" class="flex items-center gap-2.5 min-w-0 text-left group focus:outline-none active-scale" title="Perfil y estado de datos">
+        <div class="relative flex-shrink-0">
+          <div id="header-avatar" class="w-9 h-9 rounded-full bg-primary/12 text-primary font-extrabold text-xs flex items-center justify-center ring-2 ring-primary/20 group-hover:ring-primary/50 transition-all">
+            <span data-ico="hard_drive" data-ico-cls="text-[17px]"></span>
           </div>
-          <span id="cloud-status-dot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-secondary rounded-full ring-2 ring-surface" title="Sincronizado con Supabase"></span>
-        </button>
-
-        <div class="flex flex-col min-w-0 cursor-pointer" onclick="openProfileOrLogin()">
-          <div class="flex items-center gap-1.5">
-            <span id="header-section-title" class="font-headline-sm text-[15px] sm:text-[17px] font-extrabold text-on-surface leading-tight tracking-tight truncate">Claridad</span>
-            <span id="header-role-badge" class="hidden text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-primary/12 text-primary">Invitado</span>
-          </div>
-          <span id="header-greeting" class="font-label-sm text-[11px] text-on-surface-variant font-medium truncate">Sin sesión • Toca para entrar</span>
+          <span id="cloud-status-dot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-secondary rounded-full ring-2 ring-surface" title="Estado de almacenamiento"></span>
         </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span id="header-user-name" class="font-headline-sm text-[14px] sm:text-[15px] font-extrabold text-on-surface leading-tight tracking-tight truncate">Modo local</span>
+            <span id="header-mode-pill" class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant flex-shrink-0">💾 Local</span>
+          </div>
+          <span id="header-section-subtitle" class="font-label-sm text-[11px] text-on-surface-variant font-medium truncate">Inicio</span>
+        </div>
+      </button>
+
+      <!-- Center: Global Month Selector (Tap month to open Month Picker) -->
+      <div id="header-month-switcher" class="flex items-center gap-0.5 bg-surface-container-low/90 px-1 py-1 rounded-2xl border border-outline-variant/40 flex-shrink-0">
+        <button onclick="haptic('selection'); shiftMonth(-1)" aria-label="Mes anterior" class="w-8 h-8 rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-on-surface flex items-center justify-center transition-colors active-scale">
+          <span data-ico="chevron_left" data-ico-cls="text-[17px]"></span>
+        </button>
+        <button onclick="haptic('selection'); openMonthPickerModal()" id="header-month-btn" aria-label="Elegir mes" class="px-2 sm:px-3 py-1 rounded-xl text-xs sm:text-[13px] font-extrabold text-on-surface hover:bg-surface-container transition-colors flex items-center gap-1 capitalize max-w-[140px] sm:max-w-none">
+          <span id="period-label" class="truncate">Noviembre 2026</span>
+          <span data-ico="chevron_down" data-ico-cls="text-[14px] text-on-surface-variant"></span>
+        </button>
+        <button onclick="haptic('selection'); shiftMonth(1)" aria-label="Mes siguiente" class="w-8 h-8 rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-on-surface flex items-center justify-center transition-colors active-scale">
+          <span data-ico="chevron_right" data-ico-cls="text-[17px]"></span>
+        </button>
       </div>
 
-      <!-- Center: Desktop Mode Switcher Pill -->
-      <div class="hidden md:flex items-center bg-surface-container/80 p-1 rounded-2xl border border-outline-variant/40 gap-1">
-        <button onclick="switchMainView('inicio')" id="top-pill-mensual" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-surface-container-lowest text-primary shadow-xs transition-all flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
-          Control Mensual
-        </button>
-        <button onclick="switchMainView('cuentas')" id="top-pill-deudas" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">swap_horiz</span>
-          Deudas &amp; Grupos
-        </button>
-      </div>
-
-      <!-- Right: Privacy Eye, iOS .IPA, Theme, Notifications -->
+      <!-- Right: Privacy Eye & Notifications Bell ONLY -->
       <div class="flex items-center gap-1 flex-shrink-0">
-        <!-- Privacy Blur Toggle -->
-        <button onclick="togglePrivacyMode()" id="btn-privacy-toggle" aria-label="Ocultar o mostrar importes" class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Modo Privacidad (Ocultar importes)">
-          <span id="privacy-icon" class="material-symbols-outlined text-[21px]">visibility</span>
+        <button onclick="togglePrivacyMode()" id="btn-privacy-toggle" aria-label="Ocultar o mostrar importes" class="w-10 h-10 rounded-xl text-on-surface-variant hover:bg-surface-container flex items-center justify-center transition-all active-scale" title="Modo privacidad (ocultar importes)">
+          <span id="privacy-icon" data-ico="visibility" data-ico-cls="text-[20px]"></span>
         </button>
 
-        <!-- iPhone .IPA & Apple Pay Shortcuts -->
-        <button onclick="openIOSDownloadModal()" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-extrabold transition active-scale" title="App iPhone .IPA y Atajo Apple Pay">
-          <span class="material-symbols-outlined text-[18px]">phone_iphone</span>
-          <span class="hidden lg:inline">iPhone .IPA</span>
-        </button>
-
-        <!-- Desktop User Pill -->
-        <button onclick="openProfileOrLogin()" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/40 text-xs font-bold text-on-surface transition active-scale" title="Cambiar de usuario o iniciar sesión">
-          <span class="material-symbols-outlined text-[16px] text-primary">switch_account</span>
-          <span id="header-user-pill">Iniciar Sesión</span>
-        </button>
-
-        <!-- Theme Toggle -->
-        <button onclick="toggleTheme()" aria-label="Alternar tema claro/oscuro" class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Modo oscuro / claro">
-          <span id="theme-icon" class="material-symbols-outlined text-[21px]">dark_mode</span>
-        </button>
-
-        <!-- Notifications Bell -->
-        <button onclick="toggleNotificationsDrawer()" aria-label="Notificaciones y alertas" class="relative p-2 rounded-xl text-on-surface-variant hover:bg-surface-container transition-all active-scale" title="Centro de avisos">
-          <span class="material-symbols-outlined text-[22px]">notifications</span>
-          <span id="notif-badge" class="hidden absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-surface">0</span>
+        <button onclick="haptic('selection'); toggleNotificationsDrawer()" aria-label="Centro de avisos" class="relative w-10 h-10 rounded-xl text-on-surface-variant hover:bg-surface-container flex items-center justify-center transition-all active-scale" title="Centro de avisos">
+          <span data-ico="notifications" data-ico-cls="text-[20px]"></span>
+          <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-error text-on-error text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-surface">0</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- NOTIFICATIONS & PENDING APPROVALS DRAWER -->
+  <!-- NOTIFICATIONS & ALERTS RIGHT DRAWER -->
   <div id="notifications-drawer" class="hidden fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-xs flex justify-end">
     <div class="bg-surface-container-lowest w-full max-w-md h-full shadow-2xl border-l border-outline-variant/30 flex flex-col justify-between p-5 app-header-safe app-tabbar-safe overflow-y-auto animate-fade-in">
       <div class="flex flex-col gap-4 pt-2">
         <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
           <div class="flex items-center gap-2.5">
             <span class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <span class="material-symbols-outlined text-[20px]">notifications_active</span>
+              <span data-ico="notifications_active" data-ico-cls="text-[19px]"></span>
             </span>
             <div>
               <h3 class="font-headline-sm text-base font-extrabold text-on-surface">Centro de Avisos</h3>
-              <p class="text-[11px] text-on-surface-variant">Pagos pendientes, vencimientos y devoluciones</p>
+              <p class="text-[11px] text-on-surface-variant">Vencimientos, pagos, devoluciones y copias</p>
             </div>
           </div>
-          <button onclick="toggleNotificationsDrawer()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container">
-            <span class="material-symbols-outlined">close</span>
+          <button onclick="toggleNotificationsDrawer()" aria-label="Cerrar avisos" class="w-9 h-9 rounded-full text-on-surface-variant hover:bg-surface-container flex items-center justify-center">
+            <span data-ico="close" data-ico-cls="text-[19px]"></span>
           </button>
         </div>
         <div id="notifications-content" class="flex flex-col gap-3"></div>
@@ -96,203 +84,185 @@
     </div>
   </div>
 
-  <!-- QUICK ACTION BOTTOM SHEET MODAL (Triggered by Central '+' Floating Button) -->
+  <!-- QUICK ACTION BOTTOM SHEET (6 Actions in 2x3 Grid — Triggered by Central '+' FAB) -->
   <div id="quick-action-sheet" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 flex flex-col gap-3.5 animate-slide-up max-h-[90dvh] overflow-y-auto">
-      <!-- Native iOS Sheet Handle -->
-      <div class="w-10 h-1 rounded-full bg-outline-variant/60 mx-auto -mt-1 mb-0.5 sm:hidden"></div>
+    <div class="bg-surface-container-lowest w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 flex flex-col gap-4 animate-slide-up max-h-[90dvh] overflow-y-auto">
+      <div class="w-10 h-1 rounded-full bg-outline-variant/60 mx-auto -mt-1 sm:hidden"></div>
 
       <div class="flex justify-between items-center pb-2 border-b border-outline-variant/25">
         <div>
-          <h3 class="font-headline-sm text-base text-on-surface font-extrabold">Nueva operación rápida</h3>
-          <p class="font-body-sm text-xs text-on-surface-variant">Registra al instante en tu base de datos</p>
+          <h3 class="font-headline-sm text-base text-on-surface font-extrabold">Añadir movimiento</h3>
+          <p class="font-body-sm text-xs text-on-surface-variant">Mantén pulsado «+» para dictar directo por voz</p>
         </div>
-        <button onclick="closeQuickActionSheet()" class="p-1.5 rounded-full text-on-surface-variant hover:bg-surface-container active-scale">
-          <span class="material-symbols-outlined">close</span>
+        <button onclick="closeQuickActionSheet()" aria-label="Cerrar menú añadir" class="w-9 h-9 rounded-full text-on-surface-variant hover:bg-surface-container flex items-center justify-center active-scale">
+          <span data-ico="close" data-ico-cls="text-[19px]"></span>
         </button>
       </div>
 
-      <!-- Primary Grid: Control Mensual -->
-      <div class="text-[10px] font-extrabold uppercase tracking-wider text-primary px-1">Control Mensual (Mi Bolsillo)</div>
+      <!-- 2x3 Grid of 6 Core Actions -->
       <div class="grid grid-cols-2 gap-2.5">
         <button onclick="haptic('light'); closeQuickActionSheet(); openTxModal('exp')" class="p-3.5 rounded-2xl border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container transition-all text-left flex flex-col gap-2 active-scale">
           <span class="w-10 h-10 rounded-xl bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
-            <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+            <span data-ico="edit_note" data-ico-cls="text-[21px]"></span>
           </span>
           <div>
-            <p class="font-label-lg text-xs text-on-surface font-extrabold">Gasto Mensual</p>
-            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Manual, voz o #tag</p>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">✍️ Gasto manual</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Importe, categoría y #tags</p>
           </div>
         </button>
 
         <button onclick="haptic('light'); closeQuickActionSheet(); openTxModal('inc')" class="p-3.5 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left flex flex-col gap-2 active-scale">
           <span class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
-            <span class="material-symbols-outlined text-[22px]">trending_up</span>
+            <span data-ico="trending_up" data-ico-cls="text-[21px]"></span>
           </span>
           <div>
-            <p class="font-label-lg text-xs text-on-surface font-extrabold">Nuevo Ingreso</p>
-            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Extra, Bizum, nómina</p>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">💰 Ingreso</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Nómina, Bizum o extra</p>
           </div>
         </button>
 
-        <button onclick="haptic('light'); closeQuickActionSheet(); openReceiptScannerModal()" class="p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-left flex flex-col gap-2 active-scale">
+        <button onclick="haptic('light'); closeQuickActionSheet(); openEnhancedReceiptScannerModal()" class="p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-left flex flex-col gap-2 active-scale">
           <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center">
-            <span class="material-symbols-outlined text-[22px]">photo_camera</span>
+            <span data-ico="photo_camera" data-ico-cls="text-[21px]"></span>
           </span>
           <div>
-            <p class="font-label-lg text-xs text-on-surface font-extrabold">Escanear Ticket</p>
-            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Cámara / OCR auto</p>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">📸 Escanear ticket</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">OCR por ítems + garantía</p>
           </div>
         </button>
 
-        <button onclick="haptic('light'); closeQuickActionSheet(); openTxModal('exp', null, true)" class="p-3.5 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left flex flex-col gap-2 active-scale">
+        <button onclick="haptic('light'); closeQuickActionSheet(); openCompoundVoiceModal(true)" class="p-3.5 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left flex flex-col gap-2 active-scale">
           <span class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center">
-            <span class="material-symbols-outlined text-[22px]">mic</span>
+            <span data-ico="mic" data-ico-cls="text-[21px]"></span>
           </span>
           <div>
-            <p class="font-label-lg text-xs text-on-surface font-extrabold">Dictar por Voz</p>
-            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">«12 euros de menú»</p>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">🎤 Dictar</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">«Cenamos 68€, debe mitad»</p>
+          </div>
+        </button>
+
+        <button onclick="haptic('light'); closeQuickActionSheet(); openP2PDebtModal('owed')" class="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/8 hover:bg-amber-500/14 transition-all text-left flex flex-col gap-2 active-scale">
+          <span class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+            <span data-ico="handshake" data-ico-cls="text-[21px]"></span>
+          </span>
+          <div>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">🤝 Me deben / Debo</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Crear deuda P2P rápida</p>
+          </div>
+        </button>
+
+        <button onclick="haptic('light'); closeQuickActionSheet(); openGroupSplitShortcut()" class="p-3.5 rounded-2xl border border-primary/25 bg-surface-container-low hover:bg-surface-container transition-all text-left flex flex-col gap-2 active-scale">
+          <span class="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+            <span data-ico="groups" data-ico-cls="text-[21px]"></span>
+          </span>
+          <div>
+            <p class="font-label-lg text-xs text-on-surface font-extrabold">👥 Repartir en grupo</p>
+            <p class="text-[11px] text-on-surface-variant leading-tight mt-0.5">Partes iguales o exactas</p>
           </div>
         </button>
       </div>
 
-      <!-- Secondary List: Apartado Deudas -->
-      <div class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant px-1 pt-1">Apartado Deudas &amp; Grupos</div>
-      <div class="grid grid-cols-1 gap-2">
-        <div class="grid grid-cols-2 gap-2.5">
-          <button onclick="haptic('light'); closeQuickActionSheet(); openP2PDebtModal('owed')" class="flex items-center gap-2.5 p-3 rounded-2xl border border-secondary/25 bg-secondary/5 hover:bg-secondary/10 transition-all text-left active-scale">
-            <span class="w-9 h-9 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">arrow_downward</span>
-            </span>
-            <div class="min-w-0">
-              <p class="font-label-lg text-xs text-on-surface font-extrabold truncate">Me deben</p>
-              <p class="text-[10px] text-on-surface-variant truncate">Cobro P2P</p>
-            </div>
-          </button>
+      <!-- Optional 1-Tap Quick Presets Strip -->
+      <div id="quick-sheet-presets" class="hidden flex-col gap-2 pt-2 border-t border-outline-variant/20"></div>
+    </div>
+  </div>
 
-          <button onclick="haptic('light'); closeQuickActionSheet(); openP2PDebtModal('owe')" class="flex items-center gap-2.5 p-3 rounded-2xl border border-tertiary/25 bg-tertiary/5 hover:bg-tertiary/10 transition-all text-left active-scale">
-            <span class="w-9 h-9 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-[19px]">arrow_upward</span>
-            </span>
-            <div class="min-w-0">
-              <p class="font-label-lg text-xs text-on-surface font-extrabold truncate">Debo</p>
-              <p class="text-[10px] text-on-surface-variant truncate">Pago P2P</p>
-            </div>
-          </button>
-        </div>
-
-        <button onclick="haptic('light'); closeQuickActionSheet(); openGlobalChargeModal()" class="flex items-center justify-between p-3 rounded-2xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-left active-scale">
-          <div class="flex items-center gap-3">
-            <span class="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
-              <span class="material-symbols-outlined text-[19px]">groups</span>
-            </span>
-            <div>
-              <p class="font-label-lg text-xs text-on-surface font-extrabold">Repartir cargo en Grupo Cloud</p>
-              <p class="text-[11px] text-on-surface-variant">Partes iguales o importes exactos</p>
-            </div>
-          </div>
-          <span class="material-symbols-outlined text-outline text-[19px]">chevron_right</span>
+  <!-- MULTI-SELECT FLOATING ACTION BAR (Activated on Long-Press of Transaction Row) -->
+  <div id="bulk-select-bar" class="hidden fixed bottom-24 left-0 right-0 z-40 px-4 pointer-events-none">
+    <div class="pointer-events-auto max-w-md mx-auto bg-inverse-surface text-inverse-on-surface rounded-2xl px-4 py-3 shadow-2xl border border-white/10 flex items-center justify-between gap-2 animate-slide-up">
+      <div class="flex items-center gap-2 min-w-0">
+        <span id="bulk-select-count" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-primary text-white">0</span>
+        <span class="text-xs font-bold truncate">seleccionados</span>
+      </div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button onclick="openBulkCategoryModal()" class="px-3 py-1.5 rounded-xl bg-white/12 hover:bg-white/20 text-xs font-bold transition">Categoría</button>
+        <button onclick="deleteSelectedTransactions()" class="px-3 py-1.5 rounded-xl bg-tertiary text-white text-xs font-extrabold transition">Borrar</button>
+        <button onclick="exitBulkSelectMode()" aria-label="Salir de selección" class="p-1.5 rounded-xl hover:bg-white/15">
+          <span data-ico="close" data-ico-cls="text-[16px]"></span>
         </button>
       </div>
     </div>
   </div>
 
   <!-- MAIN CANVAS CONTAINER -->
-  <main class="w-full max-w-5xl mx-auto px-3.5 sm:px-5 pt-4 flex flex-col gap-4 sm:gap-5">
+  <main id="app-main-canvas" class="w-full max-w-5xl mx-auto px-3.5 sm:px-5 pt-4 flex flex-col gap-4 sm:gap-5">
 
-    <!-- DATE & PERIOD FILTER BAR (Shown on Monthly Control views: Mensual, Movimientos, Analítica) -->
-    <section id="period-filter-bar" class="flex flex-wrap items-center justify-between gap-2 bento-card px-3.5 py-2.5 rounded-2xl">
-      <div class="flex items-center gap-2 min-w-0">
-        <span class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-          <span class="material-symbols-outlined text-[18px]">calendar_month</span>
-        </span>
-        <span id="period-label" class="font-headline-sm text-[15px] sm:text-[16px] leading-[22px] font-extrabold text-on-surface capitalize truncate">Noviembre 2026</span>
-        <span id="streak-pill" class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 flex-shrink-0" title="Racha de días sin gastar">
-          🔥 0 días
-        </span>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <div class="flex items-center gap-0.5 bg-surface-container-low p-1 rounded-xl border border-outline-variant/35">
-          <button onclick="haptic('selection'); shiftMonth(-1)" aria-label="Mes anterior" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors active-scale">
-            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-          </button>
-          <button onclick="haptic('selection'); resetToCurrentMonth()" id="btn-period-today" class="font-label-md text-xs text-primary px-2.5 py-1 rounded-lg font-bold hover:bg-surface-container transition-colors">
-            Actual
-          </button>
-          <button onclick="haptic('selection'); shiftMonth(1)" aria-label="Mes siguiente" class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors active-scale">
-            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-          </button>
-        </div>
-        <button onclick="haptic('medium'); cargarDatosSupabase(true)" class="p-2 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container border border-outline-variant/35 transition-all active-scale" title="Sincronizar con Supabase Cloud">
-          <span id="sync-icon" class="material-symbols-outlined text-[18px]">sync</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- VIEW 1: CONTROL MENSUAL -->
+    <!-- VIEW 1: INICIO (UNIFIED DASHBOARD) -->
     <div id="view-inicio" class="flex flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
-    <!-- VIEW 2: MOVIMIENTOS DEL MES -->
+    <!-- VIEW 2: TODOS LOS MOVIMIENTOS DEL MES (Accessible from Inicio & Stats) -->
     <div id="view-gastos" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
-    <!-- VIEW 3: DEUDAS & GRUPOS -->
+    <!-- VIEW 3: SOCIAL (DEUDAS + GRUPOS: Balance / Grupos / Historial) -->
     <div id="view-cuentas" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
-    <!-- VIEW 4: ANALÍTICA, ASESOR & SIMULADOR -->
+    <!-- VIEW 4: STATS (ANALÍTICA & PREDICTIVA) -->
     <div id="view-analitica" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
-    <!-- VIEW 5: PLANIFICACIÓN, OBJETIVOS, VIAJES & CUENTA -->
+    <!-- VIEW 5: YO (PERFIL, METAS, AJUSTES, BACKUP, PAPELERA, AVANZADO) -->
     <div id="view-ajustes" class="hidden flex-col gap-4 sm:gap-5 animate-fade-in"></div>
 
   </main>
 
-  <!-- FLOATING GLASS DOCK NAVIGATION (Thumb-Friendly iPhone & Web Pill Dock + Central '+' Action) -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 pointer-events-none px-3 app-tabbar-safe">
+  <!-- SINGLE BOTTOM NAVIGATION DOCK (5 Slots: Inicio | Social | + | Stats | Yo) -->
+  <nav aria-label="Navegación principal" class="fixed bottom-0 left-0 right-0 z-40 pointer-events-none px-3 app-tabbar-safe">
     <div class="pointer-events-auto max-w-md mx-auto floating-dock rounded-[28px] grid grid-cols-5 items-center px-1.5 py-1.5 min-h-[68px]">
-      <!-- Tab 1: Mensual -->
+      <!-- Slot 1: Inicio -->
       <button onclick="haptic('selection'); switchMainView('inicio')" id="nav-inicio" class="nav-tab flex flex-col items-center justify-center text-primary font-extrabold gap-0.5 py-1.5 rounded-2xl transition-all active-scale">
         <span class="nav-pill px-3 py-1 rounded-full bg-primary/15 flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined filled text-[24px]">account_balance_wallet</span>
+          <span class="nav-ico" data-nav-icon="home" data-ico="home" data-filled="true" data-ico-cls="text-[22px]"></span>
         </span>
-        <span class="text-[11px] leading-tight tracking-tight">Mensual</span>
+        <span class="text-[11px] leading-tight tracking-tight">Inicio</span>
       </button>
 
-      <!-- Tab 2: Deudas -->
+      <!-- Slot 2: Social -->
       <button onclick="haptic('selection'); switchMainView('cuentas')" id="nav-cuentas" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale relative">
         <span class="nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined text-[24px]">swap_horiz</span>
+          <span class="nav-ico" data-nav-icon="groups" data-ico="groups" data-ico-cls="text-[22px]"></span>
         </span>
-        <span class="text-[11px] leading-tight tracking-tight">Deudas</span>
+        <span class="text-[11px] leading-tight tracking-tight">Social</span>
       </button>
 
-      <!-- Center: Elevated Floating '+' Action Button -->
+      <!-- Slot 3: Elevated Floating '+' FAB (Tap = 2x3 Sheet | Long-press = Direct Voice) -->
       <div class="flex flex-col items-center justify-center">
-        <button onclick="haptic('medium'); openQuickActionSheet()" aria-label="Nueva operación" class="w-14 h-14 -mt-7 rounded-[20px] hero-indigo text-white flex items-center justify-center shadow-xl ring-4 ring-surface active-scale transition-transform">
-          <span class="material-symbols-outlined text-[30px]">add</span>
+        <button id="fab-add-btn" aria-label="Añadir movimiento (mantén pulsado para dictar por voz)" class="w-14 h-14 -mt-7 rounded-[20px] hero-indigo text-white flex items-center justify-center shadow-xl ring-4 ring-surface transition-all select-none">
+          <span data-ico="add" data-ico-cls="text-[28px]"></span>
         </button>
         <span class="text-[10px] font-extrabold text-primary mt-0.5 leading-tight">Añadir</span>
       </div>
 
-      <!-- Tab 4: Analítica -->
+      <!-- Slot 4: Stats -->
       <button onclick="haptic('selection'); switchMainView('analitica')" id="nav-analitica" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
         <span class="nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined text-[24px]">insights</span>
+          <span class="nav-ico" data-nav-icon="insights" data-ico="insights" data-ico-cls="text-[22px]"></span>
         </span>
-        <span class="text-[11px] leading-tight tracking-tight">Analítica</span>
+        <span class="text-[11px] leading-tight tracking-tight">Stats</span>
       </button>
 
-      <!-- Tab 5: Plan & Más -->
+      <!-- Slot 5: Yo -->
       <button onclick="haptic('selection'); switchMainView('ajustes')" id="nav-ajustes" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant font-bold gap-0.5 py-1.5 rounded-2xl hover:text-primary transition-all active-scale">
         <span class="nav-pill px-3 py-1 rounded-full flex items-center justify-center transition-all">
-          <span class="material-symbols-outlined text-[24px]">tune</span>
+          <span class="nav-ico" data-nav-icon="person" data-ico="person" data-ico-cls="text-[22px]"></span>
         </span>
-        <span class="text-[11px] leading-tight tracking-tight">Plan &amp; Más</span>
+        <span class="text-[11px] leading-tight tracking-tight">Yo</span>
       </button>
     </div>
   </nav>
 
-  <!-- UNIVERSAL MODAL CONTAINER (iOS Bottom Sheet on Mobile, Centered Card on Desktop) -->
+  <!-- UNIVERSAL MODAL CONTAINER -->
   <div id="universal-modal" class="hidden fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div id="universal-modal-box" class="bg-surface-container-lowest w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 app-tabbar-safe shadow-2xl border border-outline-variant/30 max-h-[92dvh] overflow-y-auto animate-slide-up">
+    </div>
+  </div>
+
+  <!-- SOFT 4-STEP ONBOARDING OVERLAY -->
+  <div id="onboarding-overlay" class="hidden fixed inset-0 z-[60] bg-background/98 backdrop-blur-md flex items-center justify-center p-4 app-header-safe app-tabbar-safe overflow-y-auto">
+    <div id="onboarding-card" class="w-full max-w-md bg-surface-container-lowest rounded-3xl p-6 sm:p-7 shadow-2xl border border-outline-variant/40 flex flex-col gap-5 animate-slide-up my-auto">
+    </div>
+  </div>
+
+  <!-- SECURITY PIN / BIOMETRIC LOCK OVERLAY -->
+  <div id="app-lock-overlay" class="hidden fixed inset-0 z-[70] bg-background/98 backdrop-blur-xl flex items-center justify-center p-4 app-header-safe app-tabbar-safe">
+    <div id="app-lock-card" class="w-full max-w-sm bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-outline-variant/40 flex flex-col gap-5 animate-fade-in">
     </div>
   </div>

@@ -14,11 +14,10 @@
   <link rel="manifest" href="manifest.json"/>
   <title>Claridad Financiera — Control Mensual &amp; Deudas</title>
 
-  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Rounded -->
+  <!-- Google Fonts: Plus Jakarta Sans (icons are 100% self-hosted inline SVGs) -->
   <link href="https://fonts.googleapis.com" rel="preconnect"/>
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 
   <!-- Supabase JS v2 & Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -214,12 +213,18 @@
       padding-bottom: calc(108px + env(safe-area-inset-bottom, 16px));
     }
 
-    .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    /* Self-Hosted Inline SVG Icon System */
+    .app-icon {
+      width: 1.15em;
+      height: 1.15em;
+      display: inline-block;
+      vertical-align: -0.15em;
+      flex-shrink: 0;
       user-select: none;
+      transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), fill-opacity 150ms ease, stroke-width 150ms ease, color 150ms ease;
     }
-    .material-symbols-outlined.filled {
-      font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+    .app-icon.is-filled {
+      transform: scale(1.06);
     }
 
     .tabular-nums {
@@ -227,14 +232,93 @@
       font-feature-settings: "tnum" 1;
     }
 
-    /* Privacy Mode Blur (Toggle with eye button in header) */
+    /* Privacy Mode Mask (Shows •••• cleanly when toggled via eye button) */
     body.privacy-blur .privacy-val {
-      filter: blur(8px);
+      position: relative;
+      color: transparent !important;
       user-select: none;
-      transition: filter 0.2s ease;
+      transition: opacity 0.18s ease;
+    }
+    body.privacy-blur .privacy-val * {
+      color: transparent !important;
+    }
+    body.privacy-blur .privacy-val::after {
+      content: "••••";
+      position: absolute;
+      inset: 0;
+      display: inline-flex;
+      align-items: center;
+      color: var(--on-surface);
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      pointer-events: none;
+    }
+    body.privacy-blur .hero-indigo .privacy-val::after,
+    body.privacy-blur .hero-emerald .privacy-val::after {
+      color: rgba(255, 255, 255, 0.92);
     }
     .privacy-val {
-      transition: filter 0.2s ease;
+      transition: opacity 0.18s ease;
+    }
+
+    /* Swipeable Transaction Rows & Multi-Select */
+    .tx-swipe-wrap {
+      position: relative;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+    .tx-swipe-bg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 140ms ease;
+    }
+    .tx-swipe-content {
+      position: relative;
+      z-index: 1;
+      background-color: var(--surface-container-lowest);
+      transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), background-color 150ms ease;
+    }
+    .tx-swipe-wrap.is-swiping .tx-swipe-content {
+      transition: none;
+    }
+    .tx-swipe-wrap.is-swiping .tx-swipe-bg {
+      opacity: 1;
+    }
+    .tx-swipe-wrap.is-selected .tx-swipe-content {
+      background-color: color-mix(in srgb, var(--primary) 10%, var(--surface-container-lowest));
+    }
+
+    /* Onboarding Float Animation */
+    @keyframes floatSoft {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-float-soft {
+      animation: floatSoft 3.6s ease-in-out infinite;
+    }
+    .animate-float-soft-delay {
+      animation: floatSoft 4.2s ease-in-out 0.8s infinite;
+    }
+
+    /* FAB Long-Press Pulse */
+    #fab-add-btn.is-longpressing {
+      transform: scale(0.92);
+      box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.28), 0 16px 36px -10px rgba(67, 56, 202, 0.55);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .animate-float-soft, .animate-float-soft-delay, .animate-slide-up, .animate-fade-in {
+        animation: none !important;
+      }
+      .app-icon, .tx-swipe-content {
+        transition: none !important;
+      }
     }
 
     .custom-scroll::-webkit-scrollbar {
@@ -325,6 +409,47 @@
     @keyframes shimmer {
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
+    }
+
+    /* WCAG 2.2 AA Focus Visible, Skip Link, High Contrast & Reduced Motion */
+    :focus-visible {
+      outline: 2.5px solid var(--primary);
+      outline-offset: 2px;
+      border-radius: 8px;
+    }
+    .skip-link {
+      position: fixed;
+      top: -100px;
+      left: 12px;
+      z-index: 9999;
+      background: var(--primary);
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      transition: top 0.15s ease;
+    }
+    .skip-link:focus {
+      top: 12px;
+    }
+    html.high-contrast {
+      --on-surface: #000000;
+      --on-surface-variant: #1e293b;
+      --outline-variant: #475569;
+      --primary: #1d4ed8;
+    }
+    html.dark.high-contrast {
+      --on-surface: #ffffff;
+      --on-surface-variant: #e2e8f0;
+      --outline-variant: #94a3b8;
+      --primary: #93c5fd;
+    }
+    html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
     }
   </style>
 </head>
